@@ -54,8 +54,7 @@ from forum.views.profile_views import (
     remove_help_request,
     edit_profile,
     my_profile,
-    profile_view,
-    update_courses
+    profile_view
 )
 from forum.views.course_views import (
     course_search
@@ -119,7 +118,6 @@ urlpatterns = [
     path('profile/edit/', edit_profile, name='edit_profile'),
     path('my-profile/', my_profile, name='my_profile'),
     path('profile/<str:username>/', profile_view, name='profile'),
-    path('update-courses/', update_courses, name='update_courses'),
     
     # Course management URLs
     path('courses/experience/add/', add_experience, name='add_experience'),

@@ -23,10 +23,6 @@
     z-index: 10;
 }
 
-.course-selector-wrapper {
-    position: relative;
-}
-
 /* Dropdown item */
 .course-dropdown div {
     padding: 10px;
@@ -67,18 +63,15 @@
 
 /* Individual course tag */
 .course-tag {
-    background: #f0f0f0;
-    border-width: 2px;
-    border-style: solid;
-    border-color: rgb(56, 56, 56);
+    background: #8bb5e7;
     color: #333;
-    font-size: 11px;
-    padding: 5px 8px;
+    font-size: 14px;
+    padding: 6px 10px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-bottom: 5px;    
+    margin-bottom: 10px;    
 }
 
 /* Remove button (×) */
