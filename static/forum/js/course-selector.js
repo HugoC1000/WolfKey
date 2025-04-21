@@ -1,20 +1,18 @@
 class CourseSelector {
     constructor(options) {
         this.containerId = options.containerId;
-
+        this.block = options.block || null; 
         this.maxCourses = options.maxCourses;
         this.onSelectionChange = options.onSelectionChange;
         this.selectedCourses = options.initialSelection || [];
         this.form = document.getElementById(options.formName);
-        
+
         this.init();
     }
 
     init() {
-        // Remove any existing course inputs when initializing
         this.clearExistingInputs();
-        
-        // Create and append the UI elements
+
         this.container = document.getElementById(this.containerId);
         this.container.innerHTML = `
             <div class="course-selector-wrapper">
@@ -28,10 +26,15 @@ class CourseSelector {
         this.dropdown = this.container.querySelector('.course-dropdown');
         this.selectedContainer = this.container.querySelector('.selected-courses');
 
-        // Set up event listeners
         this.searchBox.addEventListener('input', () => this.fetchCourses());
-        
-        // Initial render of selected courses
+
+        document.addEventListener('click', (event) => {
+            const isClickInside = this.container.contains(event.target);
+            if (!isClickInside) {
+                this.dropdown.style.display = 'none';
+            }
+        });
+
         this.updateSelectedCourses();
     }
 
@@ -78,13 +81,13 @@ class CourseSelector {
 
     addCourse(course) {
         if (this.selectedCourses.length >= this.maxCourses) return;
-        
+
         if (!this.selectedCourses.some(c => c.id === course.id)) {
             this.selectedCourses.push(course);
             this.updateSelectedCourses();
             this.updateFormData();
         }
-        
+
         this.searchBox.value = '';
         this.dropdown.style.display = 'none';
     }
@@ -116,17 +119,29 @@ class CourseSelector {
     }
 
     updateFormData() {
-        // Clear existing inputs first
         this.clearExistingInputs();
 
-        // Add new inputs for each selected course
         this.selectedCourses.forEach(course => {
             const input = document.createElement('input');
             input.type = 'hidden';
-            input.name = 'courses';
+            if (this.block){
+                input.name = `block_${this.block}`;
+            }
+            else{
+                input.name = 'courses';
+            }
             input.value = course.id.toString();
+            input.setAttribute('block', this.block);
             this.form.appendChild(input);
         });
+
+        if (this.selectedCourses.length === 0 && this.block) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `block_${this.block}`;
+            input.value = 'NOCOURSE';
+            this.form.appendChild(input);
+        }
 
         if (this.onSelectionChange) {
             this.onSelectionChange(this.selectedCourses);

@@ -32,9 +32,7 @@ def latest_update(request):
 def user_background_slider(request):
     if request.user.is_authenticated:
         try:
-            print(request.user.userprofile.background_hue)
             return {'background_hue': request.user.userprofile.background_hue}
         except UserProfile.DoesNotExist:
-            print("wHY ENTER")
             return {'background_hue': 231}  # Default value
     return {'background_hue': 231}  # Default value for unauthenticated users

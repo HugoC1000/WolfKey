@@ -114,8 +114,6 @@ class User(AbstractUser):
     def get_absolute_url(self):
         return reverse('profile', args=[str(self.username)]) 
     
-
-
 class Course(models.Model):
     code = models.CharField(max_length=10, unique=True)
     name = models.CharField(max_length=100)
@@ -273,13 +271,38 @@ class UserProfile(models.Model):
     is_moderator = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    background_hue = models.IntegerField(default=231) 
+    background_hue = models.IntegerField(default=231)
+
+    # Add fields for course blocks
+    block_1A = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="block_1A")
+    block_1B = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="block_1B")
+    block_1D = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="block_1D")
+    block_1E = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="block_1E")
+    block_2A = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="block_2A")
+    block_2B = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="block_2B")
+    block_2C = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="block_2C")
+    block_2D = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="block_2D")
+    block_2E = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="block_2E")
 
     def __str__(self):
         return f"{self.user.username}'s profile"
-    
 
+class DailySchedule(models.Model):
+    date = models.DateField(unique=True)
+    block_1 = models.CharField(max_length=100, blank=True, null=True)
+    block_1_time = models.CharField(max_length=50, blank=True, null=True) 
+    block_2 = models.CharField(max_length=100, blank=True, null=True)
+    block_2_time = models.CharField(max_length=50, blank=True, null=True)
+    block_3 = models.CharField(max_length=100, blank=True, null=True)
+    block_3_time = models.CharField(max_length=50, blank=True, null=True)
+    block_4 = models.CharField(max_length=100, blank=True, null=True)
+    block_4_time = models.CharField(max_length=50, blank=True, null=True)
+    block_5 = models.CharField(max_length=100, blank=True, null=True)
+    block_5_time = models.CharField(max_length=50, blank=True, null=True)
+    ceremonial_uniform = models.BooleanField(null = True)
 
+    def __str__(self):
+        return f"Schedule for {self.date}"
 
 class UserCourseExperience(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='experienced_courses')

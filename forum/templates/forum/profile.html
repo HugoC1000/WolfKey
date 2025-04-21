@@ -4,6 +4,8 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/profile.css' %}">
+    <link rel="stylesheet" href="{% static 'forum/css/course-selector.css' %}">
+
 {% endblock %}
 
 {% block content %}
@@ -186,13 +188,163 @@
             <!-- Preferences Tab -->
             <div class="tab-pane fade" id="preferences" role="tabpanel" aria-labelledby="preferences-tab">
                 <div class="row">
-                    <div class="col-md-12">
+                    <div class="col-md-16">
+                        <!-- Block Courses Section -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Select Courses for Each Block</h5>
+                            </div>
+                            <div class="card-body">
+                                <form method="post" action="{% url 'update_courses' %}" id="blockCoursesForm">
+                                    {% csrf_token %}
+                                    <div class="row">
+                                        <div class="col-md-6 mb-1">
+                                            <div class="block-container">
+                                                <div class="block-header">
+                                                    <label for="block_1A" class="form-label mb-0">Block 1A</label>
+                                                </div>
+                                                <div class="block-content">
+                                                    <div class="course-selector" id="block_1A_selector"></div>
+                                                    <div class="block-buttons" id="block_1A_buttons">
+                                                        <button type="button" class="btn btn-sm btn-warning add-help-btn" data-block="1A">Add to Need Help</button>
+                                                        <button type="button" class="btn btn-sm btn-success add-experience-btn" data-block="1A">Add to Experienced</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-1">
+                                            <div class="block-container">
+                                                <div class="block-header">
+                                                    <label for="block_2A" class="form-label mb-0">Block 2A</label>
+                                                </div>
+                                                <div class="block-content">
+                                                    <div class="course-selector" id="block_2A_selector"></div>
+                                                    <div class="block-buttons" id="block_2A_buttons">
+                                                        <button type="button" class="btn btn-sm btn-warning add-help-btn" data-block="2A">Add to Need Help</button>
+                                                        <button type="button" class="btn btn-sm btn-success add-experience-btn" data-block="2A">Add to Experienced</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-1">
+                                            <div class="block-container">
+                                                <div class="block-header">
+                                                    <label for="block_1B" class="form-label mb-0">Block 1B</label>
+                                                </div>
+                                                <div class="block-content">
+                                                    <div class="course-selector" id="block_1B_selector"></div>
+                                                    <div class="block-buttons" id="block_1B_buttons">
+                                                        <button type="button" class="btn btn-sm btn-warning add-help-btn" data-block="1B">Add to Need Help</button>
+                                                        <button type="button" class="btn btn-sm btn-success add-experience-btn" data-block="1B">Add to Experienced</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-1">
+                                            <div class="block-container">
+                                                <div class="block-header">
+                                                    <label for="block_2B" class="form-label mb-0">Block 2B</label>
+                                                </div>
+                                                <div class="block-content">
+                                                    <div class="course-selector" id="block_2B_selector"></div>
+                                                    <div class="block-buttons" id="block_2B_buttons">
+                                                        <button type="button" class="btn btn-sm btn-warning add-help-btn" data-block="2B">Add to Need Help</button>
+                                                        <button type="button" class="btn btn-sm btn-success add-experience-btn" data-block="2B">Add to Experienced</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-1">
+                                            <div class="block-container">
+                                                <div class="block-header">
+                                                    <label for="block_1D" class="form-label mb-0">Block 1D</label>
+                                                </div>
+                                                <div class="block-content">
+                                                    <div class="course-selector" id="block_1D_selector"></div>
+                                                    <div class="block-buttons" id="block_1D_buttons">
+                                                        <button type="button" class="btn btn-sm btn-warning add-help-btn" data-block="1D">Add to Need Help</button>
+                                                        <button type="button" class="btn btn-sm btn-success add-experience-btn" data-block="1D">Add to Experienced</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-1">
+                                            <div class="block-container">
+                                                <div class="block-header">
+                                                    <label for="block_2C" class="form-label mb-0">Block 2C</label>
+                                                </div>
+                                                <div class="block-content">
+                                                    <div class="course-selector" id="block_2C_selector"></div>
+                                                    <div class="block-buttons" id="block_2C_buttons">
+                                                        <button type="button" class="btn btn-sm btn-warning add-help-btn" data-block="2C">Add to Need Help</button>
+                                                        <button type="button" class="btn btn-sm btn-success add-experience-btn" data-block="2C">Add to Experienced</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-1">
+                                            <div class="block-container">
+                                                <div class="block-header">
+                                                    <label for="block_1E" class="form-label mb-0">Block 1E</label>
+                                                </div>
+                                                <div class="block-content">
+                                                    <div class="course-selector" id="block_1E_selector"></div>
+                                                    <div class="block-buttons" id="block_1E_buttons">
+                                                        <button type="button" class="btn btn-sm btn-warning add-help-btn" data-block="1E">Add to Need Help</button>
+                                                        <button type="button" class="btn btn-sm btn-success add-experience-btn" data-block="1E">Add to Experienced</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-1">
+                                            <div class="block-container">
+                                                <div class="block-header">
+                                                    <label for="block_2D" class="form-label mb-0">Block 2D</label>
+                                                </div>
+                                                <div class="block-content">
+                                                    <div class="course-selector" id="block_2D_selector"></div>
+                                                    <div class="block-buttons" id="block_2D_buttons">
+                                                        <button type="button" class="btn btn-sm btn-warning add-help-btn" data-block="2D">Add to Need Help</button>
+                                                        <button type="button" class="btn btn-sm btn-success add-experience-btn" data-block="2D">Add to Experienced</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-1">
+                                            <button type="submit" class="btn btn-primary">Save Courses</button>
+                                        </div>                                        
+                                        <div class="col-md-6 mb-1">
+                                            <div class="block-container">
+                                                <div class="block-header">
+                                                    <label for="block_2E" class="form-label mb-0">Block 2E</label>
+                                                </div>
+                                                <div class="block-content">
+                                                    <div class="course-selector" id="block_2E_selector"></div>
+                                                    <div class="block-buttons" id="block_2E_buttons">
+                                                        <button type="button" class="btn btn-sm btn-warning add-help-btn" data-block="2E">Add to Need Help</button>
+                                                        <button type="button" class="btn btn-sm btn-success add-experience-btn" data-block="2E">Add to Experienced</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                         <div class="card mb-4">
                             <div class="card-header">
                                 <h5 class="mb-0">Update Personal Information</h5>
                             </div>
                             <div class="card-body">
-                                <form method="post">
+                                <form method="post" id="personalInfoForm">
                                     {% csrf_token %}
                                     <div class="mb-3">
                                         <label for="id_first_name" class="form-label">First Name</label>
@@ -210,14 +362,14 @@
                                         <label for="id_phone_number" class="form-label">Phone Number</label>
                                         <input type="text" name="phone_number" id="id_phone_number" class="form-control" value="{{ request.user.phone_number }}">
                                     </div>
-                                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                                    <a href="{% url 'profile' request.user.username %}" class="btn btn-secondary">Cancel</a>
+                                    <button type="submit" class="btn btn-primary">Save Info</button>
                                 </form>
                             </div>
                         </div>
-                    </div>
-                    <div class="card mb-4" style = "overflow: hidden;">
-                        <a href="{% url 'password_reset' %}" class="btn btn-secondary" style = "z-index: 2;">Reset Password</a>
+    
+                        <div class="card mb-4" style = "overflow: hidden;">
+                            <a href="{% url 'password_reset' %}" class="btn btn-secondary" style = "z-index: 2;">Reset Password</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -233,7 +385,7 @@
                 <h5 class="modal-title">Add Course Experience</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post" action="{% url 'add_experience' %}">
+            <form id="addExperienceForm" method="post" action="{% url 'add_experience' %}">
                 <div class="modal-body">
                     {% csrf_token %}
                     {{ experience_form.as_p }}
@@ -255,7 +407,7 @@
                 <h5 class="modal-title">Add Help Request</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post" action="{% url 'add_help_request' %}">
+            <form id="addHelpForm" method="post" action="{% url 'add_help_request' %}">
                 <div class="modal-body">
                     {% csrf_token %}
                     {{ help_form.as_p }}
@@ -279,6 +431,196 @@
     document.addEventListener('DOMContentLoaded', function () {
         const hueValue = {{ profile_user.userprofile.background_hue }};
         updateBackground(hueValue);
+        const personalInfoForm = document.getElementById('personalInfoForm');
+    
+        // Prevent Enter key from submitting the form
+        personalInfoForm.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+            }
+        });
+    
+        // Prevent form submission on Enter key press
+        personalInfoForm.addEventListener('submit', (event) => {
+            const activeElement = document.activeElement;
+            if (activeElement.tagName === 'INPUT' && activeElement.type !== 'submit') {
+                event.preventDefault();
+            }
+        });
     });
+
+</script>
+
+<script type="module">
+    import { CourseSelector } from '{% static "forum/js/course-selector.js" %}';
+    document.addEventListener('DOMContentLoaded', () => {
+        const blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E'];
+
+        // Parse initial courses from JSON
+        const initialCourses = JSON.parse('{{ initial_courses_json|escapejs }}');
+        const experiencedCourses = JSON.parse('{{ experienced_courses_json|escapejs }}');
+        const helpNeededCourses = JSON.parse('{{ help_needed_courses_json|escapejs }}');
+
+        // Function to check if a course is in the experienced or help-needed list
+        function isCourseInList(courseId, list) {
+            console.log("Course id" , courseId);
+            console.log("List", list);
+            return list.includes(courseId);
+        }
+
+        blocks.forEach(block => {
+            console.log("Block: ", block);
+            const blockId = `block_${block}`;
+            const course = initialCourses[blockId];
+
+            // Show the button container initially
+            const buttonsContainer = document.getElementById(`${blockId}_buttons`);
+            if (buttonsContainer && course) {
+                buttonsContainer.style.display = 'flex';
+
+                // Check if the course is already in either the "Experienced" or "Help Needed" lists
+                if (isCourseInList(course.id, experiencedCourses) || isCourseInList(course.id, helpNeededCourses)) {
+                    // Hide buttons if the course is in one of the lists
+                    buttonsContainer.style.display = 'none';
+                }
+            }
+
+            // Add course selection handler to toggle visibility of buttons
+            new CourseSelector({
+                containerId: `block_${block}_selector`,
+                formName: 'blockCoursesForm',
+                maxCourses: 1, // Only one course per block
+                initialSelection: course ? [course] : [], // Initialize with the selected course, if any
+                block: block,
+                onSelectionChange: (selectedCourses) => {
+                    console.log(`Block ${block} selected courses:`, selectedCourses);
+
+                    // Show or hide the buttons based on course selection
+                    if (selectedCourses.length > 0) {
+                        buttonsContainer.style.display = 'flex';
+                    } else {
+                        buttonsContainer.style.display = 'none';
+                    }
+                }
+            });
+        });
+
+        // Attach click event listeners to the buttons
+        blocks.forEach(block => {
+            const buttonsContainer = document.getElementById(`block_${block}_buttons`);
+            if (buttonsContainer) {
+                buttonsContainer.addEventListener('click', (event) => {
+                    const target = event.target;
+                    const blockId = target.getAttribute('data-block');
+                    const courseId = initialCourses[`block_${blockId}`]?.id;
+
+                    if (courseId) {
+                        let url, formData;
+                        if (target.classList.contains('add-help-btn')) {
+                            url = '{% url "add_help_request" %}';
+                            formData = new FormData();
+                            formData.append('course', courseId);
+                        } else if (target.classList.contains('add-experience-btn')) {
+                            url = '{% url "add_experience" %}';
+                            formData = new FormData();
+                            formData.append('course', courseId);
+                        }
+
+                        fetch(url, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Hide the button after it's clicked
+                                target.style.display = 'none';
+                                buttonsContainer.style.display = 'none'; // Hide the button container as well
+                            } else {
+                                console.log(data);
+                                alert('There was an issue with the request.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('There was an error with the request.');
+                        });
+                    }
+                });
+            }
+        });
+
+        const addExperienceForm = document.getElementById('addExperienceForm');
+        const addHelpForm = document.getElementById('addHelpForm');
+
+        console.log(addExperienceForm, addHelpForm);
+
+        if (addExperienceForm) {
+            addExperienceForm.addEventListener('submit', (event) => {
+                event.preventDefault();  // Prevent the default form submission behavior
+
+                const formData = new FormData(addExperienceForm);
+                console.log(formData);
+                fetch(addExperienceForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Hide modal and reload the page
+                        const addExperienceModal = new bootstrap.Modal(document.getElementById('addExperienceModal'));
+                        addExperienceModal.hide();
+                        location.reload();
+                    } else {
+                        alert('There was an issue with adding the experience.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('There was an error processing the request.');
+                });
+            });
+        }
+
+        if (addHelpForm) {
+            addHelpForm.addEventListener('submit', (event) => {
+                event.preventDefault();  // Prevent the default form submission behavior
+
+                const formData = new FormData(addHelpForm);
+                console.log(formData);
+
+                fetch(addHelpForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Hide modal and reload the page
+                        const addHelpModal = new bootstrap.Modal(document.getElementById('addHelpModal'));
+                        addHelpModal.hide();
+                        location.reload();
+                    } else {
+                        alert('There was an issue with adding the help request.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('There was an error processing the request.');
+                });
+            });
+        }
+    });
+
 </script>
 {% endblock %}

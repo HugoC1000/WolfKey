@@ -17,6 +17,8 @@ import os
 from dotenv import load_dotenv
 import dj_database_url
 import sys
+import json
+import base64
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -188,6 +190,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+try:
+    decoded = base64.b64decode(os.getenv("GSHEET_CREDENTIALS_BASE64", "")).decode("utf-8")
+    GSHEET_CREDENTIALS = json.loads(decoded)
+except (json.JSONDecodeError, base64.binascii.Error) as e:
+    print(f"Error loading GSHEET_CREDENTIALS: {e}")
+    GSHEET_CREDENTIALS = {}
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

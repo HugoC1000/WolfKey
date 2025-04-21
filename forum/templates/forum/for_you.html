@@ -1,23 +1,85 @@
 {% extends 'forum/base.html' %}
 
+{% block head %}
+{%load static %}
+    <link rel="stylesheet" href="{% static 'forum/css/schedule.css' %}"> 
+
+{% endblock %}
 {% block content %}
     <div class="alert alert-warning text-center" role="alert">
         <strong>Beta Notice:</strong> This site is currently in beta. Please report any bugs or suggest features you'd like to see! Github can be found at github.com/HugoC1000/WolfKey
     </div>
     <div class="d-flex justify-content-between align-items-center mb-4">
-
-        <h1>{{greeting}}</h1>
+        <h1>{{ greeting }}</h1>
     </div>
 
+    <!-- Schedule-->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="d-flex flex-wrap gap-4">
+                <!-- Today's Schedule -->
+                <div class="flex-fill" style="min-width: 300px;">
+                    <h2>Today's Schedule</h2>
+                    <ul class="list-group shadow-sm rounded"id = "today-schedule">
+                        {% if ceremonial_required_today %}
+                        <li class="list-group-item">
+                            👔 Ceremonial Required
+                        </li>
+                        {% endif %}
+                        {% for item in schedule_today %}
+                        {% if item == "no school"  %}
+                        <li class="list-group-item">
+                            No School
+                        </li>
+                        {% else %}
+                            {% if item.block != "No Block" %}
+                            <li class="list-group-item">
+                                <strong>{{ item.time }}</strong>: {{ item.block }}
+                            </li>
+                            {% endif %}
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+    
+                <!-- Tomorrow's Schedule -->
+                <div class="flex-fill" style="min-width: 300px;">
+                    <h2>Tomorrow's Schedule</h2>
+                    <ul class="list-group shadow-sm rounded" id = "tomorrow-schedule">
+                        {% if ceremonial_required_tomorrow %}
+                        <li class="list-group-item">
+                            👔 Ceremonial Required
+                        </li>
+                        {% endif %}
+                        {% for item in schedule_tomorrow %}
+                        {% if item == "no school"  %}
+                        <li class="list-group-item">
+                            No School
+                        </li>
+                        {% else %}
+                            <li class="list-group-item">
+                                <strong>{{ item.time }}</strong>: {{ item.block }}
+                            </li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <!-- Leaderboard -->
+        <div class="col-md-4 d-none d-md-block">
+            <!-- Reserved space -->
+        </div>
+    </div>
 
+    <!-- Display the posts -->
     <div class="row" id="post-list">
         {% for post in posts %}
             <div class="col-12 col-sm-12 col-md-6 mb-4">
                 {% include 'forum/components/post_card.html' with post=post %}
             </div>
-
         {% endfor %}
     </div>
 
-    <p>Add more interested courses <a href="{% url 'profile' user.username%}">here</a> in your profile to see more posts tailored towards you.</p>
+    <p>Add more interested courses <a href="{% url 'profile' user.username %}">here</a> in your profile to see more posts tailored towards you.</p>
 {% endblock %}

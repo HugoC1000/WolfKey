@@ -103,3 +103,45 @@ input[type="range"]::-webkit-slider-runnable-track {
 #profileTabs {
     border-bottom: 1px solid white;
 }
+
+.block-container {
+    border-radius: 8px;
+    height: 100%;
+}
+
+.block-header {
+    padding: 5px 8px;
+}
+
+.block-content {
+    padding: 5px;
+    display: flex;
+    align-items: center;
+}
+
+.course-selector {
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+.block-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.block-buttons .btn {
+    white-space: nowrap;
+    min-width: 110px;
+}
+
+/* Make sure the CourseSelector custom element fits well */
+.course-selector select,
+.course-selector .selected-items {
+    width: 100%;
+    min-height: 38px;
+}
+
+.add-experience-btn{
+    background-color: #10B981;
+}

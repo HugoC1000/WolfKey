@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
-from .models import Post, Tag, File, UserProfile, SavedPost, Solution, Course, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement
+from .models import Post, Tag, File, UserProfile, SavedPost, Solution, Course, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule
 
 admin.site.register(Post)
 admin.site.register(File)
@@ -12,6 +12,8 @@ admin.site.register(User)
 admin.site.register(UserCourseExperience)
 admin.site.register(UserCourseHelp)
 admin.site.register(UpdateAnnouncement)
+admin.site.register(DailySchedule)
+
 
 
 def create_moderator_group():
