@@ -116,8 +116,8 @@
 /* Block label space for user headers */
 .user-headers-row .block-label-space {
     background-color: #3b82f6;
-    min-width: 50px;
-    width: 50px;
+    min-width: 40px;
+    width: 40px;
 }
 
 /* Make sure user headers align properly with course columns */
@@ -247,6 +247,7 @@
     width: 100%;
     padding: 1rem;
     border-radius: 12px;
+    font-size: small;
 }
 
 /* Table adjustments */
@@ -351,13 +352,13 @@
     background-color: #3b82f6;
     color: white;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.75rem;
     padding: 1rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 50px;
-    width: 50px;
+    min-width: 40px;
+    width: 40px;
 }
 
 /* Course row container */
@@ -445,4 +446,60 @@
 /* Container for connection lines */
 .schedule-blocks-container {
     position: static;
+}
+
+/* When many users are displayed, reduce font sizes and spacing to fit */
+.many-users {
+    --ck-font-xs: 0.65rem; /* extra-small base */
+    --ck-font-sm: 0.75rem;
+}
+
+.many-users .user-header {
+    padding: 0.4rem;
+    font-size: var(--ck-font-xs);
+}
+
+.many-users .user-header .fw-bold {
+    font-size: 0.75rem;
+}
+
+.many-users .user-header .text-muted {
+    font-size: 0.6rem;
+}
+
+.many-users .course-item {
+    padding: 0.35rem;
+    font-size: var(--ck-font-xs);
+    min-height: 36px;
+}
+
+.many-users .course-name {
+    font-size: 0.7rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.many-users .course-name-container {
+    font-size: x-small;
+    padding: 0.75rem;
+}
+
+
+.many-users .block-label, .many-users .schedule-block-name {
+    font-size: 0.75rem;
+    padding: 0.5rem;
+}
+
+.many-users .course-row {
+    min-height: 36px;
+}
+
+.many-users #selected-users .pill-btn,
+.many-users .user-item,
+.many-users .user-name,
+.many-users .user-username {
+    font-size: 0.65rem;
+}
+
+.many-users .course-connection-line {
+    height: 2px;
 }

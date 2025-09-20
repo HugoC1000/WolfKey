@@ -249,7 +249,13 @@ document.addEventListener('DOMContentLoaded', function() {
             emptyState.style.display = 'block';
             return;
         }
-        
+        // Toggle 'many-users' class when more than 5 users are selected
+        if (selectedUsersData.length > 5) {
+            comparisonSection.classList.add('many-users');
+        } else {
+            comparisonSection.classList.remove('many-users');
+        }
+
         comparisonSection.style.display = 'block';
         emptyState.style.display = 'none';
         arrangeCurrentUserFirst();
@@ -397,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         //   hover effects
-         ConnectionLineHoverEffects();
+        addConnectionLineHoverEffects();
     }
     
     function drawLineBetweenItems(item1, item2, container) {
