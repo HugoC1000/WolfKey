@@ -267,10 +267,18 @@ CORS_ALLOW_HEADERS = [
 CORS_EXPOSE_HEADERS = ['set-cookie']
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = False 
-CSRF_COOKIE_HTTPONLY = False 
+# Whether to send the CSRF cookie only over HTTPS
+CSRF_COOKIE_SECURE = False
+# Allow JS to read the CSRF cookie if needed (default False per Django best-practices)
+CSRF_COOKIE_HTTPONLY = False
+# Whether to store the CSRF token in the session (if True, token lifetime follows session cookie age)
 CSRF_USE_SESSIONS = False
-CSRF_COOKIE_SAMESITE = None
+
+# CSRF / session lifetime settings
+# Set explicit ages (seconds). These are hardcoded and will NOT be overridden by env vars.
+# 30 days = 2592000 seconds
+CSRF_COOKIE_AGE = 2592000  # 30 days
+SESSION_COOKIE_AGE = 2592000  # 30 days
 
 from dotenv import load_dotenv
 
