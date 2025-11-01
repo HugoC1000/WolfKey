@@ -184,6 +184,7 @@ from forum.api.profile import (
     add_help_request_api,
     remove_experience_api,
     remove_help_request_api,
+    update_privacy_preferences_api,
 )
 
 urlpatterns = [
@@ -341,6 +342,7 @@ urlpatterns = [
     path('api/profile/update/', update_profile_api, name='api_update_profile'),
     path('api/profile/upload-picture/', upload_profile_picture_api, name='api_upload_profile_picture'),
     path('api/profile/courses/update/', update_courses_api, name='api_update_courses'),
+    path('api/profile/preferences/update/', update_privacy_preferences_api, name='api_update_privacy_preferences'),
     path('api/profile/<str:username>/', get_profile_api, name='api_get_profile'),
     path('api/profile/experience/add/', add_experience_api, name='api_add_experience'),
     path('api/profile/help/add/', add_help_request_api, name='api_add_help_request'),

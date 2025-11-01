@@ -1019,7 +1019,15 @@
         _blocks.forEach(b => {
             const blockKey = `block_${b}`;
             const src = rawInitialCourses[b];
-            initialCourses[blockKey] = src ? { id: src.course_id || src.id, name: src.course || src.name } : null;
+            // Only create course object if we have valid id and name
+            if (src && (src.course_id || src.id) && (src.course || src.name)) {
+                initialCourses[blockKey] = { 
+                    id: src.course_id || src.id, 
+                    name: src.course || src.name 
+                };
+            } else {
+                initialCourses[blockKey] = null;
+            }
         });
 
         // Handle "Proficient" and "Need Help" buttons
@@ -1139,7 +1147,15 @@
         blocks.forEach(b => {
             const blockKey = `block_${b}`;
             const src = rawInitialCourses[b];
-            initialCourses[blockKey] = src ? { id: src.course_id || src.id, name: src.course || src.name } : null;
+            // Only create course object if we have valid id and name
+            if (src && (src.course_id || src.id) && (src.course || src.name)) {
+                initialCourses[blockKey] = { 
+                    id: src.course_id || src.id, 
+                    name: src.course || src.name 
+                };
+            } else {
+                initialCourses[blockKey] = null;
+            }
         });
 
         // Store course selectors globally for auto-complete function
