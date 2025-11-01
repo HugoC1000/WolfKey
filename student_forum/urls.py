@@ -95,10 +95,19 @@ from forum.views.course_comparer_views import (
 from forum.views.timetable_assigner_views import (
     timetable_assigner
 )
+from forum.views.timetable_assigner_views import (
+    all_courses_blocks_view,
+    generate_schedules_view,
+)
 from forum.api.schedule import(
     get_daily_schedule,
-    get_user_schedule_api,
-    check_ceremonial_uniform
+    get_user_blocks_api,
+    check_ceremonial_uniform,
+    process_schedule_api,
+)
+from forum.views.schedule_views import (
+    daily_schedule_view,
+    user_blocks_view,
 )
 from forum.api.auth import(
     api_login,
@@ -107,15 +116,13 @@ from forum.api.auth import(
     search_users_api,
     api_refresh_token,
     api_verify_token,
-    api_logout
+    api_logout,
+    api_delete_account
 )
 from forum.views.auth_views import register, login_view, logout_view
 from forum.api.wolfnet_integration import(
     auto_complete_courses_api,
     auto_complete_courses_registration_api
-)
-from forum.services.schedule_services import (
-    is_ceremonial_uniform_required
 )
 
 from django.views.generic import RedirectView
@@ -127,8 +134,10 @@ from forum.api.timetable import (
 )
 
 from forum.views.about_view import about_view
+from forum.views.privacy_view import privacy_view
 
 from forum.api.feed import api_for_you, api_all_posts
+from forum.api.debug import debug_logs
 
 from forum.api.notifications import (
     notifications_api,
@@ -175,6 +184,7 @@ from forum.api.profile import (
     add_help_request_api,
     remove_experience_api,
     remove_help_request_api,
+    update_privacy_preferences_api,
 )
 
 urlpatterns = [
@@ -203,6 +213,7 @@ urlpatterns = [
     path('solution/<int:solution_id>/comments/', get_comments, name='get_solution_comments'),
 
     path('about', about_view, name = 'site_info'),
+    path('privacy', privacy_view, name = 'privacy_policy'),
     
     # Auth related URLs
     path('register/', register, name='register'),
@@ -241,7 +252,6 @@ urlpatterns = [
     path('match/', course_comparer, name='course_comparer'),
     path('atlas/', timetable_assigner, name='timetable_assigner'),
     path('api/search-users/', search_users_api, name='search_users_api'),
-    path('api/user-schedule/<int:user_id>/', get_user_schedule_api, name='get_user_schedule_api'),
 
     # Saved posts URLs
     path('followed-posts/', followed_posts, name='followed_posts'),
@@ -270,7 +280,10 @@ urlpatterns = [
     # Timetable API
     path('api/timetable/generate/', generate_schedules_api, name='api_generate_schedules'),
     path('api/timetable/evaluate/', evaluate_timetable_api, name='api_evaluate_timetable'),
-    path('api/courses/all-blocks/', all_courses_blocks_api, name='api_all_courses_blocks'),
+    path('api/courses/all-courses-by-block/', all_courses_blocks_api, name='api_all_courses_blocks'),
+    # Session-backed endpoints for website
+    path('timetable/generate/', generate_schedules_view, name='session_generate_schedules'),
+    path('courses/all-courses-by-block/', all_courses_blocks_view, name='session_all_courses_blocks'),
     
     # Authentication API endpoints
     path('api/auth/login/', api_login, name='api_login'),
@@ -278,9 +291,15 @@ urlpatterns = [
     path('api/auth/logout/', api_logout, name='api_logout'),
     path('api/auth/refresh-token/', api_refresh_token, name='api_refresh_token'),
     path('api/auth/verify-token/', api_verify_token, name='api_verify_token'),
+    path('api/auth/delete-account/', api_delete_account, name='api_delete_account'),
     path('api/upload-image/', api_upload_image, name='api_upload_image'),
     
-    path('api/schedules/daily/<str:target_date>/', get_daily_schedule),
+    path('schedules/daily/<str:target_date>/', daily_schedule_view, name='daily_schedule_view'),
+    path('user-blocks/<int:user_id>/', user_blocks_view, name='user_schedule_view'),
+    path('api/schedules/daily/<str:target_date>/', get_daily_schedule, name='api_get_daily_schedule'),
+    path('api/user-blocks/<int:user_id>/', get_user_blocks_api, name='api_get_user_schedule'),
+    path('api/process-schedule/<int:user_id>/', process_schedule_api, name='api_process_schedule'),
+    path('api/debug/logs/', debug_logs, name='api_debug_logs'),
     path('api/schedules/uniform/<str:target_date>/', check_ceremonial_uniform),
 
     path('api/for-you/', api_for_you, name='api_for_you'),
@@ -323,6 +342,7 @@ urlpatterns = [
     path('api/profile/update/', update_profile_api, name='api_update_profile'),
     path('api/profile/upload-picture/', upload_profile_picture_api, name='api_upload_profile_picture'),
     path('api/profile/courses/update/', update_courses_api, name='api_update_courses'),
+    path('api/profile/preferences/update/', update_privacy_preferences_api, name='api_update_privacy_preferences'),
     path('api/profile/<str:username>/', get_profile_api, name='api_get_profile'),
     path('api/profile/experience/add/', add_experience_api, name='api_add_experience'),
     path('api/profile/help/add/', add_help_request_api, name='api_add_help_request'),

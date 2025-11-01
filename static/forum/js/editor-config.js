@@ -27,15 +27,6 @@ const createEditor = (holder,initialData, csrfToken, isReadOnly = false, content
                 levels: [1,2, 3, 4],
                 defaultLevel: 2
             },
-            quote: {
-                class: Quote,
-                inlineToolbar: true,
-                shortcut: 'CMD+SHIFT+O',
-                config: {
-                    quotePlaceholder: 'Enter a quote',
-                    captionPlaceholder: 'Quote\'s author',
-                },
-            },
             delimiter: {
                 class: Delimiter,
                 config: {

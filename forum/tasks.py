@@ -861,6 +861,16 @@ def auto_complete_courses(self, user_email, password=None):
     Returns:
         dict: Result with success status, courses data, and raw_data if successful, or error message if failed
     """
+    # TEMPORARILY DISABLED - WolfNet integration issues being resolved with IT department
+    logger.info(f"Auto-complete courses blocked for user: {user_email} - WolfNet integration temporarily disabled")
+    return {
+        "success": False,
+        "error": "WolfNet auto-complete is temporarily unavailable while we sort out issues with the IT department. Please check back later.",
+        "error_type": "temporarily_disabled"
+    }
+    
+    # ORIGINAL CODE - COMMENTED OUT TEMPORARILY
+    """
     logger.info(f"Starting auto-complete courses for user: {user_email}")
     
     # Use memory-optimized WebDriver
@@ -986,10 +996,53 @@ def auto_complete_courses(self, user_email, password=None):
                 logger.error(f"Error searching for course {course_name}: {str(e)}")
                 continue
         
+        # Try to get the user and use BlockSerializer format
+        try:
+            from django.contrib.auth import get_user_model
+            from forum.serializers import BlockSerializer
+            User = get_user_model()
+            
+            user = User.objects.get(school_email=user_email)
+            if hasattr(user, 'userprofile'):
+                # User exists and has profile - use BlockSerializer
+                serializer = BlockSerializer(user.userprofile)
+                return {
+                    "success": True,
+                    "user_data": serializer.data,
+                }
+        except User.DoesNotExist:
+            pass
+        except Exception as e:
+            logger.warning(f"Could not use BlockSerializer for {user_email}: {str(e)}")
+        
+        # User doesn't exist or no profile - create compatible format manually
+        schedule = {}
+        all_blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
+        for block in all_blocks:
+            if block in matched_courses:
+                schedule[block] = {
+                    'course': matched_courses[block]['name'],
+                    'course_id': matched_courses[block]['id']
+                }
+            else:
+                schedule[block] = {
+                    'course': None,
+                    'course_id': None
+                }
+        
+        # Create BlockSerializer-compatible format for registration
+        user_data = {
+            'user_id': None,  # No user yet during registration
+            'username': None,
+            'full_name': None,
+            'profile_picture_url': None,
+            'schedule': schedule,
+            'grade_level': None
+        }
+        
         return {
-            "success": True, 
-            "courses": matched_courses,
-            "raw_data": courses_data
+            "success": True,
+            "user_data": user_data,
         }
         
     except Exception as e:
@@ -1027,6 +1080,7 @@ def auto_complete_courses(self, user_email, password=None):
         # Force garbage collection to free memory
         gc.collect()
         logger.info(f"Auto-complete courses completed and cleaned up for {user_email}")
+    """
 
 
 @shared_task(bind=True, queue='grades', routing_key='grades.wolfnet')
@@ -1041,49 +1095,58 @@ def check_wolfnet_password(self, user_email, password):
     Returns:
         dict: Result with success status and error message if failed
     """
-    logger.info(f"Starting WolfNet password check for user: {user_email}")
+    # TEMPORARILY DISABLED - WolfNet integration issues being resolved with IT department
+    logger.info(f"WolfNet password check blocked for user: {user_email} - WolfNet integration temporarily disabled")
+    return {
+        "success": False,
+        "error": "WolfNet password verification is temporarily unavailable while we sort out issues with the IT department. Please check back later.",
+        "error_type": "temporarily_disabled"
+    }
     
-    # Use memory-optimized WebDriver
-    driver, temp_user_data_dir = create_webdriver_with_cleanup()
-    wait = WebDriverWait(driver, 6)
-
-    try:
-        login_result = login_to_wolfnet(user_email, driver, wait, password)
-        logger.info(f"WolfNet password check completed for {user_email}: {login_result}")
-        return login_result
-    
-    except Exception as e:
-        error_message = str(e)
-        logger.error(f"Error checking WolfNet password for {user_email}: {error_message}")
-        
-        if "login" in error_message.lower() or "password" in error_message.lower():
-            error_type = "authentication"
-        elif "element" in error_message.lower() or "timeout" in error_message.lower():
-            error_type = "page_loading"
-        else:
-            error_type = "general"
-            
-        return {
-            "success": False, 
-            "error": error_message,
-            "error_type": error_type
-        }
-    finally:
-        try:
-            driver.quit()
-        except Exception as e:
-            logger.warning(f"Error quitting driver: {e}")
-        # Remove temporary user-data-dir if created
-        try:
-            if temp_user_data_dir:
-                shutil.rmtree(temp_user_data_dir, ignore_errors=True)
-                logger.info(f"Removed temp user-data-dir: {temp_user_data_dir}")
-        except Exception as e:
-            logger.warning(f"Error removing temp user-data-dir {temp_user_data_dir}: {e}")
-
-        # Wait a moment for driver to fully close
-        time.sleep(0.5)
-        
-        # Force garbage collection
-        gc.collect()
-        logger.info(f"Cleaned up WebDriver session for {user_email}")
+    # ORIGINAL CODE - COMMENTED OUT TEMPORARILY
+    # logger.info(f"Starting WolfNet password check for user: {user_email}")
+    # 
+    # # Use memory-optimized WebDriver
+    # driver, temp_user_data_dir = create_webdriver_with_cleanup()
+    # wait = WebDriverWait(driver, 6)
+    #
+    # try:
+    #     login_result = login_to_wolfnet(user_email, driver, wait, password)
+    #     logger.info(f"WolfNet password check completed for {user_email}: {login_result}")
+    #     return login_result
+    # 
+    # except Exception as e:
+    #     error_message = str(e)
+    #     logger.error(f"Error checking WolfNet password for {user_email}: {error_message}")
+    #     
+    #     if "login" in error_message.lower() or "password" in error_message.lower():
+    #         error_type = "authentication"
+    #     elif "element" in error_message.lower() or "timeout" in error_message.lower():
+    #         error_type = "page_loading"
+    #     else:
+    #         error_type = "general"
+    #         
+    #     return {
+    #         "success": False, 
+    #         "error": error_message,
+    #         "error_type": error_type
+    #     }
+    # finally:
+    #     try:
+    #         driver.quit()
+    #     except Exception as e:
+    #         logger.warning(f"Error quitting driver: {e}")
+    #     # Remove temporary user-data-dir if created
+    #     try:
+    #         if temp_user_data_dir:
+    #             shutil.rmtree(temp_user_data_dir, ignore_errors=True)
+    #             logger.info(f"Removed temp user-data-dir: {temp_user_data_dir}")
+    #     except Exception as e:
+    #         logger.warning(f"Error removing temp user-data-dir {temp_user_data_dir}: {e}")
+    #
+    #     # Wait a moment for driver to fully close
+    #     time.sleep(0.5)
+    #     
+    #     # Force garbage collection
+    #     gc.collect()
+    #     logger.info(f"Cleaned up WebDriver session for {user_email}")

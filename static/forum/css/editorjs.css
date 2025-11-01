@@ -7,10 +7,10 @@
 }
 
 .image-tool__image-picture {
-    max-width: 500px; /* Adjust to desired size */
-    height: auto;
+    max-width: 500px;
     display: block;
     margin: 0 auto; /* Center the image */
+    max-height: 600px;
 }
 
 /* If stretched is true, still maintain max-width and height auto */

@@ -128,7 +128,13 @@
                     <p>Connect your WolfNet account for automatic schedule and grade updates</p>
                 </div>
                 
-                <div class="card mb-4" style="background: #f8f9fa; border: 1px solid #e9ecef;">
+                <!-- Temporary Notice -->
+                <div class="alert alert-warning mb-4">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Notice:</strong> WolfNet integration is temporarily unavailable while we sort out issues with the IT department. You can skip this step and add your WolfNet password later in your profile settings.
+                </div>
+                
+                <div class="card mb-4" style="background: #f8f9fa; border: 1px solid #e9ecef; opacity: 0.7;">
                     <div class="card-body">
                         <div class="mb-3">
                             <label for="id_wolfnet_password" class="form-label">WolfNet Password</label>
@@ -137,8 +143,9 @@
                                        name="wolfnet_password" 
                                        id="id_wolfnet_password" 
                                        class="form-control" 
-                                       placeholder="Enter your WolfNet password (optional)">
-                                <button type="button" id="toggleWolfnetPassword" class="btn btn-outline-secondary" tabindex="-1" aria-label="Show/Hide Password" style="position:absolute; right:10px; top:50%; transform:translateY(-50%);">
+                                       placeholder="Temporarily unavailable - see notice above"
+                                       disabled>
+                                <button type="button" id="toggleWolfnetPassword" class="btn btn-outline-secondary" tabindex="-1" aria-label="Show/Hide Password" style="position:absolute; right:10px; top:50%; transform:translateY(-50%);" disabled>
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
@@ -154,6 +161,31 @@
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i>
                             <strong>Optional:</strong> You can skip this step and add your WolfNet password later in your profile settings.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Privacy Preferences -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h6 class="mb-3"><i class="fas fa-user-shield"></i> Privacy Preferences</h6>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="allow_schedule_comparison" id="id_allow_schedule_comparison" checked>
+                            <label class="form-check-label" for="id_allow_schedule_comparison">
+                                <strong>Allow schedule comparison</strong>
+                                <br>
+                                <small class="text-muted">Turn this on to let others see your schedule — you won’t be able to compare schedules if it’s off.</small>
+                            </label>
+                        </div>
+                        
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="allow_grade_updates" id="id_allow_grade_updates" checked>
+                            <label class="form-check-label" for="id_allow_grade_updates">
+                                <strong>Enable grade notifications</strong>
+                                <br>
+                                <small class="text-muted">Receive automatic notifications when assignments are graded (requires WolfNet password)</small>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -311,7 +343,14 @@
         }
         
         if (Object.keys(savedScheduleData).length > 0) {
-            retrievedCourses = savedScheduleData;
+            // Convert savedScheduleData to the expected retrievedCourses format
+            retrievedCourses = {
+                success: true,
+                user_data: {
+                    schedule: savedScheduleData
+                },
+                courses: null // Will be populated from savedScheduleData if needed
+            };
         }
 
         // ===============================================
@@ -501,6 +540,26 @@
         
         // Start WolfNet course auto-complete
         async function startCourseAutoComplete() {
+            // TEMPORARILY DISABLED - WolfNet integration issues being resolved with IT department
+            console.log('WolfNet auto-complete temporarily disabled');
+            
+            // Set error state to inform user
+            scheduleError = {
+                error_type: 'temporarily_disabled',
+                message: 'WolfNet integration is temporarily unavailable while we sort out issues with the IT department. You can complete registration and add your schedule manually.'
+            };
+            
+            // Clear password since auto-complete is disabled
+            wolfnetPassword = '';
+            
+            // If we're on the schedule step, show the error
+            if (currentStep === 4) {
+                showScheduleError(scheduleError);
+            }
+            
+            return;
+            
+            /* ORIGINAL CODE - COMMENTED OUT TEMPORARILY
             if (!wolfnetPassword) return;
             
             try {
@@ -519,8 +578,8 @@
 
                 console.log("Result: ", result);
                 
-                if (result.success && result.courses) {
-                    retrievedCourses = result.courses;
+                if (result.success && result.user_data) {
+                    retrievedCourses = result;  // Store the full result object (BlockSerializer in user_data)
                     scheduleError = null; // Clear any previous errors
                     // If selectors are already initialized, apply the courses immediately
                     if (courseSelectors['block_1A']) {
@@ -576,6 +635,7 @@
                     showScheduleError(scheduleError);
                 }
             }
+            */
         }
 
         // Password toggle
@@ -619,21 +679,26 @@
             });
             
             // Apply retrieved courses if they exist (from auto-complete)
-            if (retrievedCourses && Object.keys(retrievedCourses).length > 0) {
+            if (retrievedCourses && retrievedCourses.user_data && retrievedCourses.user_data.schedule) {
                 updateCourseSelectors(retrievedCourses);
             }
         }
 
         // Update course selectors with retrieved courses
-        function updateCourseSelectors(courses) {
+        function updateCourseSelectors(data) {
+            // Use BlockSerializer format user_data.schedule
+            if (!data || !data.user_data || !data.user_data.schedule) return;
+
+            const schedule = data.user_data.schedule;
             const blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E'];
 
-            console.log("Courses: ", courses);
-            
             blocks.forEach(block => {
                 const blockId = `block_${block}`;
-                const course = courses[block];
-                if (course && courseSelectors[blockId]) {
+                const blockData = schedule[block];
+                if (!blockData || !blockData.course_id) return;
+
+                const course = { id: blockData.course_id, name: blockData.course };
+                if (courseSelectors[blockId]) {
                     courseSelectors[blockId].addCourse(course);
                     updateBlockButtons(blockId, course, [], []);
                 }
@@ -838,7 +903,11 @@
                 // Save current course selections before leaving step 3
                 saveCourseSelections();
                 
-                if (wolfnetPassword) {
+                // If we have a wolfnet password OR there is a scheduleError (e.g. authentication failed)
+                // we must show the schedule/error step instead of skipping to completion. This prevents
+                // the case where an auth error cleared the in-memory password and the flow incorrectly
+                // skips the schedule step.
+                if (wolfnetPassword || scheduleError) {
                     // Show schedule step
                     currentStep = 4;
                     document.querySelector('.form-step[data-step="4"]').style.display = 'block';

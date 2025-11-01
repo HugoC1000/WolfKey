@@ -64,7 +64,7 @@ let schedulesCache = [];
 async function requestSchedulesFromApi(selectedCourses) {
     // Call API to generate possible schedules for the selected courses
     try {
-        const response = await fetch('/api/timetable/generate/', {
+        const response = await fetch('/timetable/generate/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -405,7 +405,7 @@ function renderScheduleCards(schedules) {
 
 async function fetchAllCoursesAndBlocks() {
     try {
-        const response = await fetch('/api/courses/all-blocks/', {
+    const response = await fetch('/courses/all-courses-by-block', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

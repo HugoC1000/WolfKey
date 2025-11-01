@@ -27,6 +27,7 @@ def create_comment_api(request, solution_id):
         serializer = CommentSerializer(comment, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Exception as e:
+        print(e)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['PUT', 'PATCH'])

@@ -34,9 +34,17 @@ def convert_string_to_bool(value):
     return bool(value)
 
 def process_post_data_upload(data):
-    """Process post data to convert string booleans to actual booleans."""
+    """Process post data to convert string booleans to actual booleans and handle multi-value fields."""
     processed_data = data.copy()
     
+    if hasattr(data, 'getlist'):
+        courses = data.getlist('courses')
+        if courses:
+            # Convert to integers if they're strings, filter out empty values
+            processed_data['courses'] = [
+                int(c) if isinstance(c, str) and c.isdigit() else c 
+                for c in courses if c
+            ]
     boolean_fields = ['is_anonymous']
     for field in boolean_fields:
         if field in processed_data:
@@ -107,11 +115,14 @@ def post_detail_api(request, post_id):
 @permission_classes([IsAuthenticated])
 def create_post_api(request):
     try:
+        print("Request data, " , request.data)
         processed_data = process_post_data_upload(request.data)
         
         content_json = request.data.get('content')
         content_data = json.loads(content_json) if content_json else {}
         processed_data['content'] = content_data
+
+        print(processed_data)
         
         result = create_post_service(request.user, processed_data)
         if 'error' in result:

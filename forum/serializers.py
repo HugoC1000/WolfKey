@@ -45,6 +45,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     block_2D = CourseSerializer(read_only=True)
     block_2E = CourseSerializer(read_only=True)
     grade_level = serializers.IntegerField(read_only=True)
+    allow_schedule_comparison = serializers.BooleanField(read_only=True)
+    allow_grade_updates = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = UserProfile
@@ -52,8 +54,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'bio', 'points', 'is_moderator', 'created_at', 'updated_at',
             'background_hue', 'profile_picture',
             'block_1A', 'block_1B', 'block_1D', 'block_1E',
-            'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E'
-            , 'grade_level'
+            'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
+            'grade_level', 'allow_schedule_comparison', 'allow_grade_updates'
         ]
 
 class UserSerializer(serializers.ModelSerializer):
@@ -87,8 +89,8 @@ class UserSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
-class ScheduleSerializer(serializers.ModelSerializer):
-    """Serializer for user schedule data - returns user info + schedule blocks"""
+class BlockSerializer(serializers.ModelSerializer):
+    """Serializer for user blocks data - returns user info + schedule blocks"""
     user_id = serializers.IntegerField(source='user.id', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
     full_name = serializers.SerializerMethodField()

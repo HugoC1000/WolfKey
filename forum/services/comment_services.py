@@ -31,7 +31,7 @@ def create_comment_service(request, solution_id, data):
         )
         send_comment_notifications_service(comment, solution, parent_comment)
         messages.success(request, 'Comment created succesfully')
-        return {'status': 'success', 'messages': process_messages_to_json(request)}
+        return {'status': 'success', 'id': comment.id, 'messages': process_messages_to_json(request)}
     messages.error(request, 'Invalid comment data.')
     return {'status': 'error', 'messages': process_messages_to_json(request)}
 

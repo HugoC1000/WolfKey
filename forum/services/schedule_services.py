@@ -195,6 +195,7 @@ def process_schedule_for_user(user, raw_schedule):
 
     block_mapping = {
         "1ca": "Advisory",
+        '1cap' : "Advisory",
         "1cp": "Advisory",
         "1cap": "Advisory",
         "1c-pa" :"Advisory",

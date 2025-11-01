@@ -417,6 +417,16 @@ class UserProfile(models.Model):
         null=True,
         help_text="Expo push notification token for mobile app notifications"
     )
+    
+    # User Preferences
+    allow_schedule_comparison = models.BooleanField(
+        default=True,
+        help_text="Allow other users to view and compare your course schedule"
+    )
+    allow_grade_updates = models.BooleanField(
+        default=True,
+        help_text="Enable automatic grade notifications from WolfNet"
+    )
 
     def __str__(self):
         return f"{self.user.username}'s profile"

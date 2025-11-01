@@ -22,8 +22,8 @@ WolfKey is a collaborative student forum platform that allows users to ask quest
 
 1. **Clone the repository:**
     ```sh
-    git clone https://github.com/HugoC1000/School-Forum.git
-    cd School-Forum/
+    git clone https://github.com/HugoC1000/WolfKey.git
+    cd WolfKey/
     ```
 
 2. **Create and activate a virtual environment:**

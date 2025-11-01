@@ -30,7 +30,7 @@ def auto_complete_user_courses_service(user, wolfnet_password=None):
     
     This function retrieves a user's course schedule from WolfNet and attempts to match
     the courses with those in the local database. It uses either a provided password
-    or the user's stored WolfNet password.
+    or the user's stored WolfNet password. Returns data in BlockSerializer format.
     
     Args:
         user (User): Django User instance - the authenticated user whose courses to fetch
@@ -38,6 +38,8 @@ def auto_complete_user_courses_service(user, wolfnet_password=None):
                                         If not provided, will use the password stored
                                         in the user's profile. Defaults to None.
 
+    Returns:
+        dict: Response containing success status and user_data in BlockSerializer format
     """
     try:
         # Use provided password or get from user profile
@@ -84,7 +86,7 @@ def auto_complete_courses_registration_service(school_email, wolfnet_password):
     This function is specifically designed for use during user registration when
     the user provides their WolfNet credentials to automatically populate their
     course schedule. It retrieves the course schedule from WolfNet and matches
-    courses with the local database.
+    courses with the local database. Returns data in BlockSerializer format.
     
     Args:
         school_email (str): The user's school email address (e.g., 'student@school.edu').
@@ -94,6 +96,9 @@ def auto_complete_courses_registration_service(school_email, wolfnet_password):
                               This is required and must be a valid, non-empty string.
                               The password is used only for this operation and is not
                               stored permanently during registration.
+                              
+    Returns:
+        dict: Response containing success status and user_data in BlockSerializer format
     """
     try:
         if not wolfnet_password:

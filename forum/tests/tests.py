@@ -149,3 +149,98 @@ class CommentFeatureTests(TestCase):
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Comment.objects.filter(id=comment.id).exists())
+
+
+class APIDeleteAccountTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser', 
+            password='testpassword123', 
+            school_email='test@wpga.ca', 
+            first_name='John', 
+            last_name='Doe'
+        )
+        # Create an API token for the user
+        from rest_framework.authtoken.models import Token
+        self.token = Token.objects.create(user=self.user)
+        
+    def test_delete_account_success(self):
+        """Test successful account deletion with valid token"""
+        url = reverse('api_delete_account')
+        response = self.client.delete(
+            url,
+            HTTP_AUTHORIZATION=f'Token {self.token.key}',
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        response_data = json.loads(response.content)
+        self.assertTrue(response_data['success'])
+        self.assertIn('message', response_data['data'])
+        
+        # Verify user is deleted
+        self.assertFalse(User.objects.filter(id=self.user.id).exists())
+        
+    def test_delete_account_with_password_confirmation(self):
+        """Test account deletion with password confirmation"""
+        url = reverse('api_delete_account')
+        data = {'password': 'testpassword123'}
+        
+        response = self.client.delete(
+            url,
+            data=json.dumps(data),
+            HTTP_AUTHORIZATION=f'Token {self.token.key}',
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        response_data = json.loads(response.content)
+        self.assertTrue(response_data['success'])
+        
+        # Verify user is deleted
+        self.assertFalse(User.objects.filter(id=self.user.id).exists())
+        
+    def test_delete_account_wrong_password(self):
+        """Test account deletion with wrong password"""
+        url = reverse('api_delete_account')
+        data = {'password': 'wrongpassword'}
+        
+        response = self.client.delete(
+            url,
+            data=json.dumps(data),
+            HTTP_AUTHORIZATION=f'Token {self.token.key}',
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 400)
+        response_data = json.loads(response.content)
+        self.assertFalse(response_data['success'])
+        self.assertEqual(response_data['error']['code'], 'INVALID_PASSWORD')
+        
+        # Verify user is NOT deleted
+        self.assertTrue(User.objects.filter(id=self.user.id).exists())
+        
+    def test_delete_account_no_auth(self):
+        """Test account deletion without authentication"""
+        url = reverse('api_delete_account')
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, 401)
+        
+        # Verify user is NOT deleted
+        self.assertTrue(User.objects.filter(id=self.user.id).exists())
+        
+    def test_delete_account_invalid_token(self):
+        """Test account deletion with invalid token"""
+        url = reverse('api_delete_account')
+        response = self.client.delete(
+            url,
+            HTTP_AUTHORIZATION='Token invalidtoken123',
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 401)
+        
+        # Verify user is NOT deleted
+        self.assertTrue(User.objects.filter(id=self.user.id).exists())

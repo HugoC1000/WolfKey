@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404
 from forum.models import User, Course, Post, Solution, UserCourseExperience, UserCourseHelp, UserProfile
 from forum.forms import UserCourseExperienceForm, UserCourseHelpForm
 from forum.services.utils import detect_bad_words
+from forum.serializers import BlockSerializer
 
 def get_profile_context(request, username):
     profile_user = get_object_or_404(User, username=username)
@@ -13,16 +14,10 @@ def get_profile_context(request, username):
     posts_count = Post.objects.filter(author=profile_user).count()
     solutions_count = Solution.objects.filter(author=profile_user).count()
 
-    initial_courses = {}
-    blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
-    for block in blocks:
-        course = getattr(profile_user.userprofile, f'block_{block}', None)
-        if course:
-            initial_courses[f'block_{block}'] = {
-                'id': course.id,
-                'name': course.name,
-                'category': course.category,
-            }
+    # Use the BlockSerializer as the canonical source for schedule data
+    serializer = BlockSerializer(profile_user.userprofile)
+    initial_courses = serializer.data.get('schedule', {}) if serializer and serializer.data else {}
+    
     initial_courses_json = json.dumps(initial_courses)
 
     experienced_courses = UserCourseExperience.objects.filter(user=profile_user)
@@ -78,6 +73,10 @@ def update_profile_info(request, username):
         if request.POST.get('form_type') == 'wolfnet_settings':
             return update_wolfnet_settings(request, profile_user)
         
+        # Handle privacy preferences form
+        if request.POST.get('form_type') == 'privacy_preferences':
+            return update_privacy_preferences(request, profile_user)
+        
         request.user.first_name = request.POST.get('first_name', request.user.first_name)
         request.user.last_name = request.POST.get('last_name', request.user.last_name)
         request.user.personal_email = request.POST.get('personal_email', request.user.personal_email)
@@ -99,6 +98,20 @@ def update_profile_info(request, username):
         return False, str(e)
     except Exception as e:
         return False, f'Error updating profile: {str(e)}'
+
+def update_privacy_preferences(request, profile_user):
+    """Handle privacy preferences update"""
+    try:
+        allow_schedule_comparison = request.POST.get('allow_schedule_comparison') == 'on'
+        allow_grade_updates = request.POST.get('allow_grade_updates') == 'on'
+        
+        profile_user.userprofile.allow_schedule_comparison = allow_schedule_comparison
+        profile_user.userprofile.allow_grade_updates = allow_grade_updates
+        profile_user.userprofile.save()
+        
+        return True, 'Privacy preferences updated successfully!'
+    except Exception as e:
+        return False, f'Error updating privacy preferences: {str(e)}'
 
 def update_wolfnet_settings(request, profile_user):
     """Handle WolfNet settings update"""
@@ -126,7 +139,8 @@ def update_wolfnet_settings(request, profile_user):
 def update_profile_picture(request):
     profile = request.user.userprofile
     
-    if profile.profile_picture:
+    # Only delete the old picture if it's not the default one
+    if profile.profile_picture and profile.profile_picture.name != 'profile_pictures/default.png':
         try:
             profile.profile_picture.delete(save=False)
         except Exception as e:

@@ -79,6 +79,8 @@ def get_profile_api(request, username=None):
                 'bio': profile_user.userprofile.bio,
                 'background_hue': profile_user.userprofile.background_hue,
                 'has_wolfnet_password': context['has_wolfnet_password'],
+                'allow_schedule_comparison': profile_user.userprofile.allow_schedule_comparison,
+                'allow_grade_updates': profile_user.userprofile.allow_grade_updates,
                 'schedule_blocks': schedule_blocks
             },
             'stats': {
@@ -382,3 +384,57 @@ def remove_help_request_api(request, help_id):
             'error': f'An error occurred: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def update_privacy_preferences_api(request):
+    """
+    Update privacy preferences for the current user
+    
+    Request body:
+        {
+            "allow_schedule_comparison": bool,
+            "allow_grade_updates": bool
+        }
+    
+    Returns:
+        Response: Updated user data or error
+    """
+    try:
+        data = request.data
+        profile_user = request.user
+        
+        # Get the boolean values from the request
+        allow_schedule_comparison = data.get('allow_schedule_comparison')
+        allow_grade_updates = data.get('allow_grade_updates')
+        
+        # Validate that at least one preference is provided
+        if allow_schedule_comparison is None and allow_grade_updates is None:
+            return Response({
+                'error': 'At least one preference must be provided'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Update the preferences
+        if allow_schedule_comparison is not None:
+            profile_user.userprofile.allow_schedule_comparison = allow_schedule_comparison
+        
+        if allow_grade_updates is not None:
+            profile_user.userprofile.allow_grade_updates = allow_grade_updates
+        
+        profile_user.userprofile.save()
+        
+        # Return updated user data using UserSerializer
+        from forum.serializers import UserSerializer
+        serializer = UserSerializer(profile_user, context={'request': request})
+        
+        return Response({
+            'message': 'Privacy preferences updated successfully',
+            'user': serializer.data
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error updating privacy preferences for {request.user.username}: {str(e)}")
+        return Response({
+            'error': f'An error occurred: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

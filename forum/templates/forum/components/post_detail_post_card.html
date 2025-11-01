@@ -1,3 +1,4 @@
+{% load static %}
 
 <div class="container py-4" id="main-section">
     <!-- Question Header -->
@@ -57,6 +58,15 @@
             <div class="author-card">
                 <div class="author-info">
                     <div class="position-relative">
+                        {% if post.is_anonymous %}
+                        <img 
+                            src="../../media/profile_pictures/default.png" 
+                            alt="Profile Picture" 
+                            class="profile-picture"
+                            style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; cursor: pointer;"
+                            id="profilePicture"
+                        >
+                        {% else %}
                         <img 
                             src="{{ post.get_author.userprofile.profile_picture.url }}" 
                             alt="Profile Picture" 
@@ -64,6 +74,7 @@
                             style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; cursor: pointer;"
                             id="profilePicture"
                         >
+                        {% endif %}
                     </div>
                     <div>
                         <div class="text-muted">asked {{ post.created_at|date:"M d, Y" }}</div>
