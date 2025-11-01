@@ -65,7 +65,7 @@
             <div>
                 <div class="d-flex align-items-center">
                     <a href="{{ solution.author.get_absolute_url }}">{{ solution.author.get_full_name }}</a>
-                    {% if solution.author == post.author %}
+                    {% if solution.author == post.author and not post.is_anonymous %}
                         <span class="badge bg-primary ms-2">OP</span>
                     {% endif %}
                 </div>

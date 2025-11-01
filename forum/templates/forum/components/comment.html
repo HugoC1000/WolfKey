@@ -15,7 +15,7 @@
         <div>
             <div class="d-flex align-items-center">
                 <a href="{{ comment.author.get_absolute_url }}">{{ comment.author.get_full_name }}</a>
-                {% if comment.author == post.author %}
+                {% if comment.author == post.author and not post.is_anonymous  %}
                     <span class="badge bg-primary ms-2">OP</span>
                 {% endif %}
                 <div class="comment-date text-muted" style = "margin-left: 8px;">{{ comment.created_at|timesince }} ago</div>
