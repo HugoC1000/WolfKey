@@ -40,6 +40,12 @@ def user_blocks_view(request, user_id):
     try:
         user = get_object_or_404(User, id=user_id)
         user_profile = get_object_or_404(UserProfile, user=user)
+        
+        # Check if user allows schedule comparison
+        if not user_profile.allow_schedule_comparison:
+            return JsonResponse({
+                'error': 'This user has disabled schedule comparison'
+            }, status=403)
 
         serializer = BlockSerializer(user_profile)
         return JsonResponse(serializer.data)

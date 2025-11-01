@@ -73,8 +73,17 @@ def api_register(request):
 
         help_needed_courses = data.get('help_needed_courses', [])
         experienced_courses = data.get('experienced_courses', [])
+        
+        # Get preference settings (default to True if not provided)
+        allow_schedule_comparison = data.get('allow_schedule_comparison', True)
+        allow_grade_updates = data.get('allow_grade_updates', True)
 
-        user, error = register_user(request, form, help_needed_courses, experienced_courses, schedule_data=schedule)
+        user, error = register_user(
+            request, form, help_needed_courses, experienced_courses, 
+            schedule_data=schedule,
+            allow_schedule_comparison=allow_schedule_comparison,
+            allow_grade_updates=allow_grade_updates
+        )
 
         if error:
             return JsonResponse({'error': error}, status=400)

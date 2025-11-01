@@ -73,6 +73,10 @@ def update_profile_info(request, username):
         if request.POST.get('form_type') == 'wolfnet_settings':
             return update_wolfnet_settings(request, profile_user)
         
+        # Handle privacy preferences form
+        if request.POST.get('form_type') == 'privacy_preferences':
+            return update_privacy_preferences(request, profile_user)
+        
         request.user.first_name = request.POST.get('first_name', request.user.first_name)
         request.user.last_name = request.POST.get('last_name', request.user.last_name)
         request.user.personal_email = request.POST.get('personal_email', request.user.personal_email)
@@ -94,6 +98,20 @@ def update_profile_info(request, username):
         return False, str(e)
     except Exception as e:
         return False, f'Error updating profile: {str(e)}'
+
+def update_privacy_preferences(request, profile_user):
+    """Handle privacy preferences update"""
+    try:
+        allow_schedule_comparison = request.POST.get('allow_schedule_comparison') == 'on'
+        allow_grade_updates = request.POST.get('allow_grade_updates') == 'on'
+        
+        profile_user.userprofile.allow_schedule_comparison = allow_schedule_comparison
+        profile_user.userprofile.allow_grade_updates = allow_grade_updates
+        profile_user.userprofile.save()
+        
+        return True, 'Privacy preferences updated successfully!'
+    except Exception as e:
+        return False, f'Error updating privacy preferences: {str(e)}'
 
 def update_wolfnet_settings(request, profile_user):
     """Handle WolfNet settings update"""

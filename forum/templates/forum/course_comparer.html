@@ -13,7 +13,14 @@
 
 {% block content %}
 <div class="container-fluid">
-
+    {% if not user.userprofile.allow_schedule_comparison %}
+    <!-- Warning message if schedule comparison is disabled -->
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>Schedule Comparison Disabled</strong>
+        <p class="mb-0">You need to enable schedule comparison in your <a href="{% url 'profile' user.username %}">profile preferences</a> to use this feature.</p>
+    </div>
+    {% else %}
     <!-- User Management Section -->
     <div class="card mb-4" style="z-index: 2 !important;">
         <div class="card-body text-center">
@@ -32,6 +39,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- Course Comparison Section -->
     <div id="comparison-section" style="display: none;">
@@ -197,13 +205,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function fetchUserSchedule(user) {
         fetch(`/user-blocks/${user.id}/`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Failed to fetch schedule');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 selectedUsersData.push(data);
                 updateLayout();
             })
             .catch(error => {
                 console.error('Error fetching user schedule:', error);
+                // Show error message to user
+                const errorMessage = error.message || 'Error fetching user schedule';
+                alert(`Unable to fetch schedule for ${user.full_name}: ${errorMessage}`);
+                // Remove user from selected list if schedule can't be fetched
+                removeUserFromComparison(user.id);
             });
     }
     

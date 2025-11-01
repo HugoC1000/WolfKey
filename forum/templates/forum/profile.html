@@ -325,6 +325,38 @@
                                 </form>
                             </div>
                         </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-user-shield"></i> Privacy Preferences</h5>
+                            </div>
+                            <div class="card-body">
+                                <form method="post" id="privacyPreferencesForm">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="form_type" value="privacy_preferences">
+                                    
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" name="allow_schedule_comparison" id="id_allow_schedule_comparison" {% if profile_user.userprofile.allow_schedule_comparison %}checked{% endif %}>
+                                        <label class="form-check-label" for="id_allow_schedule_comparison">
+                                            <strong>Allow schedule comparison</strong>
+                                            <br>
+                                            <small class="text-muted">Turn this on to let others see your schedule — you won’t be able to compare schedules if it’s off.</small>
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" name="allow_grade_updates" id="id_allow_grade_updates" {% if profile_user.userprofile.allow_grade_updates %}checked{% endif %}>
+                                        <label class="form-check-label" for="id_allow_grade_updates">
+                                            <strong>Enable grade notifications</strong>
+                                            <br>
+                                            <small class="text-muted">Receive automatic notifications when assignments are graded. Requires WolfNet password to be set.</small>
+                                        </label>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary" disabled>Save Preferences</button>
+                                </form>
+                            </div>
+                        </div>
     
                         <div class="card mb-4" style = "overflow: hidden;">
                             <a href="{% url 'password_reset' %}" class="btn btn-secondary" style = "z-index: 2;">Reset Password</a>
@@ -827,6 +859,7 @@
         const trackedForms = [
             'personalInfoForm',
             'wolfnetForm',
+            'privacyPreferencesForm',
             'blockCoursesForm',
             'bioForm',
             'backgroundForm'

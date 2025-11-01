@@ -19,7 +19,7 @@ def get_csrf_token(request):
     return JsonResponse({'csrfToken': request.META.get('CSRF_COOKIE')})
 
 
-def register_user(request, form, help_courses, experience_courses, wolfnet_password=None, schedule_data=None):
+def register_user(request, form, help_courses, experience_courses, wolfnet_password=None, schedule_data=None, allow_schedule_comparison=True, allow_grade_updates=True):
     """
     Centralized service for user registration
     Returns (user, error_message) tuple
@@ -33,6 +33,10 @@ def register_user(request, form, help_courses, experience_courses, wolfnet_passw
             return None, 'If selecting help courses, please select at least 2.'
 
         user = form.save()
+        
+        # Set user preferences
+        user.userprofile.allow_schedule_comparison = allow_schedule_comparison
+        user.userprofile.allow_grade_updates = allow_grade_updates
         
         # Set WolfNet password if provided
         if wolfnet_password:
