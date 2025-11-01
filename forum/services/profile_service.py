@@ -139,7 +139,8 @@ def update_wolfnet_settings(request, profile_user):
 def update_profile_picture(request):
     profile = request.user.userprofile
     
-    if profile.profile_picture:
+    # Only delete the old picture if it's not the default one
+    if profile.profile_picture and profile.profile_picture.name != 'profile_pictures/default.png':
         try:
             profile.profile_picture.delete(save=False)
         except Exception as e:
