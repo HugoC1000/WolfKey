@@ -31,8 +31,8 @@ def create_solution_service(user, post_id, data):
             author=user,
             content=content
         )
-
-        send_solution_notification_service(solution)
+        if post.author != solution.author:
+            send_solution_notification_service(solution)
 
         return {
             'id': solution.id,
