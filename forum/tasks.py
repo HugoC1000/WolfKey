@@ -226,7 +226,7 @@ def login_to_wolfnet(user_email, driver, wait, password=None):
 
         try:
             logger.info("start wait for post-login elements")
-            time.sleep(1)
+            time.sleep(2)
             # Log elements for each key selector before wait
             for selector in ["#passwordError, .error, .alert-error", "#idSIButton9", "#attendance"]:
                 elems = driver.find_elements(By.CSS_SELECTOR, selector)

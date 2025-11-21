@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Post, Solution, Comment, User, UserProfile, Course
 from django.utils.timezone import localtime
 from .services.utils import process_post_preview
+from django.conf import settings
 
 class CourseSerializer(serializers.ModelSerializer):
     is_experienced = serializers.SerializerMethodField()
@@ -155,7 +156,7 @@ class BlockSerializer(serializers.ModelSerializer):
 
 class PostListSerializer(serializers.ModelSerializer):
     """Serializer for post list/feed views - matches paginate_posts structure"""
-    author = UserSerializer(read_only=True)
+    author = serializers.SerializerMethodField()
     author_name = serializers.SerializerMethodField()
     preview_text = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
@@ -177,6 +178,17 @@ class PostListSerializer(serializers.ModelSerializer):
             'is_liked', 'solution_count', 'comment_count', 'solved', 'is_following',
             'first_image_url'
         ]
+    
+    def get_author(self, obj):
+        """Return author data with anonymous profile picture if post is anonymous"""
+        if obj.is_anonymous:
+            # Return author data but with anonymous profile picture for anonymous posts
+            author_data = UserSerializer(obj.author, context=self.context).data
+            # Use Django's MEDIA_URL which will be AWS S3 in production
+            if author_data.get('userprofile'):
+                author_data['userprofile']['profile_picture'] = f"{settings.MEDIA_URL}profile_pictures/default.png"
+            return author_data
+        return UserSerializer(obj.author, context=self.context).data
     
     def get_author_name(self, obj):
         if obj.is_anonymous:
@@ -227,7 +239,7 @@ class PostListSerializer(serializers.ModelSerializer):
 
 class PostDetailSerializer(serializers.ModelSerializer):
     """Serializer for individual post views"""
-    author = UserSerializer(read_only=True)
+    author = serializers.SerializerMethodField()
     author_name = serializers.SerializerMethodField()
     courses = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
@@ -247,6 +259,17 @@ class PostDetailSerializer(serializers.ModelSerializer):
             'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
             'is_following'
         ]
+    
+    def get_author(self, obj):
+        """Return author data with anonymous profile picture if post is anonymous"""
+        if obj.is_anonymous:
+            # Return author data but with anonymous profile picture for anonymous posts
+            author_data = UserSerializer(obj.author, context=self.context).data
+            # Use Django's MEDIA_URL which will be AWS S3 in production
+            if author_data.get('userprofile'):
+                author_data['userprofile']['profile_picture'] = f"{settings.MEDIA_URL}profile_pictures/default.png"
+            return author_data
+        return UserSerializer(obj.author, context=self.context).data
     
     def get_courses(self, obj):
         return CourseSerializer(obj.courses.all(), many=True, context=self.context).data
