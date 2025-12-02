@@ -79,6 +79,16 @@ createdb student_forum
 # Configure environment (create .env file)
 # Add your database credentials
 
+Alternatively, run the provided setup script which automates common local setup steps (creates a virtualenv, installs requirements, creates a `.env` from `.env.example`, runs migrations, and prompts to create a superuser):
+
+```bash
+# Make the script executable (only needed once)
+chmod +x scripts/setup_local.sh
+
+# Run the script
+./scripts/setup_local.sh
+```
+
 # Run migrations and create superuser
 python manage.py migrate
 python manage.py createsuperuser
@@ -119,7 +129,7 @@ A virtual environment keeps your project dependencies isolated.
 # Create a virtual environment named 'venv'
 python -m venv venv
 
-# If 'python' doesn't work, try:
+# If that doesn't work, try with python3:
 python3 -m venv venv
 ```
 
@@ -157,6 +167,8 @@ pip install -r requirements.txt
 ### Step 3: Install PostgreSQL
 
 WolfKey uses PostgreSQL as its database. Choose your operating system:
+
+If you get brew not found errors, you need to install brew first using 
 
 #### macOS
 
@@ -254,38 +266,30 @@ touch .env
 Add the following to `.env`:
 
 ```env
+# Django Settings
 DEBUG=True
 SECRET_KEY=your-secret-key-here-generate-a-random-one
-DATABASE_NAME=student_forum
-DATABASE_USER=your-username
-DATABASE_PASSWORD=your-password
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
+
+# Database Configuration
+DB_NAME=schoolforumdb
+DB_USER=your_postgres_username
+DB_PASSWORD=your_postgres_password
+DB_HOST=localhost
+DB_PORT=5432
+
+# Email Settings (optional for local development)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=your-email@example.com
+EMAIL_HOST_PASSWORD=your-app-password
+DEFAULT_FROM_EMAIL=your-email@example.com
+SITE_URL=http://localhost:8000
 ```
+
+> 💡 **Finding your PostgreSQL username**: On macOS, it's typically your system username. Run `whoami` to find it, or use `postgres` if you set up PostgreSQL with the default superuser.
 
 > 🔒 **Security Note**: Never commit `.env` to version control. It's already in `.gitignore`.
-
-**Alternative**: If you prefer, you can directly edit `student_forum/settings.py`:
-
-```python
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'student_forum',
-        'USER': 'your-username',      # Often your system username
-        'PASSWORD': 'your-password',   # The password you set
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
-```
-
-**✅ Checkpoint**: Test database connection:
-```bash
-python manage.py dbshell
-# You should enter PostgreSQL prompt
-# Type \q to exit
-```
 
 ---
 
