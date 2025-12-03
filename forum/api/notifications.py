@@ -222,3 +222,51 @@ def unregister_push_token_api(request):
             'success': False,
             'error': 'Failed to unregister push token'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def mark_notifications_by_post_api(request, post_id):
+    """
+    Mark all notifications associated with a specific post as read for the authenticated user
+    """
+    try:
+        from forum.models import Post
+        
+        # Verify the post exists
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': 'Post not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Find all unread notifications for this user related to this post
+        unread_notifications = Notification.objects.filter(
+            recipient=request.user,
+            post=post,
+            is_read=False
+        )
+        
+        marked_count = unread_notifications.count()
+        
+        # Mark them all as read
+        unread_notifications.update(is_read=True)
+        
+        logger.info(f"Marked {marked_count} notifications as read for user {request.user.id} on post {post_id}")
+        
+        return Response({
+            'success': True,
+            'data': {
+                'marked_count': marked_count,
+                'post_id': post_id
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error marking notifications by post {post_id} for user {request.user.id}: {str(e)}")
+        return Response({
+            'success': False,
+            'error': 'Failed to mark notifications as read'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
