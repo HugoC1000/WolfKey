@@ -11,7 +11,8 @@ from rest_framework import status
 from forum.models import Notification
 from forum.services.notification_services import (
     all_notifications_service,
-    mark_notification_read_service
+    mark_notification_read_service,
+    mark_notifications_by_post_service
 )
 
 logger = logging.getLogger(__name__)
@@ -231,41 +232,25 @@ def mark_notifications_by_post_api(request, post_id):
     Mark all notifications associated with a specific post as read for the authenticated user
     """
     try:
-        from forum.models import Post
+        result = mark_notifications_by_post_service(request.user, post_id)
         
-        # Verify the post exists
-        try:
-            post = Post.objects.get(id=post_id)
-        except Post.DoesNotExist:
+        if 'error' in result:
+            status_code = status.HTTP_404_NOT_FOUND if result['error'] == 'Post not found' else status.HTTP_500_INTERNAL_SERVER_ERROR
             return Response({
                 'success': False,
-                'error': 'Post not found'
-            }, status=status.HTTP_404_NOT_FOUND)
-        
-        # Find all unread notifications for this user related to this post
-        unread_notifications = Notification.objects.filter(
-            recipient=request.user,
-            post=post,
-            is_read=False
-        )
-        
-        marked_count = unread_notifications.count()
-        
-        # Mark them all as read
-        unread_notifications.update(is_read=True)
-        
-        logger.info(f"Marked {marked_count} notifications as read for user {request.user.id} on post {post_id}")
+                'error': result['error']
+            }, status=status_code)
         
         return Response({
             'success': True,
             'data': {
-                'marked_count': marked_count,
-                'post_id': post_id
+                'marked_count': result['marked_count'],
+                'post_id': result['post_id']
             }
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
-        logger.error(f"Error marking notifications by post {post_id} for user {request.user.id}: {str(e)}")
+        logger.error(f"Error in mark_notifications_by_post_api for user {request.user.id}: {str(e)}")
         return Response({
             'success': False,
             'error': 'Failed to mark notifications as read'

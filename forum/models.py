@@ -206,8 +206,23 @@ class Post(models.Model):
             return False
         return self.likes.filter(user=user).exists()
     
-    def get_author(self):
-        return "Anonymous" if self.is_anonymous else self.author
+    def get_author(self, ignore_anonymous=False):
+        """Return author object with anonymous profile picture if post is anonymous
+        
+        Args:
+            ignore_anonymous: If True, return actual author info even for anonymous posts.
+                            If False (default), return anonymous indicator for anonymous posts.
+        """
+        if self.is_anonymous and not ignore_anonymous:
+            # Return anonymous indicator for anonymous posts
+            return {
+                'user': self.author,
+                'is_anonymous': True
+            }
+        return {
+            'user': self.author,
+            'is_anonymous': False
+        }
     
     def get_first_image_url(self):
         """Extract the first image URL from the post content JSON"""

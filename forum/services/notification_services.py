@@ -32,7 +32,7 @@ def send_course_notifications_service(post, courses):
         """
         send_notification_service(
             recipient=recipient,
-            sender=post.author,
+            sender=post.get_author(),
             notification_type='post',
             message=message,
             url=url,
@@ -201,3 +201,53 @@ def mark_notification_read_service(user, notification_id):
     notification.is_read = True
     notification.save()
     return notification
+
+def mark_notifications_by_post_service(user, post_id):
+    """
+    Mark all notifications associated with a specific post as read for the user.
+    
+    Args:
+        user: The user whose notifications should be marked as read
+        post_id: The ID of the post
+    
+    Returns:
+        dict: A dictionary containing:
+            - success (bool): Whether the operation was successful
+            - marked_count (int): Number of notifications marked as read
+            - post_id (int): The post ID
+            - error (str, optional): Error message if unsuccessful
+    """
+    try:
+        # Verify the post exists
+        post = get_object_or_404(Post, id=post_id)
+        
+        # Find all unread notifications for this user related to this post
+        unread_notifications = Notification.objects.filter(
+            recipient=user,
+            post=post,
+            is_read=False
+        )
+        
+        marked_count = unread_notifications.count()
+        
+        # Mark them all as read
+        unread_notifications.update(is_read=True)
+        
+        logger.info(f"Marked {marked_count} notifications as read for user {user.id} on post {post_id}")
+        
+        return {
+            'success': True,
+            'marked_count': marked_count,
+            'post_id': post_id
+        }
+    except Post.DoesNotExist:
+        return {
+            'success': False,
+            'error': 'Post not found'
+        }
+    except Exception as e:
+        logger.error(f"Error marking notifications by post {post_id} for user {user.id}: {str(e)}")
+        return {
+            'success': False,
+            'error': 'Failed to mark notifications as read'
+        }
