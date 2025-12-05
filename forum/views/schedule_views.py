@@ -11,7 +11,20 @@ from forum.services.schedule_services import (
 
 @require_http_methods(["GET"])
 def daily_schedule_view(request, target_date):
-    """Session/CSRF-protected view for the website to fetch the daily schedule."""
+    """
+    Session/CSRF-protected view for the website to fetch the daily schedule.
+    
+    Args:
+        target_date (str): Date in YYYY-MM-DD format
+    
+    Returns:
+        JsonResponse: JSON response with:
+            - date (str): Formatted date string
+            - blocks (List[Optional[str]]): List of block identifiers
+            - times (List[Optional[str]]): List of time ranges
+            - early_dismissal (bool): Whether it's an early dismissal day
+            - late_start (bool): Whether it's a late start day
+    """
     try:
         schedule = get_block_order_for_day(target_date)
         date_obj = _parse_iso_date(target_date)
@@ -20,7 +33,9 @@ def daily_schedule_view(request, target_date):
         return JsonResponse({
             'date': formatted_date,
             'blocks': schedule['blocks'],
-            'times': schedule['times']
+            'times': schedule['times'],
+            'early_dismissal': schedule.get('early_dismissal', False),
+            'late_start': schedule.get('late_start', False)
         })
     except ValueError as e:
         return JsonResponse({'error': 'Invalid date format. Expected YYYY-MM-DD', 'details': str(e)}, status=400)
@@ -32,7 +47,15 @@ def daily_schedule_view(request, target_date):
 @login_required
 @require_http_methods(["GET"])
 def user_blocks_view(request, user_id):
-    """Session/CSRF-protected view to the user's blocks."""
+    """
+    Session/CSRF-protected view to get a user's course blocks.
+    
+    Args:
+        user_id (int): ID of the user to fetch blocks for
+    
+    Returns:
+        JsonResponse: JSON response with user's course block information
+    """
     from django.shortcuts import get_object_or_404
     from forum.models import User, UserProfile
     from forum.serializers import BlockSerializer
