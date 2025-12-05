@@ -39,3 +39,18 @@
   text-align: center;
   display: none;
 }
+
+/* Schedule Date Picker and Navigation */
+#schedule-date-picker {
+  border-radius: 2.2rem;
+}
+
+#prev-day, #next-day {
+  color: black;
+  border: none;
+  background: white;
+}
+
+#prev-day:hover, #next-day:hover {
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}

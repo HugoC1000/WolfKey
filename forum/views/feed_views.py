@@ -64,6 +64,7 @@ def for_you(request):
         'greeting': greeting,
         'current_date': today_display,
         'tomorrow_date': tomorrow_display,
+        'tomorrow_iso': tomorrow_iso,
         'schedule_today': processed_schedule_today,
         'schedule_tomorrow': processed_schedule_tomorrow,
         'ceremonial_required_today': ceremonial_required_today,

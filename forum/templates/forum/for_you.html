@@ -62,10 +62,16 @@
                 <div class="flex-fill">
                     <div class = "card">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <h3 style = "font-size: 1.5rem;">Tomorrow's Schedule</h3>
-                        <span class="text-muted" id="tomorrow-date">
-                            {{ tomorrow_date}}
-                        </span>
+                        <h3 style = "font-size: 1.5rem;" id="schedule-title">Tomorrow's Schedule</h3>
+                        <div class="d-flex align-items-center gap-2">
+                            <button id="prev-day" class="btn btn-sm btn-outline-secondary" title="Previous day">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <input type="date" id="schedule-date-picker" class="form-control form-control-sm" style="max-width: 150px;" value="{{ tomorrow_iso }}" data-tomorrow="{{ tomorrow_iso }}">
+                            <button id="next-day" class="btn btn-sm btn-outline-secondary" title="Next day">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
                     </div>
                     <ul class="list-group shadow-sm rounded" id = "tomorrow-schedule">
                         {% if ceremonial_required_tomorrow %}
@@ -130,6 +136,104 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Schedule date picker and navigation functionality
+        const datePicker = document.getElementById('schedule-date-picker');
+        const prevDayBtn = document.getElementById('prev-day');
+        const nextDayBtn = document.getElementById('next-day');
+        const tomorrowScheduleList = document.getElementById('tomorrow-schedule');
+        const scheduleTitle = document.getElementById('schedule-title');
+        const tomorrowDate = datePicker.dataset.tomorrow;
+
+        function updateScheduleTitle(dateString) {
+            // Check if the selected date is tomorrow
+            if (dateString === tomorrowDate) {
+                scheduleTitle.textContent = "Tomorrow's Schedule";
+            } else {
+                // Will be updated with the formatted date from the API response
+                scheduleTitle.textContent = "Schedule";
+            }
+        }
+
+        function updateSchedule(dateString) {
+            // Update title
+            updateScheduleTitle(dateString);
+            
+            // Show loading state
+            tomorrowScheduleList.innerHTML = '<li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...</li>';
+            
+            // Fetch schedule for the selected date
+            fetch(`/schedules/daily/${dateString}/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        tomorrowScheduleList.innerHTML = `<li class="list-group-item text-danger">${data.error}</li>`;
+                        return;
+                    }
+                    
+                    // Update title with formatted date if not tomorrow
+                    if (dateString !== tomorrowDate) {
+                        scheduleTitle.textContent = data.date;
+                    }
+                    
+                    // Build schedule list
+                    let scheduleHTML = '';
+                    
+                    // Add ceremonial uniform notice if required
+                    if (data.ceremonial_required) {
+                        scheduleHTML += '<li class="list-group-item">👔 Ceremonial Required</li>';
+                    }
+                    
+                    // Add schedule items
+                    if (data.schedule && data.schedule.length > 0) {
+                        if (data.schedule[0] === "no school") {
+                            scheduleHTML += '<li class="list-group-item"><p style="margin-bottom: 0px;">No School</p></li>';
+                        } else {
+                            data.schedule.forEach(item => {
+                                scheduleHTML += `
+                                    <li class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <p style="margin-bottom: 0px;">${item.block}</p>
+                                            ${item.time ? `<p style="margin-bottom: 0px;">${item.time}</p>` : ''}
+                                        </div>
+                                    </li>
+                                `;
+                            });
+                        }
+                    } else {
+                        scheduleHTML += '<li class="list-group-item"><p style="margin-bottom: 0px;">Schedule unavailable</p></li>';
+                    }
+                    
+                    tomorrowScheduleList.innerHTML = scheduleHTML;
+                })
+                .catch(error => {
+                    console.error('Error fetching schedule:', error);
+                    tomorrowScheduleList.innerHTML = '<li class="list-group-item text-danger">Error loading schedule</li>';
+                });
+        }
+
+        // Date picker change event
+        datePicker.addEventListener('change', function() {
+            updateSchedule(this.value);
+        });
+
+        // Previous day button
+        prevDayBtn.addEventListener('click', function() {
+            const currentDate = new Date(datePicker.value);
+            currentDate.setDate(currentDate.getDate() - 1);
+            const newDate = currentDate.toISOString().split('T')[0];
+            datePicker.value = newDate;
+            updateSchedule(newDate);
+        });
+
+        // Next day button
+        nextDayBtn.addEventListener('click', function() {
+            const currentDate = new Date(datePicker.value);
+            currentDate.setDate(currentDate.getDate() + 1);
+            const newDate = currentDate.toISOString().split('T')[0];
+            datePicker.value = newDate;
+            updateSchedule(newDate);
+        });
+
         // Create animation observer function to reuse for new posts
         function createAnimationObserver() {
             return new IntersectionObserver((entries, observer) => {
