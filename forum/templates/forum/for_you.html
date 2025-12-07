@@ -25,12 +25,24 @@
                                 {{ current_date}}
                             </span>
                         </div>
-                        <ul class="list-group shadow-sm rounded"id = "today-schedule">
+                        <div class="d-flex gap-2 mb-2 justify-content-end flex-wrap">
                             {% if ceremonial_required_today %}
-                            <li class="list-group-item">
-                                👔 Ceremonial Required
-                            </li>
+                            <span class="badge rounded-pill schedule-badge-ceremonial">
+                                <i class="fas fa-user-tie me-1"></i>Ceremonial Uniform
+                            </span>
                             {% endif %}
+                            {% if early_dismissal_today %}
+                            <span class="badge rounded-pill schedule-badge-early">
+                                <i class="fas fa-clock me-1"></i>Early Dismissal
+                            </span>
+                            {% endif %}
+                            {% if late_start_today %}
+                            <span class="badge rounded-pill schedule-badge-late">
+                                <i class="fas fa-coffee me-1"></i>Late Start
+                            </span>
+                            {% endif %}
+                        </div>
+                        <ul class="list-group shadow-sm rounded"id = "today-schedule">
                             {% if schedule_today %}
                                 {% for item in schedule_today %}
                                 {% if item == "no school"  %}
@@ -73,12 +85,24 @@
                             </button>
                         </div>
                     </div>
-                    <ul class="list-group shadow-sm rounded" id = "tomorrow-schedule">
+                    <div class="d-flex gap-2 mb-2 justify-content-end flex-wrap" id="schedule-badges">
                         {% if ceremonial_required_tomorrow %}
-                        <li class="list-group-item">
-                            👔 Ceremonial Required
-                        </li>
+                        <span class="badge rounded-pill schedule-badge-ceremonial">
+                            <i class="fas fa-user-tie me-1"></i>Ceremonial Uniform
+                        </span>
                         {% endif %}
+                        {% if early_dismissal_tomorrow %}
+                        <span class="badge rounded-pill schedule-badge-early">
+                            <i class="fas fa-clock me-1"></i>Early Dismissal
+                        </span>
+                        {% endif %}
+                        {% if late_start_tomorrow %}
+                        <span class="badge rounded-pill schedule-badge-late">
+                            <i class="fas fa-coffee me-1"></i>Late Start
+                        </span>
+                        {% endif %}
+                    </div>
+                    <ul class="list-group shadow-sm rounded" id = "tomorrow-schedule">
                         {% if schedule_tomorrow %}
                             {% for item in schedule_tomorrow %}
                             {% if item == "no school"  %}
@@ -142,6 +166,7 @@
         const nextDayBtn = document.getElementById('next-day');
         const tomorrowScheduleList = document.getElementById('tomorrow-schedule');
         const scheduleTitle = document.getElementById('schedule-title');
+        const scheduleBadges = document.getElementById('schedule-badges');
         const tomorrowDate = datePicker.dataset.tomorrow;
 
         function updateScheduleTitle(dateString) {
@@ -160,6 +185,7 @@
             
             // Show loading state
             tomorrowScheduleList.innerHTML = '<li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...</li>';
+            scheduleBadges.innerHTML = '';
             
             // Fetch schedule for the selected date
             fetch(`/schedules/daily/${dateString}/`)
@@ -175,13 +201,21 @@
                         scheduleTitle.textContent = data.date;
                     }
                     
+                    // Build badges
+                    let badgesHTML = '';
+                    if (data.ceremonial_required) {
+                        badgesHTML += '<span class="badge rounded-pill schedule-badge-ceremonial"><i class="fas fa-user-tie me-1"></i>Ceremonial Uniform</span>';
+                    }
+                    if (data.early_dismissal) {
+                        badgesHTML += '<span class="badge rounded-pill schedule-badge-early"><i class="fas fa-clock me-1"></i>Early Dismissal</span>';
+                    }
+                    if (data.late_start) {
+                        badgesHTML += '<span class="badge rounded-pill schedule-badge-late"><i class="fas fa-coffee me-1"></i>Late Start</span>';
+                    }
+                    scheduleBadges.innerHTML = badgesHTML;
+                    
                     // Build schedule list
                     let scheduleHTML = '';
-                    
-                    // Add ceremonial uniform notice if required
-                    if (data.ceremonial_required) {
-                        scheduleHTML += '<li class="list-group-item">👔 Ceremonial Required</li>';
-                    }
                     
                     // Add schedule items
                     if (data.schedule && data.schedule.length > 0) {

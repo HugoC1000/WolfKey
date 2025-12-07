@@ -82,9 +82,12 @@ def extract_block_times_from_description(description):
     matches = re.findall(pattern, description)
     block_times = {}
     
-    description_lower = description.lower()
-    is_late_start = "late start" in description_lower
-    is_early_dismissal = "early dismissal" in description_lower or "early dismiss" in description_lower
+    # Extract all time ranges first
+    time_ranges = [match[0] for match in matches if 'recess' not in match[1].lower() and 'lunch' not in match[1].lower()]
+    
+    # Use detection functions to determine schedule type
+    is_late_start = _detect_late_start(time_ranges) if time_ranges else False
+    is_early_dismissal = _detect_early_dismissal(time_ranges) if time_ranges else False
 
     if is_late_start:
         slot = 2
@@ -139,87 +142,70 @@ def _is_more_than_week_away(date_obj):
     today = datetime.date.today()
     return abs((date_obj - today).days) > 7
 
-def _parse_time(time_str):
-    """
-    Parse time string to minutes since midnight.
-    
-    Args:
-        time_str (str): Time string in format "H:MM" or "HH:MM"
-        
-    Returns:
-        int: Minutes since midnight, or None if parsing fails
-    """
-    if not time_str:
-        return None
-    try:
-        # Extract start time from range (e.g., "8:20-9:30" -> "8:20")
-        if '-' in time_str:
-            time_str = time_str.split('-')[0].strip()
-        parts = time_str.split(':')
-        hours = int(parts[0])
-        minutes = int(parts[1])
-        return hours * 60 + minutes
-    except (ValueError, IndexError):
-        return None
-
-def _detect_late_start(times):
+def _detect_late_start(blocks):
     """
     Detect if schedule is a late start based on first block time.
     
     Args:
-        times (List[Optional[str]]): List of time ranges for blocks
+        blocks (List[Optional[str]], optional): List of block identifiers to check if blocks exist
         
     Returns:
         bool: True if first block starts after 8:20, False otherwise
     """
-    if not times:
-        return False
-    
-    for time_str in times:
-        if time_str:  # Find first non-null time
-            start_minutes = _parse_time(time_str)
-            if start_minutes is not None:
-                # 8:20 = 500 minutes since midnight
-                return start_minutes > 500
-            break
-    return False
+    # If blocks are provided, check that there's actually a block at the first position
+    if blocks is not None and len(blocks) > 0:
+        # Check if first block exists (is not None/empty)
+        if blocks[0] == None:
+            return True
+        else:
+            return False    
 
-def _detect_early_dismissal(times):
+def _detect_early_dismissal(times, blocks=None):
     """
     Detect if schedule is an early dismissal based on last block end time.
     
     Args:
         times (List[Optional[str]]): List of time ranges for blocks
+        blocks (List[Optional[str]], optional): List of block identifiers to check if blocks exist
         
     Returns:
         bool: True if last block ends before 15:30 (3:30 PM), False otherwise
     """
-    if not times:
+    if not times or not blocks:
         return False
     
-    # Find last non-null time
-    last_time = None
-    for time_str in reversed(times):
-        if time_str:
-            last_time = time_str
-            break
+    # Go from back to front and find the first slot that has both a block AND a time
+    for i in range(len(blocks) - 1, -1, -1):
+        # Check if both block and time exist at this position
+        if blocks[i] and i < len(times) and times[i]:
+            # If last block is at position 4 or later, not early dismissal
+            if i >= 4:
+                return False
+            
+            try:
+                # Extract end time from range (e.g., "2:20-3:30" -> "3:30")
+                last_time = times[i]
+                if '-' in last_time:
+                    end_time_str = last_time.split('-')[1].strip()
+                    parts = end_time_str.split(':')
+                    hours = int(parts[0])
+                    minutes = int(parts[1])
+                    
+                    # Convert 12-hour format to 24-hour format
+                    # Assume PM if hours are 1-7 (afternoon school hours), AM otherwise
+                    if 1 <= hours <= 7:
+                        hours += 12
+                    
+                    end_minutes = hours * 60 + minutes
+                    # 15:30 (3:30 PM) = 930 minutes since midnight
+                    return end_minutes < 930
+            except (ValueError, IndexError):
+                pass
+            
+            # If we found a block+time but couldn't parse it, not early dismissal
+            return False
     
-    if not last_time:
-        return False
-    
-    try:
-        # Extract end time from range (e.g., "2:20-3:30" -> "3:30")
-        if '-' in last_time:
-            end_time_str = last_time.split('-')[1].strip()
-            parts = end_time_str.split(':')
-            hours = int(parts[0])
-            minutes = int(parts[1])
-            end_minutes = hours * 60 + minutes
-            # 15:30 (3:30 PM) = 930 minutes since midnight
-            return end_minutes < 930
-    except (ValueError, IndexError):
-        pass
-    
+    # No valid block+time found
     return False
 
 def get_block_order_for_day(iso_date):
@@ -264,11 +250,10 @@ def get_block_order_for_day(iso_date):
             # Auto-detect late_start and early_dismissal if not set
             late_start = existing_schedule.late_start
             if late_start is None:
-                late_start = _detect_late_start(times)
-            
+                late_start = _detect_late_start(blocks)
             early_dismissal = existing_schedule.early_dismissal
             if early_dismissal is None:
-                early_dismissal = _detect_early_dismissal(times)
+                early_dismissal = _detect_early_dismissal(blocks)
             
             return {
                 'blocks': blocks,
@@ -312,19 +297,22 @@ def get_block_order_for_day(iso_date):
                 })()
             
             # Process blocks 1-5 from spreadsheet (columns E-I)
-            # Additional blocks (6-10) would need to be in later columns or added manually
+            # Additional blocks (6-10) would need to be added manually
             for block_index in range(5):
                 block_field = f'block_{block_index + 1}'
                 time_field = f'block_{block_index + 1}_time'
                 block_value = rows[i][4 + block_index] if len(rows[i]) > 4 + block_index else None
                 time_value = block_times.get(block_index + 1)
 
-                if getattr(schedule, block_field) in [None, ""] and block_value:
-                    # Clean and validate block value - only set if it looks like a valid block
+                # Only update if the current value is None or empty string
+                if getattr(schedule, block_field) in [None, ""]:
+                    # Clean and validate block value - set to None if blank, otherwise set the value
                     if block_value and block_value.strip() and len(block_value.strip()) <= 10:
                         setattr(schedule, block_field, block_value)
+                    else:
+                        setattr(schedule, block_field, None)
 
-                if getattr(schedule, time_field) in [None, ""] and time_value:
+                if getattr(schedule, time_field) in [None, ""]:
                     setattr(schedule, time_field, time_value)
 
             # Check if any blocks 1-10 exist to determine if it's a school day
@@ -336,10 +324,9 @@ def get_block_order_for_day(iso_date):
             
             # Auto-detect early dismissal and late start flags from times if not already set
             if schedule.early_dismissal is None:
-                schedule.early_dismissal = is_early_dismissal or _detect_early_dismissal(all_times)
+                schedule.early_dismissal = is_early_dismissal or _detect_early_dismissal(all_times, school_blocks)
             if schedule.late_start is None:
-                schedule.late_start = is_late_start or _detect_late_start(all_times)
-            
+                schedule.late_start = is_late_start or _detect_late_start(school_blocks)
             if should_save_to_db:
                 schedule.save()
 
