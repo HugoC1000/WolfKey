@@ -72,3 +72,8 @@
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
   background: white;
 }
+
+#schedule-date-picker {
+  color: black;
+  text-align: center;
+}
