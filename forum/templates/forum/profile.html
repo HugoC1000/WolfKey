@@ -151,7 +151,7 @@
                                 {% for post in recent_posts %}
                                 <div class="mb-3">
                                     <h6><a href="{% url 'post_detail' post.id %}">{{ post.title }}</a></h6>
-                                    <small class="text-muted">Posted {{ post.created_at|smart_timesince }} ago</small>
+                                    <small class="text-muted">Posted {{ post.created_at|smart_timesince }}</small>
                                 </div>
                                 {% empty %}
                                 <p>No recent activity.</p>

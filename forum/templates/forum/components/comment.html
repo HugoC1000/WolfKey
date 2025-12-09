@@ -20,7 +20,7 @@
                 {% if comment.author == post.author and not post.is_anonymous  %}
                     <span class="badge bg-primary ms-2">OP</span>
                 {% endif %}
-                <div class="comment-date text-muted" style = "margin-left: 8px;">{{ comment.created_at|smart_timesince }} ago</div>
+                <div class="comment-date text-muted" style = "margin-left: 8px;">{{ comment.created_at|smart_timesince }}</div>
             </div>
 
         </div>

@@ -68,5 +68,6 @@ def smart_timesince(value, days=30):
         return ""
     threshold = timezone.now() - timedelta(days=int(days))
     if value >= threshold:
-        return f"{timesince(value)}"
+        s = f"{timesince(value)} ago".replace("hours", "h").replace("days", "d").replace("minutes", "m").replace("days", "d").replace("minute", "m").replace("hour", "h").replace("weeks", "wks").replace("week", "wk")
+        return s
     return value.strftime("%B %d, %Y")
