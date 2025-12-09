@@ -18,6 +18,7 @@ from forum.services.post_services import (
     follow_post_service,
     unfollow_post_service
 )
+from forum.services.notification_services import mark_notifications_by_post_service
 
 logger = logging.getLogger(__name__)
 
@@ -68,13 +69,9 @@ def post_detail(request, post_id):
         messages.error(request, result['error'])
         return redirect('all_posts')
         
-    # Update notifications
+    # Mark notifications as read using service
     if request.user.is_authenticated:
-        Notification.objects.filter(
-            recipient=request.user,
-            post_id=post_id,
-            is_read=False
-        ).update(is_read=True)
+        mark_notifications_by_post_service(request.user, post_id)
 
 
     # Prepare forms and additional context

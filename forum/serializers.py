@@ -77,6 +77,11 @@ class UserSerializer(serializers.ModelSerializer):
         return obj.get_full_name()
     
     def get_profile_picture_url(self, obj):
+        # Check if this user should be displayed as anonymous
+        is_anonymous = self.context.get('is_anonymous', False)
+        if is_anonymous:
+            return f"{settings.MEDIA_URL}profile_pictures/default.png"
+        
         try:
             if obj.userprofile and obj.userprofile.profile_picture:
                 return obj.userprofile.profile_picture.url
@@ -181,14 +186,13 @@ class PostListSerializer(serializers.ModelSerializer):
     
     def get_author(self, obj):
         """Return author data with anonymous profile picture if post is anonymous"""
-        if obj.is_anonymous:
-            # Return author data but with anonymous profile picture for anonymous posts
-            author_data = UserSerializer(obj.author, context=self.context).data
-            # Use Django's MEDIA_URL which will be AWS S3 in production
-            if author_data.get('userprofile'):
-                author_data['userprofile']['profile_picture'] = f"{settings.MEDIA_URL}profile_pictures/default.png"
-            return author_data
-        return UserSerializer(obj.author, context=self.context).data
+        author_info = obj.get_author()
+        
+        # Create context with anonymous flag
+        serializer_context = dict(self.context)
+        serializer_context['is_anonymous'] = author_info['is_anonymous']
+        
+        return UserSerializer(author_info['user'], context=serializer_context).data
     
     def get_author_name(self, obj):
         if obj.is_anonymous:
@@ -262,14 +266,13 @@ class PostDetailSerializer(serializers.ModelSerializer):
     
     def get_author(self, obj):
         """Return author data with anonymous profile picture if post is anonymous"""
-        if obj.is_anonymous:
-            # Return author data but with anonymous profile picture for anonymous posts
-            author_data = UserSerializer(obj.author, context=self.context).data
-            # Use Django's MEDIA_URL which will be AWS S3 in production
-            if author_data.get('userprofile'):
-                author_data['userprofile']['profile_picture'] = f"{settings.MEDIA_URL}profile_pictures/default.png"
-            return author_data
-        return UserSerializer(obj.author, context=self.context).data
+        author_info = obj.get_author()
+        
+        # Create context with anonymous flag
+        serializer_context = dict(self.context)
+        serializer_context['is_anonymous'] = author_info['is_anonymous']
+        
+        return UserSerializer(author_info['user'], context=serializer_context).data
     
     def get_courses(self, obj):
         return CourseSerializer(obj.courses.all(), many=True, context=self.context).data

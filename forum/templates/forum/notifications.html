@@ -1,5 +1,7 @@
 {% extends 'forum/base.html' %}
 {% load static %}
+{%load custom_filters %}
+
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
@@ -14,7 +16,7 @@
                     <div class="d-flex w-100 justify-content-between align-items-center">
                         <div class="card-body" style="flex:1;">
                             <h5 class="mb-1">{{ notification.message }}</h5>
-                            <small>{{ notification.created_at|timesince }} ago</small>
+                            <small>{{ notification.created_at|smart_timesince }}</small>
                             <p class="mb-1">From: {{ notification.sender.username }}</p>
                         </div>
                         {% if not notification.is_read %}

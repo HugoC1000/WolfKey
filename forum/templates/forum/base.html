@@ -19,6 +19,8 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     {% load static %}
+    {%load custom_filters %}
+
     <link rel="icon" type="image/x-icon" href="{% static 'forum/images/WolfkeyLogo.ico' %}">
     <link rel="stylesheet" href="{% static 'forum/css/base.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/asset.css' %}">
@@ -186,7 +188,7 @@
                                                     <a class="dropdown-item {% if not notification.is_read %}fw-bold{% endif %}" 
                                                        href="{% url 'mark_notification_read' notification.id %}">
                                                         {{ notification.message|truncatechars:50 }}
-                                                        <small class="text-muted d-block">{{ notification.created_at|timesince }} ago</small>
+                                                        <small class="text-muted d-block">{{ notification.created_at|smart_timesince }}</small>
                                                     </a>
                                                 </li>
                                             {% endfor %}

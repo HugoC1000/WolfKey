@@ -145,7 +145,8 @@ from forum.api.notifications import (
     mark_all_notifications_read_api,
     register_push_token_api,
     unregister_push_token_api,
-    unread_count_api
+    unread_count_api,
+    mark_notifications_by_post_api
 )
 
 from forum.api.posts import (
@@ -334,6 +335,7 @@ urlpatterns = [
     path('api/notifications/unread-count/', unread_count_api, name='api_notifications_unread_count'),
     path('api/notifications/<int:notification_id>/mark-read/', mark_notification_read_api, name='api_mark_notification_read'),
     path('api/notifications/mark-all-read/', mark_all_notifications_read_api, name='api_mark_all_notifications_read'),
+    path('api/notifications/mark-by-post/<int:post_id>/', mark_notifications_by_post_api, name='api_mark_notifications_by_post'),
     path('api/notifications/register-push-token/', register_push_token_api, name='api_register_push_token'),
     path('api/notifications/unregister-push-token/', unregister_push_token_api, name='api_unregister_push_token'),
     
