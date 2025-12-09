@@ -3,9 +3,8 @@
 {% block head %}
 {%load static %}
     <link rel="stylesheet" href="{% static 'forum/css/schedule.css' %}"> 
-    <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}"> 
-
-
+    <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
+    <script src="{% static 'forum/js/schedule.js' %}" defer></script>
 {% endblock %}
 {% block content %}
     <div class="d-flex justify-content-center align-items-center mb-2">
@@ -74,7 +73,7 @@
                 <div class="flex-fill">
                     <div class = "card">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <h3 style = "font-size: 1.5rem;" id="schedule-title">Tomorrow's Schedule</h3>
+                        <h3 style = "font-size: 1.5rem;" id="schedule-title">{{ schedule_title }}</h3>
                         <div class="d-flex align-items-center gap-2">
                             <button id="prev-day" class="btn btn-sm btn-outline-secondary" title="Previous day">
                                 <i class="fas fa-chevron-left"></i>
@@ -160,114 +159,6 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Schedule date picker and navigation functionality
-        const datePicker = document.getElementById('schedule-date-picker');
-        const prevDayBtn = document.getElementById('prev-day');
-        const nextDayBtn = document.getElementById('next-day');
-        const tomorrowScheduleList = document.getElementById('tomorrow-schedule');
-        const scheduleTitle = document.getElementById('schedule-title');
-        const scheduleBadges = document.getElementById('schedule-badges');
-        const tomorrowDate = datePicker.dataset.tomorrow;
-
-        function updateScheduleTitle(dateString) {
-            // Check if the selected date is tomorrow
-            if (dateString === tomorrowDate) {
-                scheduleTitle.textContent = "Tomorrow's Schedule";
-            } else {
-                // Will be updated with the formatted date from the API response
-                scheduleTitle.textContent = "Schedule";
-            }
-        }
-
-        function updateSchedule(dateString) {
-            // Update title
-            updateScheduleTitle(dateString);
-            
-            // Show loading state
-            tomorrowScheduleList.innerHTML = '<li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...</li>';
-            scheduleBadges.innerHTML = '';
-            
-            // Fetch schedule for the selected date
-            fetch(`/schedules/daily/${dateString}/`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        tomorrowScheduleList.innerHTML = `<li class="list-group-item text-danger">${data.error}</li>`;
-                        return;
-                    }
-                    
-                    // Update title with formatted date if not tomorrow
-                    if (dateString !== tomorrowDate) {
-                        scheduleTitle.textContent = data.date;
-                    }
-                    
-                    // Build badges
-                    let badgesHTML = '';
-                    if (data.ceremonial_required) {
-                        badgesHTML += '<span class="badge rounded-pill schedule-badge-ceremonial"><i class="fas fa-user-tie me-1"></i>Ceremonial Uniform</span>';
-                    }
-                    if (data.early_dismissal) {
-                        badgesHTML += '<span class="badge rounded-pill schedule-badge-early"><i class="fas fa-clock me-1"></i>Early Dismissal</span>';
-                    }
-                    if (data.late_start) {
-                        badgesHTML += '<span class="badge rounded-pill schedule-badge-late"><i class="fas fa-coffee me-1"></i>Late Start</span>';
-                    }
-                    scheduleBadges.innerHTML = badgesHTML;
-                    
-                    // Build schedule list
-                    let scheduleHTML = '';
-                    
-                    // Add schedule items
-                    if (data.schedule && data.schedule.length > 0) {
-                        if (data.schedule[0] === "no school") {
-                            scheduleHTML += '<li class="list-group-item"><p style="margin-bottom: 0px;">No School</p></li>';
-                        } else {
-                            data.schedule.forEach(item => {
-                                scheduleHTML += `
-                                    <li class="list-group-item">
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <p style="margin-bottom: 0px;">${item.block}</p>
-                                            ${item.time ? `<p style="margin-bottom: 0px;">${item.time}</p>` : ''}
-                                        </div>
-                                    </li>
-                                `;
-                            });
-                        }
-                    } else {
-                        scheduleHTML += '<li class="list-group-item"><p style="margin-bottom: 0px;">Schedule unavailable</p></li>';
-                    }
-                    
-                    tomorrowScheduleList.innerHTML = scheduleHTML;
-                })
-                .catch(error => {
-                    console.error('Error fetching schedule:', error);
-                    tomorrowScheduleList.innerHTML = '<li class="list-group-item text-danger">Error loading schedule</li>';
-                });
-        }
-
-        // Date picker change event
-        datePicker.addEventListener('change', function() {
-            updateSchedule(this.value);
-        });
-
-        // Previous day button
-        prevDayBtn.addEventListener('click', function() {
-            const currentDate = new Date(datePicker.value);
-            currentDate.setDate(currentDate.getDate() - 1);
-            const newDate = currentDate.toISOString().split('T')[0];
-            datePicker.value = newDate;
-            updateSchedule(newDate);
-        });
-
-        // Next day button
-        nextDayBtn.addEventListener('click', function() {
-            const currentDate = new Date(datePicker.value);
-            currentDate.setDate(currentDate.getDate() + 1);
-            const newDate = currentDate.toISOString().split('T')[0];
-            datePicker.value = newDate;
-            updateSchedule(newDate);
-        });
-
         // Create animation observer function to reuse for new posts
         function createAnimationObserver() {
             return new IntersectionObserver((entries, observer) => {
@@ -303,7 +194,7 @@
             } else {
                 span.textContent = text[i];
             }
-            span.style.animationDelay = (i * 40) + 'ms'; // Adjust timing
+            span.style.animationDelay = (i * 60) + 'ms'; // Adjust timing
             textElement.appendChild(span);
         }
 
