@@ -6,22 +6,50 @@ from forum.services.schedule_services import (
     _parse_iso_date,
     _convert_to_sheet_date_format,
     process_schedule_for_user,
+    is_ceremonial_uniform_required,
 )
 
 
 @require_http_methods(["GET"])
 def daily_schedule_view(request, target_date):
-    """Session/CSRF-protected view for the website to fetch the daily schedule."""
+    """
+    Session/CSRF-protected view for the website to fetch the daily schedule.
+    
+    Args:
+        target_date (str): Date in YYYY-MM-DD format
+    
+    Returns:
+        JsonResponse: JSON response with:
+            - date (str): Formatted date string
+            - blocks (List[Optional[str]]): List of block identifiers (or processed schedule if user is authenticated)
+            - times (List[Optional[str]]): List of time ranges
+            - early_dismissal (bool): Whether it's an early dismissal day
+            - late_start (bool): Whether it's a late start day
+            - ceremonial_required (bool): Whether ceremonial uniform is required (if user is authenticated)
+    """
     try:
         schedule = get_block_order_for_day(target_date)
         date_obj = _parse_iso_date(target_date)
         formatted_date = _convert_to_sheet_date_format(date_obj)
 
-        return JsonResponse({
+        response_data = {
             'date': formatted_date,
-            'blocks': schedule['blocks'],
-            'times': schedule['times']
-        })
+            'early_dismissal': schedule.get('early_dismissal', False),
+            'late_start': schedule.get('late_start', False)
+        }
+        
+        # If user is authenticated, process schedule for them and include ceremonial uniform
+        if request.user.is_authenticated:
+            processed_schedule = process_schedule_for_user(request.user, schedule)
+            ceremonial_required = is_ceremonial_uniform_required(request.user, target_date)
+            response_data['schedule'] = processed_schedule
+            response_data['ceremonial_required'] = ceremonial_required
+        else:
+            # Return raw blocks and times for unauthenticated users
+            response_data['blocks'] = schedule['blocks']
+            response_data['times'] = schedule['times']
+        
+        return JsonResponse(response_data)
     except ValueError as e:
         return JsonResponse({'error': 'Invalid date format. Expected YYYY-MM-DD', 'details': str(e)}, status=400)
     except Exception as e:
@@ -32,7 +60,15 @@ def daily_schedule_view(request, target_date):
 @login_required
 @require_http_methods(["GET"])
 def user_blocks_view(request, user_id):
-    """Session/CSRF-protected view to the user's blocks."""
+    """
+    Session/CSRF-protected view to get a user's course blocks.
+    
+    Args:
+        user_id (int): ID of the user to fetch blocks for
+    
+    Returns:
+        JsonResponse: JSON response with user's course block information
+    """
     from django.shortcuts import get_object_or_404
     from forum.models import User, UserProfile
     from forum.serializers import BlockSerializer

@@ -42,7 +42,7 @@
                             </a>
                         {% endif %}
                         <span class="text-muted">
-                            {{ post.created_at|relative_if_recent }}
+                            {{ post.created_at|smart_timesince }}
                         </span>
                     </p>
                     <h4 class="card-title post-card-title">{{ post.title }}</h4>

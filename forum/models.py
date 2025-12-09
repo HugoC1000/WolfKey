@@ -464,8 +464,14 @@ class DailySchedule(models.Model):
     block_7_time = models.CharField(max_length=50, blank=True, null=True)
     block_8 = models.CharField(max_length=100, blank=True, null=True)
     block_8_time = models.CharField(max_length=50, blank=True, null=True)
+    block_9 = models.CharField(max_length=100, blank=True, null=True)
+    block_9_time = models.CharField(max_length=50, blank=True, null=True)
+    block_10 = models.CharField(max_length=100, blank=True, null=True)
+    block_10_time = models.CharField(max_length=50, blank=True, null=True)
     ceremonial_uniform = models.BooleanField(null = True)
     is_school = models.BooleanField(null = True)
+    early_dismissal = models.BooleanField(null=True)
+    late_start = models.BooleanField(null=True)
 
     def __str__(self):
         return f"Schedule for {self.date}"

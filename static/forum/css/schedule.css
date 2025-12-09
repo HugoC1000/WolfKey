@@ -39,3 +39,41 @@
   text-align: center;
   display: none;
 }
+
+/* Schedule Date Picker and Navigation */
+#schedule-date-picker {
+  border-radius: 2.2rem;
+}
+
+#prev-day, #next-day {
+  border-radius: 12px;
+  color: black;
+  border: none !important; 
+}
+
+/* Schedule Badge Pills */
+.schedule-badge-ceremonial {
+  background: #0d6efd;
+  color: white;
+}
+
+.schedule-badge-early {
+  background: #ffd807;
+  color: black;
+}
+
+.schedule-badge-late {
+  background: #17a2b8;
+  color: white;
+  border: none;
+}
+
+#prev-day:hover, #next-day:hover {
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+  background: white;
+}
+
+#schedule-date-picker {
+  color: black;
+  text-align: center;
+}

@@ -3,9 +3,8 @@
 {% block head %}
 {%load static %}
     <link rel="stylesheet" href="{% static 'forum/css/schedule.css' %}"> 
-    <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}"> 
-
-
+    <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
+    <script src="{% static 'forum/js/schedule.js' %}" defer></script>
 {% endblock %}
 {% block content %}
     <div class="d-flex justify-content-center align-items-center mb-2">
@@ -25,12 +24,24 @@
                                 {{ current_date}}
                             </span>
                         </div>
-                        <ul class="list-group shadow-sm rounded"id = "today-schedule">
+                        <div class="d-flex gap-2 mb-2 justify-content-end flex-wrap">
                             {% if ceremonial_required_today %}
-                            <li class="list-group-item">
-                                👔 Ceremonial Required
-                            </li>
+                            <span class="badge rounded-pill schedule-badge-ceremonial">
+                                <i class="fas fa-user-tie me-1"></i>Ceremonial Uniform
+                            </span>
                             {% endif %}
+                            {% if early_dismissal_today %}
+                            <span class="badge rounded-pill schedule-badge-early">
+                                <i class="fas fa-clock me-1"></i>Early Dismissal
+                            </span>
+                            {% endif %}
+                            {% if late_start_today %}
+                            <span class="badge rounded-pill schedule-badge-late">
+                                <i class="fas fa-coffee me-1"></i>Late Start
+                            </span>
+                            {% endif %}
+                        </div>
+                        <ul class="list-group shadow-sm rounded"id = "today-schedule">
                             {% if schedule_today %}
                                 {% for item in schedule_today %}
                                 {% if item == "no school"  %}
@@ -62,17 +73,35 @@
                 <div class="flex-fill">
                     <div class = "card">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <h3 style = "font-size: 1.5rem;">Tomorrow's Schedule</h3>
-                        <span class="text-muted" id="tomorrow-date">
-                            {{ tomorrow_date}}
+                        <h3 style = "font-size: 1.5rem;" id="schedule-title">{{ schedule_title }}</h3>
+                        <div class="d-flex align-items-center gap-2">
+                            <button id="prev-day" class="btn btn-sm btn-outline-secondary" title="Previous day">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <input type="date" id="schedule-date-picker" class="form-control form-control-sm" style="max-width: 150px;" value="{{ tomorrow_iso }}" data-tomorrow="{{ tomorrow_iso }}">
+                            <button id="next-day" class="btn btn-sm btn-outline-secondary" title="Next day">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 mb-2 justify-content-end flex-wrap" id="schedule-badges">
+                        {% if ceremonial_required_tomorrow %}
+                        <span class="badge rounded-pill schedule-badge-ceremonial">
+                            <i class="fas fa-user-tie me-1"></i>Ceremonial Uniform
                         </span>
+                        {% endif %}
+                        {% if early_dismissal_tomorrow %}
+                        <span class="badge rounded-pill schedule-badge-early">
+                            <i class="fas fa-clock me-1"></i>Early Dismissal
+                        </span>
+                        {% endif %}
+                        {% if late_start_tomorrow %}
+                        <span class="badge rounded-pill schedule-badge-late">
+                            <i class="fas fa-coffee me-1"></i>Late Start
+                        </span>
+                        {% endif %}
                     </div>
                     <ul class="list-group shadow-sm rounded" id = "tomorrow-schedule">
-                        {% if ceremonial_required_tomorrow %}
-                        <li class="list-group-item">
-                            👔 Ceremonial Required
-                        </li>
-                        {% endif %}
                         {% if schedule_tomorrow %}
                             {% for item in schedule_tomorrow %}
                             {% if item == "no school"  %}
@@ -165,7 +194,7 @@
             } else {
                 span.textContent = text[i];
             }
-            span.style.animationDelay = (i * 40) + 'ms'; // Adjust timing
+            span.style.animationDelay = (i * 60) + 'ms'; // Adjust timing
             textElement.appendChild(span);
         }
 
