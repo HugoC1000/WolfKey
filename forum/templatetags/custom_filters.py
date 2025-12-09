@@ -53,7 +53,7 @@ def increment(value):
     return value + 1
 
 @register.filter
-def relative_if_recent(value, days=30):
+def smart_timesince(value, days=30):
     """
     Render *value* (a timezone‑aware ``datetime``) as a relative string
     when it is younger than *days*; otherwise fall back to an
@@ -61,12 +61,12 @@ def relative_if_recent(value, days=30):
 
     Usage in template:
         {% load post_extras %}
-        {{ post.created_at|relative_if_recent }}             # 30‑day default
-        {{ post.created_at|relative_if_recent:45 }}           # custom window
+        {{ post.created_at|smart_timesince }}             # 30‑day default
+        {{ post.created_at|smart_timesince:45 }}           # custom window
     """
     if not value:
         return ""
     threshold = timezone.now() - timedelta(days=int(days))
     if value >= threshold:
-        return f"{timesince(value)} ago"
+        return f"{timesince(value)}"
     return value.strftime("%B %d, %Y")

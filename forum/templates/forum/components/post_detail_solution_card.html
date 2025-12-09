@@ -68,8 +68,8 @@
                     {% if solution.author == post.author and not post.is_anonymous %}
                         <span class="badge bg-primary ms-2">OP</span>
                     {% endif %}
+                    <span class="text-muted ms-2">Answered {{ solution.created_at|smart_timesince }} ago</span>
                 </div>
-                <div class="text-muted">Answered {{ solution.created_at|date:"M d, Y" }}</div>
             </div>
         </div>
         <div id="editorjs-solution-{{ solution.id }}"></div>
