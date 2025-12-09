@@ -48,6 +48,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     grade_level = serializers.IntegerField(read_only=True)
     allow_schedule_comparison = serializers.BooleanField(read_only=True)
     allow_grade_updates = serializers.BooleanField(read_only=True)
+    profile_picture = serializers.SerializerMethodField()
     
     class Meta:
         model = UserProfile
@@ -58,6 +59,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
             'grade_level', 'allow_schedule_comparison', 'allow_grade_updates'
         ]
+    
+    def get_profile_picture(self, obj):
+        """Return anonymous profile picture if post is anonymous"""
+        is_anonymous = self.context.get('is_anonymous', False)
+        if is_anonymous:
+            return f"{settings.MEDIA_URL}profile_pictures/default.png"
+        
+        try:
+            if obj.profile_picture:
+                return obj.profile_picture.url
+            return None
+        except:
+            return None
 
 class UserSerializer(serializers.ModelSerializer):
     userprofile = UserProfileSerializer(read_only=True)
