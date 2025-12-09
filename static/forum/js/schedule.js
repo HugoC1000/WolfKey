@@ -38,7 +38,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function getDayName(dateString) {
-        const date = new Date(dateString);
+        // Parse the date string as local time to avoid timezone offset issues
+        const [year, month, day] = dateString.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         return days[date.getDay()];
     }
