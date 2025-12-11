@@ -65,10 +65,13 @@ def api_logout(request):
 def api_register(request):
     try:
         data = json.loads(request.body)
+        logger.info(f"Registration attempt with data keys: {list(data.keys())}")
+        
         form = CustomUserCreationForm(data)
         schedule = data.get('schedule', {})
 
         if not form.is_valid():
+            logger.warning(f"Form validation failed: {form.errors}")
             return JsonResponse({'error': form.errors}, status=400)
 
         help_needed_courses = data.get('help_needed_courses', [])
@@ -86,12 +89,14 @@ def api_register(request):
         )
 
         if error:
+            logger.warning(f"Registration service error: {error}")
             return JsonResponse({'error': error}, status=400)
 
         token, _ = Token.objects.get_or_create(user=user)
 
         user_serializer = UserSerializer(user)
 
+        logger.info(f"Registration successful for user: {user.school_email}")
         return JsonResponse({
             'success': True,
             'message': 'Registration successful',
@@ -105,9 +110,11 @@ def api_register(request):
             }
         }, status=201)
 
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error in registration: {str(e)}")
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
+        logger.error(f"Unexpected error in registration: {str(e)}", exc_info=True)
         return JsonResponse({'error': str(e)}, status=500)
 
 @api_view(['GET'])
