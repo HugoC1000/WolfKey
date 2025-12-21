@@ -1,0 +1,7 @@
+Hello {solution_author_full_name},
+
+You can view the solution and comment here:
+{site_url}{solution_url}
+
+Best regards,
+WolfKey Team

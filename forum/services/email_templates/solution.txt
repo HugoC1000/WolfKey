@@ -1,0 +1,12 @@
+Hello {author_full_name},
+
+A new solution has been posted to your question:
+
+Post: {post_title}
+Solution by: {solution_author}
+
+You can view the solution here:
+{site_url}{post_url}
+
+Best regards,
+WolfKey Team
