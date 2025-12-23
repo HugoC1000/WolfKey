@@ -4,6 +4,9 @@ from django.utils.timezone import localtime
 from .services.utils import process_post_preview
 from django.conf import settings
 
+# Constants
+ANONYMOUS_PROFILE_PICTURE = f"{settings.MEDIA_URL}profile_pictures/default.png"
+
 class CourseSerializer(serializers.ModelSerializer):
     is_experienced = serializers.SerializerMethodField()
     needs_help = serializers.SerializerMethodField()
@@ -61,17 +64,47 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ]
     
     def get_profile_picture(self, obj):
-        """Return anonymous profile picture if post is anonymous"""
-        is_anonymous = self.context.get('is_anonymous', False)
-        if is_anonymous:
-            return f"{settings.MEDIA_URL}profile_pictures/default.png"
-        
+        """Return profile picture URL"""
         try:
             if obj.profile_picture:
                 return obj.profile_picture.url
             return None
-        except:
+        except (AttributeError, FileNotFoundError, ValueError):
             return None
+
+class AnonUserProfileSerializer(serializers.ModelSerializer):
+    """Serializer for anonymous user profiles - returns default/anonymous data"""
+    block_1A = CourseSerializer(read_only=True)
+    block_1B = CourseSerializer(read_only=True)
+    block_1D = CourseSerializer(read_only=True)
+    block_1E = CourseSerializer(read_only=True)
+    block_2A = CourseSerializer(read_only=True)
+    block_2B = CourseSerializer(read_only=True)
+    block_2C = CourseSerializer(read_only=True)
+    block_2D = CourseSerializer(read_only=True)
+    block_2E = CourseSerializer(read_only=True)
+    grade_level = serializers.SerializerMethodField()
+    allow_schedule_comparison = serializers.BooleanField(read_only=True)
+    allow_grade_updates = serializers.BooleanField(read_only=True)
+    profile_picture = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = UserProfile
+        fields = [
+            'id', 'bio', 'points', 'is_moderator', 'created_at', 'updated_at',
+            'background_hue', 'profile_picture',
+            'block_1A', 'block_1B', 'block_1D', 'block_1E',
+            'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
+            'grade_level', 'allow_schedule_comparison', 'allow_grade_updates'
+        ]
+    
+    def get_profile_picture(self, obj):
+        """Always return anonymous profile picture"""
+        return ANONYMOUS_PROFILE_PICTURE
+    
+    def get_grade_level(self, obj):
+        """Hide grade level for anonymous users"""
+        return None
 
 class UserSerializer(serializers.ModelSerializer):
     userprofile = UserProfileSerializer(read_only=True)
@@ -91,16 +124,12 @@ class UserSerializer(serializers.ModelSerializer):
         return obj.get_full_name()
     
     def get_profile_picture_url(self, obj):
-        # Check if this user should be displayed as anonymous
-        is_anonymous = self.context.get('is_anonymous', False)
-        if is_anonymous:
-            return f"{settings.MEDIA_URL}profile_pictures/default.png"
-        
+        """Return profile picture URL"""
         try:
             if obj.userprofile and obj.userprofile.profile_picture:
                 return obj.userprofile.profile_picture.url
             return None
-        except:
+        except (AttributeError, FileNotFoundError, ValueError):
             return None
 
     def get_grade_level(self, obj):
@@ -108,6 +137,39 @@ class UserSerializer(serializers.ModelSerializer):
             return obj.userprofile.grade_level if hasattr(obj, 'userprofile') else None
         except Exception:
             return None
+
+class AnonUserSerializer(serializers.ModelSerializer):
+    """Serializer for anonymous users - returns anonymous/default data"""
+    userprofile = AnonUserProfileSerializer(read_only=True)
+    full_name = serializers.SerializerMethodField()
+    first_name = serializers.SerializerMethodField()
+    last_name = serializers.SerializerMethodField()
+    profile_picture_url = serializers.SerializerMethodField()
+    grade_level = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 'full_name',
+            'school_email', 'personal_email', 'phone_number', 
+            'date_joined', 'userprofile', 'profile_picture_url', 'grade_level'
+        ]
+    
+    def get_first_name(self, obj):
+        return "Anonymous"
+
+    def get_last_name(self,obj):
+        return ""
+    def get_full_name(self, obj):
+        return "Anonymous"
+    
+    def get_profile_picture_url(self, obj):
+        """Always return anonymous profile picture"""
+        return ANONYMOUS_PROFILE_PICTURE
+
+    def get_grade_level(self, obj):
+        """Hide grade level for anonymous users"""
+        return None
 
 class BlockSerializer(serializers.ModelSerializer):
     """Serializer for user blocks data - returns user info + schedule blocks"""
@@ -130,7 +192,7 @@ class BlockSerializer(serializers.ModelSerializer):
             if obj.profile_picture:
                 return obj.profile_picture.url
             return None
-        except:
+        except (AttributeError, FileNotFoundError, ValueError):
             return None
     
     def get_schedule(self, obj):
@@ -176,7 +238,6 @@ class BlockSerializer(serializers.ModelSerializer):
 class PostListSerializer(serializers.ModelSerializer):
     """Serializer for post list/feed views - matches paginate_posts structure"""
     author = serializers.SerializerMethodField()
-    author_name = serializers.SerializerMethodField()
     preview_text = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     courses = serializers.SerializerMethodField()
@@ -192,26 +253,21 @@ class PostListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = [
-            'id', 'title', 'author', 'author_name', 'preview_text', 
+            'id', 'title', 'author', 'preview_text', 
             'created_at', 'courses', 'reply_count', 'views', 'like_count', 
             'is_liked', 'solution_count', 'comment_count', 'solved', 'is_following',
             'first_image_url'
         ]
     
     def get_author(self, obj):
-        """Return author data with anonymous profile picture if post is anonymous"""
+        """Return author data with anonymous serializer if post is anonymous"""
         author_info = obj.get_author()
         
-        # Create context with anonymous flag
-        serializer_context = dict(self.context)
-        serializer_context['is_anonymous'] = author_info['is_anonymous']
-        
-        return UserSerializer(author_info['user'], context=serializer_context).data
-    
-    def get_author_name(self, obj):
-        if obj.is_anonymous:
-            return "Anonymous"
-        return obj.author.get_full_name() if obj.author else "Unknown"
+        # Use anonymous serializer if post is anonymous
+        if author_info['is_anonymous']:
+            return AnonUserSerializer(author_info['user'], context=self.context).data
+        else:
+            return UserSerializer(author_info['user'], context=self.context).data
     
     def get_preview_text(self, obj):
         return process_post_preview(obj)
@@ -258,7 +314,6 @@ class PostListSerializer(serializers.ModelSerializer):
 class PostDetailSerializer(serializers.ModelSerializer):
     """Serializer for individual post views"""
     author = serializers.SerializerMethodField()
-    author_name = serializers.SerializerMethodField()
     courses = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
@@ -272,30 +327,24 @@ class PostDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = [
-            'id', 'title', 'content', 'author', 'author_name', 'courses', 'created_at',
+            'id', 'title', 'content', 'author', 'courses', 'created_at',
             'solved', 'views', 'is_anonymous', 'like_count', 'is_liked',
             'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
             'is_following'
         ]
     
     def get_author(self, obj):
-        """Return author data with anonymous profile picture if post is anonymous"""
+        """Return author data with anonymous serializer if post is anonymous"""
         author_info = obj.get_author()
         
-        # Create context with anonymous flag
-        serializer_context = dict(self.context)
-        serializer_context['is_anonymous'] = author_info['is_anonymous']
-        
-        return UserSerializer(author_info['user'], context=serializer_context).data
+        # Use anonymous serializer if post is anonymous
+        if author_info['is_anonymous']:
+            return AnonUserSerializer(author_info['user'], context=self.context).data
+        else:
+            return UserSerializer(author_info['user'], context=self.context).data
     
     def get_courses(self, obj):
         return CourseSerializer(obj.courses.all(), many=True, context=self.context).data
-    
-    def get_author_name(self, obj):
-        """Return author name, handling anonymous posts"""
-        if obj.is_anonymous:
-            return "Anonymous"
-        return obj.author.get_full_name() if obj.author else "Unknown"
     
     def get_created_at(self, obj):
         return localtime(obj.created_at).isoformat()
@@ -316,7 +365,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
         return getattr(obj, 'comment_count', 0)
     
     def get_solutions(self, obj):
-        """Return solutions using SolutionSerializer with proper ordering"""
+        """Return solutions using appropriate serializer based on anonymity"""
         from django.db.models import F, Case, When, IntegerField
         
         solutions = obj.solutions.select_related('author').annotate(
@@ -331,7 +380,118 @@ class PostDetailSerializer(serializers.ModelSerializer):
             '-created_at'
         )
         
-        return SolutionSerializer(solutions, many=True, context=self.context).data
+        # Add post to context for checking anonymity
+        context = dict(self.context)
+        context['post'] = obj
+        
+        # Serialize each solution with appropriate serializer
+        solutions_data = []
+        for solution in solutions:
+            # Use anonymous serializer if post is anonymous and solution author is post author
+            should_be_anon = obj.is_anonymous and solution.author_id == obj.author_id
+            if should_be_anon:
+                serializer = AnonSolutionSerializer(solution, context=context)
+            else:
+                serializer = SolutionSerializer(solution, context=context)
+            solutions_data.append(serializer.data)
+        
+        return solutions_data
+    
+    def get_has_solution_from_user(self, obj):
+        """Check if the current user has submitted a solution"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.solutions.filter(author=request.user).exists()
+        return False
+    
+    def get_is_following(self, obj):
+        """Check if the current user is following this post"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            from .models import FollowedPost
+            return FollowedPost.objects.filter(user=request.user, post=obj).exists()
+        return False
+
+class AnonPostDetailSerializer(serializers.ModelSerializer):
+    """Serializer for anonymous post detail views - when post.is_anonymous is True"""
+    author = serializers.SerializerMethodField()
+    courses = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+    solution_count = serializers.SerializerMethodField()
+    comment_count = serializers.SerializerMethodField()
+    solutions = serializers.SerializerMethodField()
+    has_solution_from_user = serializers.SerializerMethodField()
+    is_following = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Post
+        fields = [
+            'id', 'title', 'content', 'author', 'courses', 'created_at',
+            'solved', 'views', 'is_anonymous', 'like_count', 'is_liked',
+            'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
+            'is_following'
+        ]
+    
+    def get_author(self, obj):
+        """Always return anonymous author data"""
+        author_info = obj.get_author()
+        return AnonUserSerializer(author_info['user'], context=self.context).data
+    
+    def get_courses(self, obj):
+        return CourseSerializer(obj.courses.all(), many=True, context=self.context).data
+    
+    def get_created_at(self, obj):
+        return localtime(obj.created_at).isoformat()
+    
+    def get_like_count(self, obj):
+        return obj.like_count()
+    
+    def get_is_liked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.is_liked_by(request.user)
+        return False
+    
+    def get_solution_count(self, obj):
+        return getattr(obj, 'solution_count', obj.solutions.count())
+    
+    def get_comment_count(self, obj):
+        return getattr(obj, 'comment_count', 0)
+    
+    def get_solutions(self, obj):
+        """Return solutions, using anonymous serializer for post author's solutions"""
+        from django.db.models import F, Case, When, IntegerField
+        
+        solutions = obj.solutions.select_related('author').annotate(
+            vote_score=F('upvotes') - F('downvotes')
+        ).order_by(
+            Case(
+                When(id=obj.accepted_solution_id, then=0),
+                default=1,
+                output_field=IntegerField(),
+            ),
+            '-vote_score',
+            '-created_at'
+        )
+        
+        # Add post to context for checking anonymity
+        context = dict(self.context)
+        context['post'] = obj
+        
+        # Serialize each solution with appropriate serializer
+        solutions_data = []
+        for solution in solutions:
+            # Use anonymous serializer if solution author is post author
+            should_be_anon = solution.author_id == obj.author_id
+            if should_be_anon:
+                serializer = AnonSolutionSerializer(solution, context=context)
+            else:
+                serializer = SolutionSerializer(solution, context=context)
+            solutions_data.append(serializer.data)
+        
+        return solutions_data
     
     def get_has_solution_from_user(self, obj):
         """Check if the current user has submitted a solution"""
@@ -349,7 +509,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
         return False
 
 class CommentSerializer(serializers.ModelSerializer):
-    author = UserSerializer(read_only=True)
+    author = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     replies = serializers.SerializerMethodField()
     depth = serializers.SerializerMethodField()
@@ -361,20 +521,83 @@ class CommentSerializer(serializers.ModelSerializer):
             'replies', 'depth'
         ]
     
+    def get_author(self, obj):
+        """Return author data, using anonymous serializer if appropriate"""
+        post = self.context.get('post')
+        # Check if this comment should be anonymous
+        should_be_anon = (post and post.is_anonymous and 
+                         obj.author_id == post.author_id)
+        
+        if should_be_anon:
+            return AnonUserSerializer(obj.author, context=self.context).data
+        else:
+            return UserSerializer(obj.author, context=self.context).data
+    
     def get_created_at(self, obj):
         return localtime(obj.created_at).isoformat()
     
     def get_replies(self, obj):
         if hasattr(obj, 'replies'):
-            return CommentSerializer(obj.replies.all(), many=True, context=self.context).data
+            post = self.context.get('post')
+            replies_data = []
+            for reply in obj.replies.all():
+                # Check if reply should be anonymous
+                should_be_anon = (post and post.is_anonymous and 
+                                 reply.author_id == post.author_id)
+                if should_be_anon:
+                    serializer = AnonCommentSerializer(reply, context=self.context)
+                else:
+                    serializer = CommentSerializer(reply, context=self.context)
+                replies_data.append(serializer.data)
+            return replies_data
+        return []
+    
+    def get_depth(self, obj):
+        return obj.get_depth()
+
+class AnonCommentSerializer(serializers.ModelSerializer):
+    """Serializer for anonymous comments - when comment author is post author and post is anonymous"""
+    author = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    replies = serializers.SerializerMethodField()
+    depth = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Comment
+        fields = [
+            'id', 'content', 'author', 'created_at', 'parent',
+            'replies', 'depth'
+        ]
+    
+    def get_author(self, obj):
+        """Return anonymous author data"""
+        return AnonUserSerializer(obj.author, context=self.context).data
+    
+    def get_created_at(self, obj):
+        return localtime(obj.created_at).isoformat()
+    
+    def get_replies(self, obj):
+        """Recursively serialize replies, using anon serializer when appropriate"""
+        if hasattr(obj, 'replies'):
+            post = self.context.get('post')
+            replies_data = []
+            for reply in obj.replies.all():
+                # Check if reply should be anonymous
+                should_be_anon = (post and post.is_anonymous and 
+                                 reply.author_id == post.author_id)
+                if should_be_anon:
+                    serializer = AnonCommentSerializer(reply, context=self.context)
+                else:
+                    serializer = CommentSerializer(reply, context=self.context)
+                replies_data.append(serializer.data)
+            return replies_data
         return []
     
     def get_depth(self, obj):
         return obj.get_depth()
 
 class SolutionSerializer(serializers.ModelSerializer):
-    author = UserSerializer(read_only=True)
-    author_name = serializers.SerializerMethodField()
+    author = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
     is_accepted = serializers.SerializerMethodField()
@@ -384,13 +607,21 @@ class SolutionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Solution
         fields = [
-            'id', 'content', 'processed_content', 'author', 'author_name', 'created_at', 
+            'id', 'content', 'processed_content', 'author', 'created_at', 
             'upvotes', 'downvotes', 'comments', 'is_accepted', 'is_saved'
         ]
     
-    def get_author_name(self, obj):
-        """Return author name for convenience"""
-        return obj.author.get_full_name() if obj.author else "Unknown"
+    def get_author(self, obj):
+        """Return author data, using anonymous serializer if appropriate"""
+        post = self.context.get('post')
+        # Check if this solution should be anonymous
+        should_be_anon = (post and post.is_anonymous and 
+                         obj.author_id == post.author_id)
+        
+        if should_be_anon:
+            return AnonUserSerializer(obj.author, context=self.context).data
+        else:
+            return UserSerializer(obj.author, context=self.context).data
     
     def get_created_at(self, obj):
         return localtime(obj.created_at).isoformat()
@@ -410,9 +641,88 @@ class SolutionSerializer(serializers.ModelSerializer):
             return obj.content
     
     def get_comments(self, obj):
-        """Get formatted comments for this solution"""
+        """Get formatted comments for this solution, using anon serializer when appropriate"""
         comments = obj.comments.select_related('author').order_by('created_at')
-        return CommentSerializer(comments, many=True, context=self.context).data
+        post = self.context.get('post')
+        comments_data = []
+        
+        for comment in comments:
+            # Check if comment should be anonymous
+            should_be_anon = (post and post.is_anonymous and 
+                             comment.author_id == post.author_id)
+            if should_be_anon:
+                serializer = AnonCommentSerializer(comment, context=self.context)
+            else:
+                serializer = CommentSerializer(comment, context=self.context)
+            comments_data.append(serializer.data)
+        
+        return comments_data
+    
+    def get_is_accepted(self, obj):
+        return hasattr(obj, 'accepted_for') and obj.accepted_for is not None
+    
+    def get_is_saved(self, obj):
+        """Check if the current user has saved this solution"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            from .models import SavedSolution
+            return SavedSolution.objects.filter(user=request.user, solution=obj).exists()
+        return False
+
+class AnonSolutionSerializer(serializers.ModelSerializer):
+    """Serializer for anonymous solutions - when solution author is post author and post is anonymous"""
+    author = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    comments = serializers.SerializerMethodField()
+    is_accepted = serializers.SerializerMethodField()
+    is_saved = serializers.SerializerMethodField()
+    processed_content = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Solution
+        fields = [
+            'id', 'content', 'processed_content', 'author', 'created_at', 
+            'upvotes', 'downvotes', 'comments', 'is_accepted', 'is_saved'
+        ]
+    
+    def get_author(self, obj):
+        """Return anonymous author data"""
+        return AnonUserSerializer(obj.author, context=self.context).data
+    
+    def get_created_at(self, obj):
+        return localtime(obj.created_at).isoformat()
+    
+    def get_processed_content(self, obj):
+        """Process solution content - handle string JSON and quote replacement"""
+        from .services.utils import selective_quote_replace
+        import json
+        
+        try:
+            solution_content = obj.content
+            if isinstance(solution_content, str):
+                solution_content = selective_quote_replace(solution_content)
+                solution_content = json.loads(solution_content)
+            return solution_content
+        except Exception as e:
+            return obj.content
+    
+    def get_comments(self, obj):
+        """Get formatted comments for this solution, using anon serializer when appropriate"""
+        comments = obj.comments.select_related('author').order_by('created_at')
+        post = self.context.get('post')
+        comments_data = []
+        
+        for comment in comments:
+            # Check if comment should be anonymous
+            should_be_anon = (post and post.is_anonymous and 
+                             comment.author_id == post.author_id)
+            if should_be_anon:
+                serializer = AnonCommentSerializer(comment, context=self.context)
+            else:
+                serializer = CommentSerializer(comment, context=self.context)
+            comments_data.append(serializer.data)
+        
+        return comments_data
     
     def get_is_accepted(self, obj):
         return hasattr(obj, 'accepted_for') and obj.accepted_for is not None
