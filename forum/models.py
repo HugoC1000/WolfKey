@@ -413,6 +413,13 @@ class UserProfile(models.Model):
         blank=True,
         null=True
     )
+    
+    lunch_card = models.ImageField(
+        upload_to='lunch_cards/',
+        blank=True,
+        null=True,
+        help_text="Upload your lunch card image"
+    )
 
     #Fields for course blocks
     block_1A = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="block_1A")

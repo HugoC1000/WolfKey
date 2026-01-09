@@ -62,10 +62,7 @@ from forum.views.profile_views import (
     my_profile,
     profile_view,
     update_courses,
-    upload_profile_picture,
-    auto_complete_courses_view,
-    auto_complete_courses_registration,
-    check_wolfnet_password_view
+    upload_profile_picture
 )
 from forum.services.course_services import (
     course_search
@@ -120,10 +117,7 @@ from forum.api.auth import(
     api_delete_account
 )
 from forum.views.auth_views import register, login_view, logout_view
-from forum.api.wolfnet_integration import(
-    auto_complete_courses_api,
-    auto_complete_courses_registration_api
-)
+
 
 from django.views.generic import RedirectView
 
@@ -180,6 +174,8 @@ from forum.api.profile import (
     get_profile_api,
     update_profile_api,
     upload_profile_picture_api,
+    upload_lunch_card_api,
+    delete_lunch_card_api,
     update_courses_api,
     add_experience_api,
     add_help_request_api,
@@ -238,9 +234,6 @@ urlpatterns = [
     path('my-profile/', my_profile, name='my_profile'),
     path('profile/<str:username>/', profile_view, name='profile'),
     path('update-courses/', update_courses, name='update_courses'),
-    path('auto-complete-courses/', auto_complete_courses_view, name='auto_complete_courses'),
-    path('auto-complete-courses-registration/', auto_complete_courses_registration, name='auto_complete_courses_registration'),
-    path('check-wolfnet-password/', check_wolfnet_password_view, name='check_wolfnet_password'),
     
     # Course management URLs
     path('courses/experience/add/', add_experience, name='add_experience'),
@@ -343,6 +336,8 @@ urlpatterns = [
     path('api/profile/', get_profile_api, name='api_get_current_profile'),
     path('api/profile/update/', update_profile_api, name='api_update_profile'),
     path('api/profile/upload-picture/', upload_profile_picture_api, name='api_upload_profile_picture'),
+    path('api/profile/upload-lunch-card/', upload_lunch_card_api, name='api_upload_lunch_card'),
+    path('api/profile/delete-lunch-card/', delete_lunch_card_api, name='api_delete_lunch_card'),
     path('api/profile/courses/update/', update_courses_api, name='api_update_courses'),
     path('api/profile/preferences/update/', update_privacy_preferences_api, name='api_update_privacy_preferences'),
     path('api/profile/<str:username>/', get_profile_api, name='api_get_profile'),
@@ -350,10 +345,6 @@ urlpatterns = [
     path('api/profile/help/add/', add_help_request_api, name='api_add_help_request'),
     path('api/profile/experience/<int:experience_id>/remove/', remove_experience_api, name='api_remove_experience'),
     path('api/profile/help/<int:help_id>/remove/', remove_help_request_api, name='api_remove_help_request'),
-    
-    # Auto-complete courses API endpoints
-    path('api/auto-complete-courses/', auto_complete_courses_api, name='api_auto_complete_courses'),
-    path('api/auto-complete-courses-registration/', auto_complete_courses_registration_api, name='api_auto_complete_courses_registration'),
 ]
 
 if settings.DEBUG:

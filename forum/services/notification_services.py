@@ -36,11 +36,16 @@ def send_course_notifications_service(post, courses):
     """
     notified_users = set()
     
+    # Handle anonymous posts - extract actual user from dict
+    actual_author = post.author
+    if isinstance(actual_author, dict):
+        actual_author = actual_author.get('user')
+    
     # Get users with experience in these courses
     experienced_users = UserCourseExperience.objects.filter(
         course__in=courses
     ).select_related('user').distinct('user')
-    experienced_users = experienced_users.exclude(user=post.author)
+    experienced_users = experienced_users.exclude(user=actual_author)
     
     # Get users who currently have these courses in their schedule
     schedule_query = Q()
@@ -52,7 +57,7 @@ def send_course_notifications_service(post, courses):
     
     current_students = UserProfile.objects.filter(
         schedule_query
-    ).select_related('user').exclude(user=post.author)
+    ).select_related('user').exclude(user=actual_author)
     
     # Send notifications to users with experience
     for exp_user in experienced_users:
@@ -71,7 +76,7 @@ def send_course_notifications_service(post, courses):
         )
         send_notification_service(
             recipient=recipient,
-            sender=post.author,
+            sender=actual_author,
             notification_type='post',
             message=message,
             url=url,
@@ -98,7 +103,7 @@ def send_course_notifications_service(post, courses):
             )
             send_notification_service(
                 recipient=recipient,
-                sender=post.author,
+                sender=actual_author,
                 notification_type='post',
                 message=message,
                 url=url,
@@ -123,7 +128,6 @@ def send_solution_notification_service(solution):
         site_url=settings.SITE_URL,
         post_url=url,
     )
-    print("eter")
     send_notification_service(
         recipient=author,
         sender=solution.author,

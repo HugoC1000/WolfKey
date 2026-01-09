@@ -149,6 +149,19 @@ def update_profile_picture(request):
     profile.profile_picture = request.FILES['profile_picture']
     profile.save()
 
+def update_lunch_card(request):
+    profile = request.user.userprofile
+    
+    # Delete the old lunch card if it exists
+    if profile.lunch_card:
+        try:
+            profile.lunch_card.delete(save=False)
+        except Exception as e:
+            print(f"Warning: Could not delete previous lunch card: {str(e)}")
+    
+    profile.lunch_card = request.FILES['lunch_card']
+    profile.save()
+
 def update_profile_courses(request):
     profile = request.user.userprofile
     try:

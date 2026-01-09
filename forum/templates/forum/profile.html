@@ -235,9 +235,7 @@
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5 class="mb-0">Fill in your schedule info</h5>
                                 {% if user == profile_user %}
-                                <button type="button" class="btn btn-info btn-sm magic-btn" id="autoCompleteBtn" data-has-wolfnet="{% if has_wolfnet_password %}true{% else %}false{% endif %}" title="Not connected to WolfNet Account. Add password under preferences tab">
-                                    <i class="fas fa-magic"></i> Auto-Complete from WolfNet
-                                </button>
+                                
                                 {% endif %}
                             </div>
                             <div class="card-body">
@@ -290,45 +288,6 @@
     
                         <div class="card mb-4">
                             <div class="card-header">
-                                <h5 class="mb-0">WolfNet Integration</h5>
-                            </div>
-                            <div class="card-body">
-                                <form method="post" id="wolfnetForm">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="form_type" value="wolfnet_settings">
-                                    <div class="mb-3">
-                                        <label for="id_wolfnet_password" class="form-label">WolfNet Password</label>
-                                        <div style="position:relative;">
-                                            <input type="password" 
-                                                   name="wolfnet_password" 
-                                                   id="id_wolfnet_password" 
-                                                   class="form-control" 
-                                                   placeholder="Enter your WolfNet password"
-                                                   value="{% if request.user.userprofile.wolfnet_password %}Password exists; hidden for security{% endif %}">
-                                            <button type="button" id="toggleWolfnetPassword" class="btn btn-outline-secondary" tabindex="-1" aria-label="Show/Hide Password" style="position:absolute; right:10px; top:50%; transform:translateY(-50%);">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                        </div>
-                                        <small class="text-muted">
-                                            Your WolfNet password will be securely stored and used for:
-                                            <ul class="mt-2 mb-0">
-                                                <li>Email notifications when assignments are graded</li>
-                                                <li>Automatic schedule retrieval and updates</li>
-                                            </ul>
-                                        </small>
-                                    </div>
-                                    <div class="d-flex gap-2">
-                                        <button type="button" id="checkWolfnetBtn" class="btn btn-primary magic-btn">Check WolfNet Password</button>
-                                        {% if request.user.userprofile.wolfnet_password %}
-                                        <button type="button" class="btn btn-outline-danger" onclick="clearWolfNetPassword()">Clear Password</button>
-                                        {% endif %}
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                        
-                        <div class="card mb-4">
-                            <div class="card-header">
                                 <h5 class="mb-0"><i class="fas fa-user-shield"></i> Privacy Preferences</h5>
                             </div>
                             <div class="card-body">
@@ -350,7 +309,7 @@
                                         <label class="form-check-label" for="id_allow_grade_updates">
                                             <strong>Enable grade notifications</strong>
                                             <br>
-                                            <small class="text-muted">Receive automatic notifications when assignments are graded. Requires WolfNet password to be set.</small>
+                                            <small class="text-muted">Receive automatic notifications when assignments are graded.</small>
                                         </label>
                                     </div>
                                     
@@ -530,213 +489,10 @@
         }
     });
 </script>
-<!-- Auto Complete Courses Handler -->
-{% if user == profile_user %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const autoCompleteBtn = document.getElementById('autoCompleteBtn');
-        if (autoCompleteBtn) {
-            // TEMPORARILY DISABLED - WolfNet integration issues being resolved with IT department
-            autoCompleteBtn.disabled = true;
-            autoCompleteBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Temporarily Unavailable';
-            autoCompleteBtn.title = 'WolfNet integration temporarily disabled while we resolve issues with the IT department';
-            autoCompleteBtn.style.opacity = '0.6';
-            
-            autoCompleteBtn.addEventListener('click', function() {
-                alert('WolfNet auto-complete is temporarily unavailable while we sort out issues with the IT department. Please check back later.');
-            });
-            
-            /* ORIGINAL CODE - COMMENTED OUT TEMPORARILY
-            const hasWolfnet = autoCompleteBtn.getAttribute('data-has-wolfnet') === 'true';
-
-            console.log(hasWolfnet);
-
-            autoCompleteBtn.addEventListener('click', async function() {
-                const hasWolfnetNow = autoCompleteBtn.getAttribute('data-has-wolfnet') === 'true';
-                if (!hasWolfnetNow) {
-                    alert('Auto-complete unavailable because you do not have a WolfNet password set. Add it under the Preferences tab and then try again. \n\nIf you just set one, reload the page');
-                    return;
-                }
-
-                // Disable button and show loading state
-                autoCompleteBtn.disabled = true;
-                autoCompleteBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:0.5em;"><div class="loader"></div><span>Loading...</span></span>';
-
-                try {
-                    const response = await fetch('{% url "auto_complete_courses" %}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                        }
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        // Update course selectors with the fetched data
-                        updateCourseSelectors(data);
-                    } else {
-                        const errorType = data.error_type || 'general';
-                        let errorMessage = data.error || 'Failed to auto-complete courses';
-
-                        if (errorType === 'authentication') {
-                            if (data.error === 'wrong_password') {
-                                alert('Your WolfNet password appears to be incorrect. Please update it in the Preferences tab and try again.');
-                            } else {
-                                alert('Authentication failed: ' + errorMessage + '. Please check your WolfNet password in the Preferences tab.');
-                            }
-                        } else if (errorType === 'page_loading') {
-                            alert('WolfNet page failed to load properly. Please try again in a moment.');
-                        } else if (errorType === 'page_structure') {
-                            alert('Unable to find course information on WolfNet page. The page structure may have changed.');
-                        } else if (errorType === 'no_courses') {
-                            alert('No courses found in your WolfNet schedule. Make sure you have courses enrolled.');
-                        } else {
-                            alert('Error: ' + errorMessage);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Network error occurred while auto-completing courses');
-                } finally {
-                    // Always enable the button after task completes
-                    autoCompleteBtn.disabled = false;
-                    autoCompleteBtn.classList.remove('disabled');
-                    autoCompleteBtn.setAttribute('aria-disabled', 'false');
-                    autoCompleteBtn.innerHTML = '<i class="fas fa-magic"></i> Auto-Complete from WolfNet';
-                }
-            });
-            */
-        }
-    });
-
-    function updateCourseSelectors(data) {
-        // Use BlockSerializer format user_data.schedule
-        if (!data || !data.user_data || !data.user_data.schedule) return;
-
-        const schedule = data.user_data.schedule;
-        const blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E'];
-
-        blocks.forEach(block => {
-            const blockData = schedule[block];
-            if (!blockData || !blockData.course_id) return;
-
-            const course = { id: blockData.course_id, name: blockData.course };
-            const blockId = `block_${block}`;
-            const selector = window.courseSelectors && window.courseSelectors[blockId];
-
-            if (selector) {
-                try {
-                    selector.selectedCourses = [course];
-                    selector.updateSelectedCourses();
-                    selector.updateFormData();
-
-                    const experiencedCourses = JSON.parse('{{ experienced_courses_json|escapejs }}');
-                    const helpNeededCourses = JSON.parse('{{ help_needed_courses_json|escapejs }}');
-                    window.updateBlockButtons(blockId, course, experiencedCourses, helpNeededCourses);
-                } catch (error) {
-                    console.error(`Error updating selector for block ${block}:`, error);
-                }
-            } else {
-                console.warn(`Course selector not found for block ${block}`);
-            }
-        });
-    }
-
-</script>
-{% endif %}
 
 {% if user == profile_user %}
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const toggleBtn = document.getElementById('toggleWolfnetPassword');
-        const passwordInput = document.getElementById('id_wolfnet_password');
-        if (toggleBtn && passwordInput) {
-            toggleBtn.addEventListener('click', function () {
-                const type = passwordInput.type === 'password' ? 'text' : 'password';
-                passwordInput.type = type;
-                this.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
-            });
-        }
-        
-        // Handle Check WolfNet Password button
-        const checkWolfnetBtn = document.getElementById('checkWolfnetBtn');
-        if (checkWolfnetBtn) {
-            // TEMPORARILY DISABLED - WolfNet integration issues being resolved with IT department
-            checkWolfnetBtn.disabled = true;
-            checkWolfnetBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Temporarily Unavailable';
-            checkWolfnetBtn.title = 'WolfNet integration temporarily disabled while we resolve issues with the IT department';
-            checkWolfnetBtn.style.opacity = '0.6';
-            
-            checkWolfnetBtn.addEventListener('click', function() {
-                alert('WolfNet password verification is temporarily unavailable while we sort out issues with the IT department. Please check back later.');
-            });
-            
-            /* ORIGINAL CODE - COMMENTED OUT TEMPORARILY
-            checkWolfnetBtn.addEventListener('click', async function() {
-                const passwordInput = document.getElementById('id_wolfnet_password');
-                const password = passwordInput.value.trim();
-                
-                if (!password) {
-                    alert('Please enter your WolfNet password first');
-                    return;
-                }
-                
-                // Disable button and show loading state
-                checkWolfnetBtn.disabled = true;
-                checkWolfnetBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:0.5em;"><div class="loader"></div><span>Checking...</span></span>';
-                
-                try {
-                    const response = await fetch('/check-wolfnet-password/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                        },
-                        body: JSON.stringify({
-                            wolfnet_password: password
-                        })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        const message = data.message || 'WolfNet password verified and saved!';
-                        checkWolfnetBtn.innerHTML = '<i class="fas fa-check"></i> Saved Successfully';
-                        checkWolfnetBtn.classList.remove('btn-primary');
-                        checkWolfnetBtn.classList.add('btn-success');
-                        // Reload page so the auto-complete button and other UI reflect the saved password
-                        setTimeout(function() { window.location.reload(); }, 600);
-                    } else {
-                        let errorMessage = 'Invalid WolfNet password';
-                        if (data.error_type === 'wrong_password') {
-                            errorMessage = 'Invalid WolfNet credentials. Please check your password.';
-                        } else if (data.error_type === 'timeout' || data.error_type === 'page_loading') {
-                            errorMessage = 'WolfNet connection timeout. Please try again.';
-                        } else if (data.error) {
-                            errorMessage = data.error;
-                        }
-                        
-                        checkWolfnetBtn.innerHTML = '<i class="fas fa-times"></i> Invalid';
-                        checkWolfnetBtn.classList.remove('btn-primary');
-                        checkWolfnetBtn.classList.add('btn-danger');
-                        alert(errorMessage);
-                    }
-                } catch (error) {
-                    console.error('Error checking WolfNet password:', error);
-                    alert('Network error occurred while checking password');
-                    checkWolfnetBtn.innerHTML = '<i class="fas fa-times"></i> Error';
-                    checkWolfnetBtn.classList.remove('btn-primary');
-                    checkWolfnetBtn.classList.add('btn-danger');
-                } finally {
-                    checkWolfnetBtn.disabled = false;
-                }
-            });
-            */
-        }
-    });
-
+    // Form validation and submission handlers can go here if needed
 </script>
 {% endif %}
 
@@ -859,7 +615,6 @@
         // Get all forms that should be tracked
         const trackedForms = [
             'personalInfoForm',
-            'wolfnetForm',
             'privacyPreferencesForm',
             'blockCoursesForm',
             'bioForm',
@@ -1250,20 +1005,5 @@
     });
 </script>
 
-<script>
-function clearWolfNetPassword() {
-    if (confirm('Are you sure you want to clear your WolfNet password? This will disable grade notifications and schedule integration.')) {
-        const form = document.getElementById('wolfnetForm');
-        const passwordInput = document.getElementById('id_wolfnet_password');
-        passwordInput.value = '';
-        // Create a hidden input to indicate we want to clear the password
-        const clearInput = document.createElement('input');
-        clearInput.type = 'hidden';
-        clearInput.name = 'clear_wolfnet_password';
-        clearInput.value = 'true';
-        form.appendChild(clearInput);
-        form.submit();
-    }
-}
-</script>
+
 {% endblock %}

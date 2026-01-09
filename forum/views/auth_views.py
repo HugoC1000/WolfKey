@@ -15,8 +15,6 @@ def register(request):
         form = CustomUserCreationForm(request.POST)
         
         if form.is_valid():
-            wolfnet_password = request.POST.get('wolfnet_password', '').strip()
-            
             # Get course experience data
             help_courses_raw = request.POST.get('help_courses', '').split(',')
             experience_courses_raw = request.POST.get('experience_courses', '').split(',')
@@ -29,7 +27,7 @@ def register(request):
             allow_schedule_comparison = request.POST.get('allow_schedule_comparison') == 'on'
             allow_grade_updates = request.POST.get('allow_grade_updates') == 'on'
             
-            # Get schedule data if WolfNet password was provided
+            # Get schedule data
             schedule_data = {}
             blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
             for block in blocks:
@@ -43,7 +41,7 @@ def register(request):
             
             user, error = register_user(
                 request, form, help_courses, experience_courses, 
-                wolfnet_password, schedule_data,
+                schedule_data,
                 allow_schedule_comparison, allow_grade_updates
             )
             if error:
@@ -68,8 +66,6 @@ def register(request):
 
         help_courses = list(Course.objects.filter(id__in=help_course_ids).values('id', 'name'))
         experience_courses = list(Course.objects.filter(id__in=experience_course_ids).values('id', 'name'))
-
-        wolfnet_password = request.POST.get('wolfnet_password', '').strip()
         
         # Build schedule data in BlockSerializer format for form re-rendering
         schedule_data = {}
@@ -100,7 +96,6 @@ def register(request):
             'form_errors': form.errors.as_json(),
             'selected_help_courses': json.dumps(help_courses),
             'selected_experience_courses': json.dumps(experience_courses),
-            'saved_wolfnet_password': wolfnet_password,
             'saved_schedule_data': json.dumps(schedule_data)
         })
     else:

@@ -19,7 +19,7 @@ def get_csrf_token(request):
     return JsonResponse({'csrfToken': request.META.get('CSRF_COOKIE')})
 
 
-def register_user(request, form, help_courses, experience_courses, wolfnet_password=None, schedule_data=None, allow_schedule_comparison=True, allow_grade_updates=True):
+def register_user(request, form, help_courses, experience_courses, schedule_data=None, allow_schedule_comparison=True, allow_grade_updates=True):
     """
     Centralized service for user registration
     Returns (user, error_message) tuple
@@ -43,20 +43,6 @@ def register_user(request, form, help_courses, experience_courses, wolfnet_passw
         # Set user preferences
         user.userprofile.allow_schedule_comparison = allow_schedule_comparison
         user.userprofile.allow_grade_updates = allow_grade_updates
-        
-        # Set WolfNet password if provided
-        if wolfnet_password:
-            try:
-                from forum.forms import WolfNetSettingsForm
-                wolfnet_form = WolfNetSettingsForm()
-                encrypted_password = wolfnet_form.encrypt_password(wolfnet_password)
-                user.userprofile.wolfnet_password = encrypted_password
-                user.userprofile.save()
-                logger.info("WolfNet password encrypted and saved")
-            except Exception as e:
-                logger.error(f"Failed to encrypt WolfNet password: {str(e)}")
-                # Don't fail registration if WolfNet password encryption fails
-                pass
         
         # Set schedule courses if provided
         if schedule_data:

@@ -52,15 +52,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
     allow_schedule_comparison = serializers.BooleanField(read_only=True)
     allow_grade_updates = serializers.BooleanField(read_only=True)
     profile_picture = serializers.SerializerMethodField()
+    lunch_card = serializers.SerializerMethodField()
+    has_wolfnet_password = serializers.SerializerMethodField()
+    stats = serializers.SerializerMethodField()
+    courses = serializers.SerializerMethodField()
+    recent_posts = serializers.SerializerMethodField()
+    can_compare = serializers.SerializerMethodField()
+    initial_users = serializers.SerializerMethodField()
+    schedule_blocks = serializers.SerializerMethodField()
     
     class Meta:
         model = UserProfile
         fields = [
             'id', 'bio', 'points', 'is_moderator', 'created_at', 'updated_at',
-            'background_hue', 'profile_picture',
+            'background_hue', 'profile_picture', 'lunch_card',
             'block_1A', 'block_1B', 'block_1D', 'block_1E',
             'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
-            'grade_level', 'allow_schedule_comparison', 'allow_grade_updates'
+            'grade_level', 'allow_schedule_comparison', 'allow_grade_updates',
+            'has_wolfnet_password', 'stats', 'courses', 'recent_posts',
+            'can_compare', 'initial_users', 'schedule_blocks'
         ]
     
     def get_profile_picture(self, obj):
@@ -71,6 +81,128 @@ class UserProfileSerializer(serializers.ModelSerializer):
             return None
         except (AttributeError, FileNotFoundError, ValueError):
             return None
+    
+    def get_lunch_card(self, obj):
+        """Return lunch card URL"""
+        try:
+            if obj.lunch_card:
+                return obj.lunch_card.url
+            return None
+        except (AttributeError, FileNotFoundError, ValueError):
+            return None
+    
+    def get_has_wolfnet_password(self, obj):
+        """Check if user has wolfnet password set"""
+        return bool(obj.wolfnet_password)
+    
+    def get_schedule_blocks(self, obj):
+        """Return schedule blocks with course info"""
+        blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
+        schedule_blocks = {}
+        for block in blocks:
+            course = getattr(obj, f'block_{block}', None)
+            if course:
+                schedule_blocks[f'block_{block}'] = {
+                    'id': course.id,
+                    'name': course.name,
+                    'category': course.category,
+                }
+            else:
+                schedule_blocks[f'block_{block}'] = None
+        return schedule_blocks
+    
+    def get_stats(self, obj):
+        """Return user stats"""
+        from .models import Post, Solution
+        posts_count = Post.objects.filter(author=obj.user).count()
+        solutions_count = Solution.objects.filter(author=obj.user).count()
+        return {
+            'posts_count': posts_count,
+            'solutions_count': solutions_count
+        }
+    
+    def get_courses(self, obj):
+        """Return user courses (experienced, help needed, schedule)"""
+        from .models import UserCourseExperience, UserCourseHelp
+        import json
+        
+        experienced_courses = UserCourseExperience.objects.filter(user=obj.user)
+        help_needed_courses = UserCourseHelp.objects.filter(user=obj.user, active=True)
+        
+        # Get schedule courses using BlockSerializer
+        serializer = BlockSerializer(obj)
+        schedule_courses = serializer.data.get('schedule', {}) if serializer and serializer.data else {}
+        
+        return {
+            'experienced_courses': [
+                {
+                    'id': exp.id,
+                    'course': {
+                        'id': exp.course.id,
+                        'name': exp.course.name,
+                        'category': exp.course.category
+                    }
+                } for exp in experienced_courses
+            ],
+            'help_needed_courses': [
+                {
+                    'id': help_req.id,
+                    'course': {
+                        'id': help_req.course.id,
+                        'name': help_req.course.name,
+                        'category': help_req.course.category
+                    }
+                } for help_req in help_needed_courses
+            ],
+            'schedule_courses': schedule_courses
+        }
+    
+    def get_recent_posts(self, obj):
+        """Return recent posts by user"""
+        from .models import Post
+        recent_posts = Post.objects.filter(
+            author=obj.user,
+            is_anonymous=False
+        ).order_by('-created_at')[:3]
+        
+        return [
+            {
+                'id': post.id,
+                'title': post.title,
+                'created_at': post.created_at.isoformat(),
+                'likes_count': post.like_count(),
+                'solutions_count': post.solutions.count()
+            } for post in recent_posts
+        ]
+    
+    def get_can_compare(self, obj):
+        """Check if the requesting user can compare schedules"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and request.user != obj.user:
+            return True
+        return False
+    
+    def get_initial_users(self, obj):
+        """Return initial users for comparison if applicable"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and request.user != obj.user:
+            return [
+                {
+                    'id': request.user.id,
+                    'username': request.user.username,
+                    'full_name': request.user.get_full_name(),
+                    'school_email': request.user.school_email,
+                    'profile_picture_url': request.user.userprofile.profile_picture.url if request.user.userprofile.profile_picture else None,
+                },
+                {
+                    'id': obj.user.id,
+                    'username': obj.user.username,
+                    'full_name': obj.user.get_full_name(),
+                    'school_email': obj.user.school_email,
+                    'profile_picture_url': obj.profile_picture.url if obj.profile_picture else None,
+                }
+            ]
+        return None
 
 class AnonUserProfileSerializer(serializers.ModelSerializer):
     """Serializer for anonymous user profiles - returns default/anonymous data"""

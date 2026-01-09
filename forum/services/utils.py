@@ -12,8 +12,8 @@ from PIL import Image
 from io import BytesIO
 from urllib.parse import urlparse
 
-ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif']
-ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif']
+ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/heic']
+ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic']
 
 def process_post_preview(post):
     """
