@@ -47,9 +47,35 @@
                             <h2>{{ profile_user.get_full_name }}</h2>
                             <span class="text-muted">Joined: {{ profile_user.date_joined|date:"F j, Y" }}</span>
                             <p class="text-muted">Grade: {{ profile_user.userprofile.grade_level}}</p>
+                            {% if profile_user.userprofile.display_email %}
+                            <p class="text-muted">
+                                <i class="bi bi-envelope"></i> {{ profile_user.school_email }}
+                            </p>
+                            {% endif %}
                             <p>{{ profile_user.userprofile.bio }}</p>
                         </div>
                     </div>
+                    
+                    <!-- Social Media Links - Vertical -->
+                    {% if profile_user.userprofile.instagram_handle or profile_user.userprofile.snapchat_handle or profile_user.userprofile.linkedin_url %}
+                    <div class="social-links-vertical me-3">
+                        {% if profile_user.userprofile.instagram_handle %}
+                        <a href="https://www.instagram.com/{{ profile_user.userprofile.instagram_handle }}" target="_blank" rel="noopener noreferrer" title="Instagram">
+                            <i class="bi bi-instagram"></i>
+                        </a>
+                        {% endif %}
+                        {% if profile_user.userprofile.snapchat_handle %}
+                        <a href="https://www.snapchat.com/add/{{ profile_user.userprofile.snapchat_handle }}" target="_blank" rel="noopener noreferrer" title="Snapchat">
+                            <i class="bi bi-snapchat"></i>
+                        </a>
+                        {% endif %}
+                        {% if profile_user.userprofile.linkedin_url %}
+                        <a href="{{ profile_user.userprofile.linkedin_url }}" target="_blank" rel="noopener noreferrer" title="LinkedIn">
+                            <i class="bi bi-linkedin"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                     
                     <!-- Compare Schedules Button -->
                     {% if can_compare %}
@@ -134,6 +160,55 @@
                                         <input type="range" name="background_hue" id="background_hue" class="form-range background_hue_slider" min="0" max="360" value="{{ profile_user.userprofile.background_hue }}" oninput="setBackground(this.value)">
                                     </div>
                                     <button type="submit" class="btn btn-primary" disabled>Save Changes</button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="bi bi-share"></i> Social Media Links</h5>
+                            </div>
+                            <div class="card-body">
+                                <form method="post" id="socialMediaForm">
+                                    {% csrf_token %}
+                                    
+                                    <div class="mb-3">
+                                        <label for="id_instagram_handle" class="form-label">
+                                            <i class="bi bi-instagram"></i> Instagram Username
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">@</span>
+                                            <input type="text" name="instagram_handle" id="id_instagram_handle" class="form-control" 
+                                                   value="{{ profile_user.userprofile.instagram_handle|default:'' }}" 
+                                                   placeholder="username">
+                                        </div>
+                                        <small class="text-muted">Your Instagram username (without @)</small>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="id_snapchat_handle" class="form-label">
+                                            <i class="bi bi-snapchat"></i> Snapchat Username
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">@</span>
+                                            <input type="text" name="snapchat_handle" id="id_snapchat_handle" class="form-control" 
+                                                   value="{{ profile_user.userprofile.snapchat_handle|default:'' }}" 
+                                                   placeholder="username">
+                                        </div>
+                                        <small class="text-muted">Your Snapchat username (without @)</small>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="id_linkedin_url" class="form-label">
+                                            <i class="bi bi-linkedin"></i> LinkedIn Profile URL
+                                        </label>
+                                        <input type="url" name="linkedin_url" id="id_linkedin_url" class="form-control" 
+                                               value="{{ profile_user.userprofile.linkedin_url|default:'' }}" 
+                                               placeholder="https://www.linkedin.com/in/yourprofile">
+                                        <small class="text-muted">Must start with www.linkedin.com/in/</small>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary" disabled>Save Social Links</button>
                                 </form>
                             </div>
                         </div>
@@ -310,6 +385,15 @@
                                             <strong>Enable grade notifications</strong>
                                             <br>
                                             <small class="text-muted">Receive automatic notifications when assignments are graded.</small>
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" name="display_email" id="id_display_email" {% if profile_user.userprofile.display_email %}checked{% endif %}>
+                                        <label class="form-check-label" for="id_display_email">
+                                            <strong>Display email on profile</strong>
+                                            <br>
+                                            <small class="text-muted">Allow others to see your email address on your public profile.</small>
                                         </label>
                                     </div>
                                     
@@ -618,7 +702,8 @@
             'privacyPreferencesForm',
             'blockCoursesForm',
             'bioForm',
-            'backgroundForm'
+            'backgroundForm',
+            'socialMediaForm'
         ];
         
         // Store original form data and add change listeners

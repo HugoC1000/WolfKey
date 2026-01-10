@@ -60,6 +60,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
     can_compare = serializers.SerializerMethodField()
     initial_users = serializers.SerializerMethodField()
     schedule_blocks = serializers.SerializerMethodField()
+    instagram_url = serializers.SerializerMethodField()
+    snapchat_url = serializers.SerializerMethodField()
+    linkedin_url = serializers.SerializerMethodField()
     
     class Meta:
         model = UserProfile
@@ -68,9 +71,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'background_hue', 'profile_picture', 'lunch_card',
             'block_1A', 'block_1B', 'block_1D', 'block_1E',
             'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
-            'grade_level', 'allow_schedule_comparison', 'allow_grade_updates',
+            'grade_level', 'allow_schedule_comparison', 'allow_grade_updates', 'display_email',
             'has_wolfnet_password', 'stats', 'courses', 'recent_posts',
-            'can_compare', 'initial_users', 'schedule_blocks'
+            'can_compare', 'initial_users', 'schedule_blocks',
+            'instagram_url', 'snapchat_url', 'linkedin_url'
         ]
     
     def get_profile_picture(self, obj):
@@ -203,6 +207,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 }
             ]
         return None
+    
+    def get_instagram_url(self, obj):
+        """Get the full Instagram profile URL"""
+        return obj.get_instagram_url()
+    
+    def get_snapchat_url(self, obj):
+        """Get the full Snapchat profile URL"""
+        return obj.get_snapchat_url()
+    
+    def get_linkedin_url(self, obj):
+        """Get the LinkedIn profile URL"""
+        return obj.get_linkedin_url()
 
 class AnonUserProfileSerializer(serializers.ModelSerializer):
     """Serializer for anonymous user profiles - returns default/anonymous data"""

@@ -79,6 +79,9 @@ def update_profile_api(request):
         - phone_number: User's phone number
         - bio: User's bio
         - background_hue: Background hue value (integer)
+        - instagram_handle: Instagram username (without @)
+        - snapchat_handle: Snapchat username (without @)
+        - linkedin_url: LinkedIn profile URL (must start with www.linkedin.com/in/)
         - form_type: Type of form ('wolfnet_settings' for WolfNet settings)
         - wolfnet_password: WolfNet password (if form_type is 'wolfnet_settings')
         - clear_wolfnet_password: Boolean to clear WolfNet password

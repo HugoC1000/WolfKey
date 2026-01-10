@@ -275,3 +275,77 @@ input[type="range"]::-webkit-slider-runnable-track {
         transform: scale(1.05);
     }
 }
+
+/* Social Media Links Styling */
+.social-links {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.social-links .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.social-links .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.social-links .btn i {
+    font-size: 1.2rem;
+}
+
+/* Vertical Social Media Links */
+.social-links-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.social-links-vertical a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.social-links-vertical a:hover {
+    transform: scale(1.15);
+}
+
+.social-links-vertical a i {
+    font-size: 1.5rem;
+}
+
+/* Social media specific colors on hover */
+.social-links .btn:has(.bi-instagram):hover,
+.social-links-vertical a:has(.bi-instagram):hover {
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.social-links .btn:has(.bi-snapchat):hover,
+.social-links-vertical a:has(.bi-snapchat):hover {
+    color: #FFFC00;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.3));
+}
+
+.social-links .btn:has(.bi-linkedin):hover,
+.social-links-vertical a:has(.bi-linkedin):hover {
+    color: #0077b5;
+}
