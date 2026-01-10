@@ -16,6 +16,7 @@ from forum.services.profile_service import (
     get_profile_context,
     update_profile_info,
     update_profile_picture,
+    update_lunch_card,
     update_profile_courses,
     add_user_experience,
     add_user_help_request,
@@ -51,81 +52,11 @@ def get_profile_api(request, username=None):
             from forum.models import UserProfile
             UserProfile.objects.create(user=profile_user)
         
-        context = get_profile_context(request, username)
+        # Use UserSerializer which includes UserProfileSerializer
+        from forum.serializers import UserSerializer
+        serializer = UserSerializer(profile_user, context={'request': request})
         
-        blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
-        schedule_blocks = {}
-        for block in blocks:
-            course = getattr(profile_user.userprofile, f'block_{block}', None)
-            if course:
-                schedule_blocks[f'block_{block}'] = {
-                    'id': course.id,
-                    'name': course.name,
-                    'category': course.category,
-                }
-            else:
-                schedule_blocks[f'block_{block}'] = None
-
-        profile_data = {
-            'user': {
-                'id': profile_user.id,
-                'username': profile_user.username,
-                'first_name': profile_user.first_name,
-                'last_name': profile_user.last_name,
-                'school_email': profile_user.school_email,
-                'personal_email': getattr(profile_user, 'personal_email', ''),
-                'phone_number': getattr(profile_user, 'phone_number', ''),
-                'profile_picture_url': profile_user.userprofile.profile_picture.url if profile_user.userprofile.profile_picture else None,
-                'bio': profile_user.userprofile.bio,
-                'background_hue': profile_user.userprofile.background_hue,
-                'has_wolfnet_password': context['has_wolfnet_password'],
-                'allow_schedule_comparison': profile_user.userprofile.allow_schedule_comparison,
-                'allow_grade_updates': profile_user.userprofile.allow_grade_updates,
-                'schedule_blocks': schedule_blocks
-            },
-            'stats': {
-                'posts_count': context['posts_count'],
-                'solutions_count': context['solutions_count']
-            },
-            'courses': {
-                'experienced_courses': [
-                    {
-                        'id': exp.id,
-                        'course': {
-                            'id': exp.course.id,
-                            'name': exp.course.name,
-                            'category': exp.course.category
-                        }
-                    } for exp in context['experienced_courses']
-                ],
-                'help_needed_courses': [
-                    {
-                        'id': help_req.id,
-                        'course': {
-                            'id': help_req.course.id,
-                            'name': help_req.course.name,
-                            'category': help_req.course.category
-                        }
-                    } for help_req in context['help_needed_courses']
-                ],
-                'schedule_courses': json.loads(context['initial_courses_json'])
-            },
-            'recent_posts': [
-                {
-                    'id': post.id,
-                    'title': post.title,
-                    'created_at': post.created_at.isoformat(),
-                    'likes_count': post.like_count(),
-                    'solutions_count': post.solutions.count()
-                } for post in context['recent_posts']
-            ],
-            'can_compare': context['can_compare']
-        }
-        
-        if context['can_compare']:
-            profile_data['initial_users'] = json.loads(context['initial_users'])
-            
-        return Response(profile_data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
         
     except Exception as e:
         logger.error(f"Error getting profile for {username}: {str(e)}")
@@ -148,6 +79,9 @@ def update_profile_api(request):
         - phone_number: User's phone number
         - bio: User's bio
         - background_hue: Background hue value (integer)
+        - instagram_handle: Instagram username (without @)
+        - snapchat_handle: Snapchat username (without @)
+        - linkedin_url: LinkedIn profile URL (must start with www.linkedin.com/in/)
         - form_type: Type of form ('wolfnet_settings' for WolfNet settings)
         - wolfnet_password: WolfNet password (if form_type is 'wolfnet_settings')
         - clear_wolfnet_password: Boolean to clear WolfNet password
@@ -210,6 +144,76 @@ def upload_profile_picture_api(request):
         
     except Exception as e:
         logger.error(f"Error uploading profile picture for {request.user.username}: {str(e)}")
+        return Response({
+            'error': f'An error occurred: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def upload_lunch_card_api(request):
+    """
+    Upload lunch card for the current user
+    
+    Request should contain a file in 'lunch_card' field
+    
+    Returns:
+        Response: Success message and new lunch card URL or error
+    """
+    try:
+        if 'lunch_card' not in request.FILES:
+            return Response({
+                'error': 'No lunch card file provided'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create a mock request for the service
+        mock_request = type('MockRequest', (), {
+            'FILES': request.FILES,
+            'user': request.user
+        })()
+        
+        update_lunch_card(mock_request)
+        
+        return Response({
+            'message': 'Lunch card uploaded successfully!',
+            'lunch_card_url': request.user.userprofile.lunch_card.url
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error uploading lunch card for {request.user.username}: {str(e)}")
+        return Response({
+            'error': f'An error occurred: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def delete_lunch_card_api(request):
+    """
+    Delete lunch card for the current user
+    
+    Returns:
+        Response: Success message or error
+    """
+    try:
+        profile = request.user.userprofile
+        
+        if not profile.lunch_card:
+            return Response({
+                'error': 'No lunch card to delete'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Delete the lunch card file
+        profile.lunch_card.delete(save=True)
+        
+        return Response({
+            'message': 'Lunch card deleted successfully!'
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error deleting lunch card for {request.user.username}: {str(e)}")
         return Response({
             'error': f'An error occurred: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

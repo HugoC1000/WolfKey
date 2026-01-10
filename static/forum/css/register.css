@@ -392,31 +392,6 @@
     box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
 }
 
-/* WolfNet Integration Styling */
-.alert {
-    border-radius: 12px;
-    border: none;
-    padding: 1rem 1.5rem;
-    animation: fadeInUp 0.5s ease;
-}
-
-@keyframes fadeInUp {
-    0% { opacity: 0; transform: translateY(20px); }
-    100% { opacity: 1; transform: translateY(0); }
-}
-
-.alert-info {
-    background: linear-gradient(135deg, #d1ecf1, #bee5eb);
-    color: #0c5460;
-    border-left: 4px solid #17a2b8;
-}
-
-.alert-warning {
-    background: linear-gradient(135deg, #fff3cd, #ffeaa7);
-    color: #856404;
-    border-left: 4px solid #ffc107;
-}
-
 /* Course Cards */
 .card-header {
     background: linear-gradient(135deg, #f8f9fa, #e9ecef);

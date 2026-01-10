@@ -1,0 +1,12 @@
+Hello {recipient_full_name},
+
+A new post has been created in a course you have experience in:
+
+Title: {post_title}
+Course(s): {courses}
+
+You can view the post here:
+{site_url}{post_url}
+
+Best regards,
+WolfKey Team

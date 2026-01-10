@@ -104,62 +104,79 @@ class CommentForm(forms.ModelForm):
 
 
 class UserProfileForm(forms.ModelForm):
-    class Meta:
-        model = UserProfile
-        fields = ['bio']
-        widgets = {
-            'bio': forms.Textarea(attrs={'rows': 4}),
-        }
-
-class WolfNetSettingsForm(forms.ModelForm):
-    wolfnet_password = forms.CharField(
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter your WolfNet password'
-        }),
+    instagram_handle = forms.CharField(
+        max_length=30,
         required=False,
-        help_text='Your WolfNet password will be securely encrypted and stored for grade notifications and schedule integration.'
+        help_text="Your Instagram username (without @)",
+        widget=forms.TextInput(attrs={
+            'placeholder': 'username',
+            'class': 'form-control'
+        })
+    )
+    snapchat_handle = forms.CharField(
+        max_length=15,
+        required=False,
+        help_text="Your Snapchat username (without @)",
+        widget=forms.TextInput(attrs={
+            'placeholder': 'username',
+            'class': 'form-control'
+        })
+    )
+    linkedin_url = forms.URLField(
+        max_length=200,
+        required=False,
+        help_text="Your LinkedIn profile URL (e.g., https://www.linkedin.com/in/yourprofile)",
+        widget=forms.URLInput(attrs={
+            'placeholder': 'https://www.linkedin.com/in/yourprofile',
+            'class': 'form-control'
+        })
     )
     
     class Meta:
         model = UserProfile
-        fields = ['wolfnet_password']
-        
-    def clean_wolfnet_password(self):
-        password = self.cleaned_data.get('wolfnet_password')
-        if password:
-            # Add any additional validation for WolfNet password here
-            if len(password) < 1:
-                raise forms.ValidationError("Please enter a valid WolfNet password.")
-        return password
-
+        fields = ['bio', 'instagram_handle', 'snapchat_handle', 'linkedin_url']
+        widgets = {
+            'bio': forms.Textarea(attrs={'rows': 4}),
+        }
     
-    def encrypt_password(self, password):
-        """Encrypt the password using Fernet encryption"""
-        # Generate a key from Django's SECRET_KEY
-        key = settings.FERNET_KEY.encode()
-        f = Fernet(key)
-
-        encrypted_password = f.encrypt(password.encode())
-
-        return encrypted_password.decode()
+    def clean_instagram_handle(self):
+        """Clean and validate Instagram handle"""
+        handle = self.cleaned_data.get('instagram_handle', '').strip()
+        if handle:
+            # Remove @ symbol if present
+            handle = handle.lstrip('@')
+            # Validate format (alphanumeric, dots, underscores only)
+            if not all(c.isalnum() or c in '._' for c in handle):
+                raise forms.ValidationError('Instagram username can only contain letters, numbers, dots, and underscores.')
+        return handle if handle else None
     
-    @staticmethod
-    def decrypt_password(encrypted_password):
-        """Decrypt the password for use in web scraping"""
-        if not encrypted_password:
-            logger.error("No encrypted password passed")
-            return None
-        try:
-            key = settings.FERNET_KEY.encode()
-            f = Fernet(key)
-            decrypted_password = f.decrypt(encrypted_password.encode())
-            return decrypted_password.decode()
-        except Exception as e:
-            import traceback
-            logger.error(f"Exception during decryption: {e}\n{traceback.format_exc()}")
-            return None
-
+    def clean_snapchat_handle(self):
+        """Clean and validate Snapchat handle"""
+        handle = self.cleaned_data.get('snapchat_handle', '').strip()
+        if handle:
+            # Remove @ symbol if present
+            handle = handle.lstrip('@')
+            # Validate format (alphanumeric, dots, underscores, hyphens)
+            if not all(c.isalnum() or c in '._-' for c in handle):
+                raise forms.ValidationError('Snapchat username can only contain letters, numbers, dots, underscores, and hyphens.')
+        return handle if handle else None
+    
+    def clean_linkedin_url(self):
+        """Validate LinkedIn URL format"""
+        url = self.cleaned_data.get('linkedin_url', '').strip()
+        if url:
+            # Ensure it starts with the correct format
+            if not (url.startswith('https://www.linkedin.com/in/') or 
+                    url.startswith('http://www.linkedin.com/in/') or
+                    url.startswith('www.linkedin.com/in/')):
+                raise forms.ValidationError('LinkedIn URL must start with www.linkedin.com/in/')
+            
+            # Ensure https protocol
+            if url.startswith('www.'):
+                url = 'https://' + url
+            elif url.startswith('http://'):
+                url = url.replace('http://', 'https://')
+        return url if url else None
 
 class UserCourseExperienceForm(forms.ModelForm):
     class Meta:

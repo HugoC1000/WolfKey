@@ -1,0 +1,9 @@
+Hello {parent_author_full_name},
+
+{comment_author_full_name} has replied to your comment:
+
+You can view the reply here:
+{site_url}{comment_url}
+
+Best regards,
+WolfKey Team

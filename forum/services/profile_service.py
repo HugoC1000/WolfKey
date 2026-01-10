@@ -87,7 +87,31 @@ def update_profile_info(request, username):
             bio = request.POST.get('bio', profile_user.userprofile.bio)
             detect_bad_words(bio)
             profile_user.userprofile.bio = bio
-            profile_user.userprofile.save()
+
+        # Handle social media links
+        if 'instagram_handle' in request.POST:
+            instagram_handle = request.POST.get('instagram_handle', '').strip().lstrip('@')
+            profile_user.userprofile.instagram_handle = instagram_handle if instagram_handle else None
+        
+        if 'snapchat_handle' in request.POST:
+            snapchat_handle = request.POST.get('snapchat_handle', '').strip().lstrip('@')
+            profile_user.userprofile.snapchat_handle = snapchat_handle if snapchat_handle else None
+        
+        if 'linkedin_url' in request.POST:
+            linkedin_url = request.POST.get('linkedin_url', '').strip()
+            # Validate LinkedIn URL
+            if linkedin_url:
+                if not (linkedin_url.startswith('https://www.linkedin.com/in/') or 
+                        linkedin_url.startswith('http://www.linkedin.com/in/') or
+                        linkedin_url.startswith('www.linkedin.com/in/')):
+                    return False, 'LinkedIn URL must start with www.linkedin.com/in/'
+                
+                # Ensure https protocol
+                if linkedin_url.startswith('www.'):
+                    linkedin_url = 'https://' + linkedin_url
+                elif linkedin_url.startswith('http://'):
+                    linkedin_url = linkedin_url.replace('http://', 'https://')
+            profile_user.userprofile.linkedin_url = linkedin_url if linkedin_url else None
 
         hue_value = request.POST.get('background_hue', profile_user.userprofile.background_hue)
         profile_user.userprofile.background_hue = int(hue_value)
@@ -104,9 +128,11 @@ def update_privacy_preferences(request, profile_user):
     try:
         allow_schedule_comparison = request.POST.get('allow_schedule_comparison') == 'on'
         allow_grade_updates = request.POST.get('allow_grade_updates') == 'on'
+        display_email = request.POST.get('display_email') == 'on'
         
         profile_user.userprofile.allow_schedule_comparison = allow_schedule_comparison
         profile_user.userprofile.allow_grade_updates = allow_grade_updates
+        profile_user.userprofile.display_email = display_email
         profile_user.userprofile.save()
         
         return True, 'Privacy preferences updated successfully!'
@@ -147,6 +173,19 @@ def update_profile_picture(request):
             print(f"Warning: Could not delete previous profile picture: {str(e)}")
     
     profile.profile_picture = request.FILES['profile_picture']
+    profile.save()
+
+def update_lunch_card(request):
+    profile = request.user.userprofile
+    
+    # Delete the old lunch card if it exists
+    if profile.lunch_card:
+        try:
+            profile.lunch_card.delete(save=False)
+        except Exception as e:
+            print(f"Warning: Could not delete previous lunch card: {str(e)}")
+    
+    profile.lunch_card = request.FILES['lunch_card']
     profile.save()
 
 def update_profile_courses(request):

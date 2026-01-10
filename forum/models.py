@@ -413,6 +413,13 @@ class UserProfile(models.Model):
         blank=True,
         null=True
     )
+    
+    lunch_card = models.ImageField(
+        upload_to='lunch_cards/',
+        blank=True,
+        null=True,
+        help_text="Upload your lunch card image"
+    )
 
     #Fields for course blocks
     block_1A = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="block_1A")
@@ -442,9 +449,49 @@ class UserProfile(models.Model):
         default=True,
         help_text="Enable automatic grade notifications from WolfNet"
     )
+    display_email = models.BooleanField(
+        default=False,
+        help_text="Display your email address on your public profile"
+    )
+    
+    # Social Media Links
+    instagram_handle = models.CharField(
+        max_length=30,
+        blank=True,
+        null=True,
+        help_text="Your Instagram username (without @)"
+    )
+    snapchat_handle = models.CharField(
+        max_length=15,
+        blank=True,
+        null=True,
+        help_text="Your Snapchat username (without @)"
+    )
+    linkedin_url = models.URLField(
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="Your LinkedIn profile URL (must start with www.linkedin.com/in/)"
+    )
 
     def __str__(self):
         return f"{self.user.username}'s profile"
+    
+    def get_instagram_url(self):
+        """Get the full Instagram profile URL"""
+        if self.instagram_handle:
+            return f"https://www.instagram.com/{self.instagram_handle.strip().lstrip('@')}"
+        return None
+    
+    def get_snapchat_url(self):
+        """Get the full Snapchat profile URL"""
+        if self.snapchat_handle:
+            return f"https://www.snapchat.com/add/{self.snapchat_handle.strip().lstrip('@')}"
+        return None
+    
+    def get_linkedin_url(self):
+        """Get the LinkedIn profile URL (already validated)"""
+        return self.linkedin_url if self.linkedin_url else None
 
 class DailySchedule(models.Model):
     date = models.DateField(unique=True)
