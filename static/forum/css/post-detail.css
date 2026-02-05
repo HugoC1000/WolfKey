@@ -12,7 +12,12 @@
   max-width: 650px;
   margin: 0 auto;
 }
-/* python manage.py runserver*/
+
+@media (min-width: 1200px) {
+  .post-detail-container {
+    max-width: 900px;
+  }
+}
 
 
 .go-back-button {
@@ -32,6 +37,12 @@
   left: calc(50% - 325px - 30px);
   top: 10px;
   z-index: 10;
+}
+
+@media (min-width: 1200px) {
+  .go-back-button {
+    left: calc(50% - 450px - 30px);
+  }
 }
 
 .go-back-button:hover {
@@ -101,6 +112,12 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
+@media (min-width: 1200px) {
+  #main-section {
+    max-width: 900px;
+  }
+}
+
 .card {
   max-width: 920px;
   background-color: white;
@@ -108,6 +125,12 @@
   padding: 20px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   border-width: 0px !important;
+}
+
+@media (min-width: 1200px) {
+  .card {
+    max-width: 900px;
+  }
 }
 
 .solution-container {
@@ -121,6 +144,12 @@
   position: relative;
 }
 
+@media (min-width: 1200px) {
+  .solution-container {
+    max-width: 900px;
+  }
+}
+
 #solution-form-container {
   max-width: 650px;
   margin: 10px auto;
@@ -129,6 +158,12 @@
   border-color: transparent;
   background-color: white;
   padding:2px 0px 2px 0px;
+}
+
+@media (min-width: 1200px) {
+  #solution-form-container {
+    max-width: 900px;
+  }
 }
 
 
@@ -210,12 +245,18 @@
 }
 .solutions-header {
   display: flex;
-  justify-content: space-around; /* Changed from space-between to pull items left */
+  justify-content: space-around;
   align-items: center;
-  gap: 100px;                   /* This controls the exact space between text and button */
+  gap: 100px;
   margin: 0 auto 20px auto;
   max-width: 920px;
   width: 100%;
+}
+
+@media (min-width: 1200px) {
+  .solutions-header {
+    max-width: 900px;
+  }
 }
 
 .accepted-solution {
