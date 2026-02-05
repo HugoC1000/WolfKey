@@ -7,6 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 import json
 import logging
+from forum.serializers import UserProfileSerializer
 
 # Import the new service layer
 from forum.services.profile_service import (
@@ -32,7 +33,17 @@ def profile_view(request, username):
         else:
             messages.error(request, msg)
         return redirect('profile', username=request.user.username)
+    
     context = get_profile_context(request, username)
+    
+    # Add serialized profile data for consistency with API
+    profile_user = context['profile_user']
+    profile_serializer = UserProfileSerializer(
+        profile_user.userprofile,
+        context={'request': request}
+    )
+    context['profile_data'] = profile_serializer.data
+    
     return render(request, 'forum/profile.html', context)
 
 @login_required

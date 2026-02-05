@@ -4,15 +4,20 @@ from django.http import JsonResponse
 from forum.models import Post, SavedPost, FollowedPost, Solution, SavedSolution
 from forum.services.utils import process_post_preview, add_course_context, annotate_post_card_context
 from forum.services.solution_services import save_solution_service
+from forum.serializers import PostListSerializer, SolutionSerializer
 import json
 
 @login_required
 def followed_posts(request):
-    posts = Post.objects.filter(followers__user=request.user)
+    posts_queryset = Post.objects.filter(followers__user=request.user)
+    posts_queryset = annotate_post_card_context(posts_queryset, request.user)
+    
+    posts_data = PostListSerializer(posts_queryset, many=True, context={'request': request}).data
 
-    posts = annotate_post_card_context(posts, request.user)
-
-    return render(request, 'forum/followed_posts.html', {'posts': posts})
+    return render(request, 'forum/followed_posts.html', {
+        'posts': posts_queryset,
+        'posts_data': posts_data
+    })
 
 @login_required
 def save_solution(request, solution_id):
@@ -40,9 +45,16 @@ def save_solution(request, solution_id):
 
 @login_required
 def saved_solutions(request):
-    solutions = Solution.objects.filter(saves__user=request.user)
+    solutions_queryset = Solution.objects.filter(saves__user=request.user).select_related('author', 'post')
+    
+    # Serialize solutions for consistent structure with API
+    solutions_data = []
+    for solution in solutions_queryset:
+        # Add post to context for proper serialization
+        serializer = SolutionSerializer(solution, context={'request': request, 'post': solution.post})
+        solutions_data.append(serializer.data)
 
-    for solution in solutions:
-        solution.preview_text = process_post_preview(solution)
-
-    return render(request, 'forum/saved_solutions.html', {'solutions': solutions})
+    return render(request, 'forum/saved_solutions.html', {
+        'solutions': solutions_queryset,  # Keep for template compatibility
+        'solutions_data': solutions_data   # Serialized data
+    })

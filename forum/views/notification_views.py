@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from forum.models import Notification
+from forum.serializers import NotificationSerializer
 from forum.services.notification_services import (
     send_course_notifications_service,
     send_solution_notification_service,
@@ -12,11 +13,21 @@ from forum.services.notification_services import (
 @login_required
 def all_notifications(request):
     from django.utils.html import strip_tags
-    notifications = all_notifications_service(request.user)
-    # Strip HTML tags from notification.message for all notifications
-    for n in notifications:
+    notifications_queryset = all_notifications_service(request.user)
+    
+    notifications_data = NotificationSerializer(
+        notifications_queryset, 
+        many=True, 
+        context={'request': request}
+    ).data
+    
+    for n in notifications_queryset:
         n.message = strip_tags(n.message)
-    return render(request, 'forum/notifications.html', {'notifications': notifications})
+    
+    return render(request, 'forum/notifications.html', {
+        'notifications': notifications_queryset,
+        'notifications_data': notifications_data
+    })
 
 @login_required
 def mark_notification_read(request, notification_id):

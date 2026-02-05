@@ -8,6 +8,7 @@ from django.utils.html import escape
 from forum.models import Post, Solution, FollowedPost, SavedSolution, Notification, PostLike
 from ..services.utils import selective_quote_replace, detect_bad_words
 from forum.forms import SolutionForm, CommentForm, PostForm
+from forum.serializers import PostDetailSerializer
 from forum.services.post_services import (
     create_post_service,
     update_post_service,
@@ -56,55 +57,38 @@ def create_post(request):
         'action': 'Create',
         'post': None,
         'post_content': json.dumps({"blocks": [{"type": "paragraph", "data": {"text": ""}}]}),
-        'selected_courses_json': '[]'
+        'selected_courses_json': json.dumps([])
     }
     return render(request, 'forum/post_form.html', context)
 
 @login_required
 def post_detail(request, post_id):
-    # Get post details using service
-    result = get_post_detail_service(post_id, user=request.user)
+    # Get post object and increment views
+    post = get_object_or_404(Post, id=post_id)
+    post.views += 1
+    post.save(update_fields=['views'])
     
-    if 'error' in result:
-        messages.error(request, result['error'])
-        return redirect('all_posts')
-        
     # Mark notifications as read using service
     if request.user.is_authenticated:
         mark_notifications_by_post_service(request.user, post_id)
 
+    serializer = PostDetailSerializer(post, context={'request': request})
+    post_data = serializer.data
 
-    # Prepare forms and additional context
     solution_form = SolutionForm()
     comment_form = CommentForm()
-    
-    has_solution = Solution.objects.filter(post_id=post_id, author=request.user).exists()
-    is_following = FollowedPost.objects.filter(user=request.user, post_id=post_id).exists() if request.user.is_authenticated else False
 
-    # Process solutions for template
-    processed_solutions = []
-    for solution in result['solutions']:
-        solution['is_saved'] = SavedSolution.objects.filter(
-            user=request.user, 
-            solution_id=solution['id']
-        ).exists() if request.user.is_authenticated else False
-        processed_solutions.append(solution)
-
-    post = get_object_or_404(Post, id=post_id)
+    solutions = post.solutions.select_related('author').all()
+    processed_solutions = post_data['solutions']
 
     context = {
-        'post': post,  # Use actual post object for template helpers
-        'solutions' : result['solutions_object'],
-        'post_data': result,
-        'content_json': json.dumps(result['content']),
+        'post': post,
+        'post_data': post_data,
+        'content_json': json.dumps(post_data['content']),
         'processed_solutions_json': json.dumps(processed_solutions),
-        'has_solution_from_user': has_solution,
+        'solutions': solutions,
         'solution_form': solution_form,
         'comment_form': comment_form,
-        'is_following': is_following,
-        'courses': result['courses'],
-        'like_count': result.get('like_count', 0),
-        'is_liked_by_user': result.get('is_liked', False),
     }
 
     return render(request, 'forum/post_detail.html', context)
@@ -161,24 +145,28 @@ def edit_post(request, post_id):
         
         post_content = json.dumps(content)
 
-        selected_courses = list(post.courses.values('id', 'name', 'category'))
+        from forum.serializers import CourseSerializer
+        selected_courses = CourseSerializer(
+            post.courses.all(), 
+            many=True, 
+            context={'request': request}
+        ).data
         selected_courses_json = json.dumps(selected_courses)
     except Exception as e:
         print(e)
         post_content = json.dumps({
             "blocks": [{"type": "paragraph", "data": {"text": ""}}]
         })
-        selected_courses_json = '[]'
+        selected_courses_json = json.dumps([])
 
     context = {
         'post': post,
         'action': 'Edit',
         'post_content': post_content,
         'selected_courses_json': selected_courses_json,
-        'form': None  # Not needed for edit
+        'form': None
     }
 
-    # print(selected_courses_json)
     return render(request, 'forum/post_form.html', context)
 
 

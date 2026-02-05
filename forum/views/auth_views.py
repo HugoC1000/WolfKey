@@ -9,6 +9,7 @@ import json
 from django.contrib.auth.views import PasswordResetView, PasswordResetDoneView, PasswordResetConfirmView, PasswordResetCompleteView
 from django.urls import reverse_lazy
 from forum.services.auth_services import authenticate_user, register_user
+from forum.serializers import CourseSerializer
 
 def register(request):
     if request.method == 'POST':
@@ -64,8 +65,11 @@ def register(request):
         help_course_ids = [int(id) for id in help_course_ids if id.isdigit()]
         experience_course_ids = [int(id) for id in experience_course_ids if id.isdigit()]
 
-        help_courses = list(Course.objects.filter(id__in=help_course_ids).values('id', 'name'))
-        experience_courses = list(Course.objects.filter(id__in=experience_course_ids).values('id', 'name'))
+        help_courses_queryset = Course.objects.filter(id__in=help_course_ids)
+        experience_courses_queryset = Course.objects.filter(id__in=experience_course_ids)
+        
+        help_courses = CourseSerializer(help_courses_queryset, many=True).data
+        experience_courses = CourseSerializer(experience_courses_queryset, many=True).data
         
         # Build schedule data in BlockSerializer format for form re-rendering
         schedule_data = {}

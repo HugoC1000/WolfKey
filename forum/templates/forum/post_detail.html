@@ -63,7 +63,7 @@
 
 <!-- Solutions -->
 <div class="solutions-header">
-    <h3 class="mt-4 mb-3">{% if post.solutions.count == 1 %} {{ post.solutions.count }} Solution {% else %} {{ post.solutions.count }} Solutions {%endif%}</h3>
+    <h3 class="mt-4 mb-3">{% if post_data.solution_count == 1 %} {{ post_data.solution_count }} Solution {% else %} {{ post_data.solution_count }} Solutions {%endif%}</h3>
     <div class="sort-dropdown">
         <button class="sort-dropdown-button" type="button" id="sortDropdown">
             Sort by: <span id="currentSort">Votes</span>
@@ -90,7 +90,7 @@
 </div>
 
 <!-- Add Solution Form -->
-{% if user.is_authenticated and not has_solution_from_user %}
+{% if user.is_authenticated and not post_data.has_solution_from_user %}
 <div id="solution-form-container" class="card mt-4">
     <div class="card-body">
         <h4>Write another solution</h4>
@@ -158,7 +158,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             }
 
-            const user_posted_a_solution = {{ has_solution_from_user|yesno:"true,false"|safe }};
+            const user_posted_a_solution = {{ post_data.has_solution_from_user|yesno:"true,false"|safe }};
             if (!user_posted_a_solution) {
                 var solutionFormEditor = await editorManager.initializeSolutionFormEditor(
                     'editorjs-solution-form',
