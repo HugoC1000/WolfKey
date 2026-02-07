@@ -45,9 +45,15 @@ class PostForm(forms.ModelForm):
         required=False, label="Post Anonymously",
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
+    
+    allow_teacher = forms.BooleanField(
+        required=False, label="Allow Teachers to View",
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    
     class Meta:
         model = Post
-        fields = ['title', 'content', 'courses', 'is_anonymous']
+        fields = ['title', 'content', 'courses', 'is_anonymous', 'allow_teacher']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
         }

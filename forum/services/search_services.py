@@ -12,7 +12,12 @@ def search_posts(user, query):
         solution_count=Count('solutions', distinct=True),
         comment_count=Count('solutions__comments', distinct=True),
         total_response_count=Count('solutions', distinct=True) + Count('solutions__comments', distinct=True)
-    ).filter(rank__gte=0.3).order_by('-rank')
+    ).filter(rank__gte=0.3)
+    
+    if user.is_authenticated and user.is_teacher:
+        posts = posts.filter(allow_teacher=True)
+    
+    posts = posts.order_by('-rank')
 
     posts = annotate_post_card_context(posts, user)
     return posts

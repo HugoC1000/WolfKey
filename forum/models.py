@@ -109,6 +109,11 @@ class User(AbstractUser):
         help_text="Optional phone number in international format (e.g., +12345678900)"
     )
     
+    is_teacher = models.BooleanField(
+        default=False,
+        help_text="Indicates if this user is a teacher"
+    )
+    
     objects = UserManager()
 
     USERNAME_FIELD = 'school_email'
@@ -175,6 +180,10 @@ class Post(models.Model):
     solved = models.BooleanField(default = False)
     views = models.IntegerField(default = 0)
     is_anonymous = models.BooleanField(default=False)
+    allow_teacher = models.BooleanField(
+        default=True,
+        help_text="Allow teachers to view this post"
+    )
     
     accepted_solution = models.OneToOneField(
         'Solution',

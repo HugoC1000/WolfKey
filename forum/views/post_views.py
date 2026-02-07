@@ -33,11 +33,14 @@ def create_post(request):
                 content_data = json.loads(content_json) if content_json else {}
                 
                 # Create post using service
+                allow_teacher = True if request.user.is_teacher else (True if request.POST.get("allow_teacher") == 'on' else False)
+                
                 result = create_post_service(request.user, {
                     'title': form.cleaned_data['title'],
                     'content': content_data,
                     'courses': [course.id for course in form.cleaned_data['courses']],
-                    'is_anonymous': True if request.POST.get("is_anonymous") == 'on' else False
+                    'is_anonymous': True if request.POST.get("is_anonymous") == 'on' else False,
+                    'allow_teacher': allow_teacher
                 })
 
                 if 'error' in result:
@@ -118,6 +121,7 @@ def edit_post(request, post_id):
             
             post.title = request.POST.get('title', post.title)
             post.is_anonymous = True if request.POST.get("is_anonymous") == 'on' else False
+            post.allow_teacher = True if request.user.is_teacher else (True if request.POST.get("allow_teacher") == 'on' else False)
             post.save()
             messages.success(request, 'Post updated successfully!')
             return redirect('post_detail', post_id=post.id)

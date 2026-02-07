@@ -10,6 +10,10 @@ import json
 @login_required
 def followed_posts(request):
     posts_queryset = Post.objects.filter(followers__user=request.user)
+    
+    if request.user.is_authenticated and request.user.is_teacher:
+        posts_queryset = posts_queryset.filter(allow_teacher=True)
+    
     posts_queryset = annotate_post_card_context(posts_queryset, request.user)
     
     posts_data = PostListSerializer(posts_queryset, many=True, context={'request': request}).data

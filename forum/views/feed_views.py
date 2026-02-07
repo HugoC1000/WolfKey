@@ -25,14 +25,13 @@ def for_you(request):
     page = request.GET.get('page', 1)
     query = request.GET.get('q', '')
 
-    posts_queryset, page_obj = get_all_posts(request.user, query, page)
+    page_obj = get_all_posts(request.user, query, page)
     
-    # Serialize posts for consistent structure with API
-    posts_data = PostListSerializer(posts_queryset, many=True, context={'request': request}).data
+    posts_data = PostListSerializer(page_obj.object_list, many=True, context={'request': request}).data
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return render(request, 'forum/components/post_list.html', {
-            'posts': posts_queryset,
+            'posts': page_obj.object_list,
             'posts_data': posts_data,
             'page_obj': page_obj
         })
@@ -96,7 +95,7 @@ def for_you(request):
         schedule_title = "Tomorrow's Schedule"
 
     return render(request, 'forum/for_you.html', {
-        'posts': posts_queryset,
+        'posts': page_obj.object_list,
         'posts_data': posts_data,
         'greeting': greeting,
         'current_date': today_display,
@@ -116,29 +115,30 @@ def for_you(request):
 def all_posts(request):
     query = request.GET.get('q', '')
     page = request.GET.get('page', 1)
-    posts_queryset, page_obj = get_all_posts(request.user, query, page)
+    page_obj = get_all_posts(request.user, query, page)
     
-    # Serialize posts for consistent structure with API
-    posts_data = PostListSerializer(posts_queryset, many=True, context={'request': request}).data
+    posts_data = PostListSerializer(page_obj.object_list, many=True, context={'request': request}).data
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return render(request, 'forum/components/post_list.html', {
-            'posts': posts_queryset,
-            'posts_data': posts_data
+            'posts': page_obj.object_list,
+            'posts_data': posts_data,
+            'page_obj': page_obj
         })
 
     return render(request, 'forum/all_posts.html', {
-        'posts': posts_queryset,  # Keep for template compatibility
-        'posts_data': posts_data,  # Serialized data
+        'posts': page_obj.object_list,
+        'posts_data': posts_data,
         'query': query,
+        'page_obj': page_obj
     })
 
 @login_required
 def my_posts(request):
-    posts_queryset = get_user_posts(request.user)
-    # Serialize posts for consistent structure with API
-    posts_data = PostListSerializer(posts_queryset, many=True, context={'request': request}).data
+    page_obj = get_user_posts(request.user)
+    posts_data = PostListSerializer(page_obj.object_list, many=True, context={'request': request}).data
     return render(request, 'forum/my_posts.html', {
-        'posts': posts_queryset,  # Keep for template compatibility
-        'posts_data': posts_data  # Serialized data
+        'posts': page_obj.object_list,
+        'posts_data': posts_data,
+        'page_obj': page_obj
     })

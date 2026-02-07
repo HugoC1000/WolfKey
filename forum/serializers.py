@@ -404,7 +404,7 @@ class PostListSerializer(serializers.ModelSerializer):
             'id', 'title', 'author', 'preview_text', 
             'created_at', 'courses', 'reply_count', 'views', 'like_count', 
             'is_liked', 'solution_count', 'comment_count', 'solved', 'is_following',
-            'first_image_url'
+            'first_image_url', 'is_anonymous', 'allow_teacher'
         ]
     
     def get_author(self, obj):
@@ -476,7 +476,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
         model = Post
         fields = [
             'id', 'title', 'content', 'author', 'courses', 'created_at',
-            'solved', 'views', 'is_anonymous', 'like_count', 'is_liked',
+            'solved', 'views', 'is_anonymous', 'allow_teacher', 'allow_teacher', 'like_count', 'is_liked',
             'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
             'is_following'
         ]

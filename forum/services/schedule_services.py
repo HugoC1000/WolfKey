@@ -412,7 +412,7 @@ def process_schedule_for_user(user, raw_schedule):
                 block_attr = f"block_{normalized.upper()}"
                 course = getattr(profile, block_attr, None)
                 processed_schedule.append({
-                    "block": course.name if course else "Add your courses in profile to unlock this!",
+                    "block": course.name if course else "Add your courses in profile!",
                     "time": time
                 })
             else:
