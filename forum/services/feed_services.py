@@ -36,7 +36,7 @@ def get_for_you_posts(user, page=1, per_page=8):
     if user.is_authenticated and user.is_teacher:
         base_qs = base_qs.filter(allow_teacher=True)
     
-    base_qs = base_qs.order_by('-created_at')
+    base_qs = base_qs.order_by('-last_activity_at')
 
     paginator = Paginator(base_qs, per_page)
     
@@ -81,7 +81,7 @@ def get_all_posts(user, query='', page=1, per_page=8):
             rank=SearchRank(F('search_vector'), search_query) + TrigramSimilarity('title', query)
         ).filter(rank__gte=0.3).order_by('-rank')
     else:
-        base_qs = base_qs.order_by('-created_at')
+        base_qs = base_qs.order_by('-last_activity_at')
 
     # Paginate the base queryset first to preserve ordering
     paginator = Paginator(base_qs, per_page)

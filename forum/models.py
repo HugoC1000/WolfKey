@@ -174,6 +174,7 @@ class Post(models.Model):
     title = models.CharField(max_length=200)
     content = models.JSONField() 
     created_at = models.DateTimeField(auto_now_add=True)
+    last_activity_at = models.DateTimeField(null=True, blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     search_vector = SearchVectorField(null=True, blank=True)
     courses = models.ManyToManyField(Course, related_name='posts', blank=True)
