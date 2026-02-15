@@ -14,19 +14,23 @@
 
     <div class="progress-container">
         <div class="step-item">
-            <div class="step-circle active" data-step="1">1</div>
-            <div class="step-label active">Personal Info</div>
+            <div class="step-circle active" data-step="0">1</div>
+            <div class="step-label active">User Type</div>
         </div>
         <div class="step-item">
-            <div class="step-circle" data-step="2">2</div>
+            <div class="step-circle" data-step="1">2</div>
+            <div class="step-label">Personal Info</div>
+        </div>
+        <div class="step-item">
+            <div class="step-circle" data-step="2">3</div>
             <div class="step-label">Course Experience</div>
         </div>
         <div class="step-item">
-            <div class="step-circle" data-step="3">3</div>
+            <div class="step-circle" data-step="3">4</div>
             <div class="step-label">Schedule</div>
         </div>
         <div class="step-item">
-            <div class="step-circle" data-step="4">4</div>
+            <div class="step-circle" data-step="4">5</div>
             <div class="step-label">Complete</div>
         </div>
     </div>
@@ -35,8 +39,48 @@
         <form id="onboardingForm" method="post" action="{% url 'register' %}">
             {% csrf_token %}
             
+            <!-- Step 0: User Type Selection -->
+            <div class="form-step active" data-step="0">
+                <div class="user-icon">
+                    <div class="icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+                <div class="heading-section">
+                    <h3>Welcome to WolfKey!</h3>
+                    <p>Are you a student or a teacher?</p>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="user-type-card" data-user-type="student">
+                                <div class="user-type-icon">
+                                    <i class="fas fa-user-graduate fa-3x"></i>
+                                </div>
+                                <h5>Student</h5>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="user-type-card" data-user-type="teacher">
+                                <div class="user-type-icon">
+                                    <i class="fas fa-chalkboard-teacher fa-3x"></i>
+                                </div>
+                                <h5>Teacher</h5>
+                            </div>
+                        </div>
+                    </div>
+                    {{ form.user_type }}
+                    <div class="error-message" id="error-user_type"></div>
+                </div>
+
+                <div class="continue-btn">
+                    <button type="button" class="btn btn-primary" id="nextBtn0" disabled>Continue <i class="fas fa-arrow-right"></i></button>
+                </div>
+            </div>
+            
             <!-- Step 1: Personal Information -->
-            <div class="form-step active" data-step="1">
+            <div class="form-step" data-step="1">
                 <div class="user-icon">
                     <div class="icon">
                         <i class="fas fa-user"></i>
@@ -111,7 +155,10 @@
                     <div class="error-message" id="error-grade_level"></div>
                 </div>
 
-                <div class="continue-btn">
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary" id="prevBtn1">
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
                     <button type="button" class="btn btn-primary" id="nextBtn1">Continue <i class="fas fa-arrow-right"></i></button>
                 </div>
             </div>
@@ -239,7 +286,7 @@
         const stepCircles = document.querySelectorAll('.step-circle');
         const stepLabels = document.querySelectorAll('.step-label');
         
-        let currentStep = 1;
+        let currentStep = 0;
         let courseSelectors = {};
         let currentHelpCourses = [];
         let currentExperienceCourses = [];
@@ -251,6 +298,36 @@
             if (gradeField) gradeField.value = savedGradeLevel;
         }
 
+        // ===============================================
+        // USER TYPE SELECTION (STEP 0)
+        // ===============================================
+        
+        // Handle user type card selection
+        const userTypeCards = document.querySelectorAll('.user-type-card');
+        const userTypeInput = document.getElementById('id_user_type');
+        const nextBtn0 = document.getElementById('nextBtn0');
+        
+        userTypeCards.forEach(card => {
+            card.addEventListener('click', function() {
+                // Remove active class from all cards
+                userTypeCards.forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked card
+                this.classList.add('active');
+                
+                // Set the hidden select value
+                const userType = this.getAttribute('data-user-type');
+                if (userTypeInput) {
+                    userTypeInput.value = userType;
+                }
+                
+                // Enable next button
+                if (nextBtn0) {
+                    nextBtn0.disabled = false;
+                }
+            });
+        });
+        
         // ===============================================
         // UTILITY FUNCTIONS
         // ===============================================
@@ -274,11 +351,12 @@
             
             // Update progress circles and bar
             const progressContainer = document.querySelector('.progress-container');
-            const stepNumber = currentStep;
+            // Add 1 to currentStep for display purposes (0 -> 1, 1 -> 2, etc.)
+            const stepNumber = currentStep + 1;
             progressContainer.setAttribute('data-progress', stepNumber);
             
             stepCircles.forEach((circle, index) => {
-                if (index + 1 <= stepNumber) {
+                if (index <= currentStep) {
                     circle.classList.add('active');
                     circle.parentElement.querySelector('.step-label').classList.add('active');
                 }
@@ -316,6 +394,13 @@
         
         // Validate current step
         function validateStep(step) {
+            if (step === 0) {
+                const userTypeInput = document.getElementById('id_user_type');
+                if (!userTypeInput || !userTypeInput.value) {
+                    showError('user_type', 'Please select whether you are a student or teacher');
+                    return false;
+                }
+            }
             if (step === 1) {
                 const requiredFields = ['first_name', 'last_name', 'school_email', 'password1', 'password2'];
                 for (let field of requiredFields) {
@@ -492,6 +577,17 @@
         // NAVIGATION EVENT HANDLERS
         // ===============================================
         
+        // Step 0 -> Step 1
+        if (document.getElementById('nextBtn0')) {
+            document.getElementById('nextBtn0').addEventListener('click', function() {
+                clearErrors();
+                if (validateStep(0)) {
+                    currentStep = 1;
+                    updateSteps();
+                }
+            });
+        }
+        
         // Step 1 -> Step 2
         if (document.getElementById('nextBtn1')) {
             document.getElementById('nextBtn1').addEventListener('click', function() {
@@ -500,6 +596,14 @@
                     currentStep = 2;
                     updateSteps();
                 }
+            });
+        }
+
+        // Step 0 <- Step 1
+        if (document.getElementById('prevBtn1')) {
+            document.getElementById('prevBtn1').addEventListener('click', function() {
+                currentStep = 0;
+                updateSteps();
             });
         }
 

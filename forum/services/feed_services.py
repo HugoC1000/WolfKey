@@ -67,7 +67,7 @@ def get_for_you_posts(user, page=1, per_page=8):
 
 def get_all_posts(user, query='', page=1, per_page=8):
     """
-    Returns a dict with paginated posts and page_obj, similar to get_for_you_posts.
+    Returns a dict with page_obj, similar to get_for_you_posts.
     """
     page = int(page)
     base_qs = Post.objects.all().distinct()
