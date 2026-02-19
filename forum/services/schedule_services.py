@@ -1,20 +1,12 @@
 import datetime
-import gspread
 import re
 from typing import Dict, List, Optional, Any
-from django.conf import settings
-from oauth2client.service_account import ServiceAccountCredentials
-from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from forum.models import UserProfile, DailySchedule
+from forum.services.google_api_service import google_api_service
 
-# Initialize Google Sheets client
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_dict(settings.GSHEET_CREDENTIALS, scope)
-client = gspread.authorize(creds)
-
-# Open the spreadsheet
-sheet = client.open("Copy of 2025-2026 SS Block Order Calendar").sheet1
+# Open the spreadsheet using the common Google API service
+sheet = google_api_service.get_sheet("Copy of 2025-2026 SS Block Order Calendar", worksheet_index=0)
 
 DEFAULT_BLOCK_TIMES = [
     "8:20-9:30",
@@ -26,16 +18,12 @@ DEFAULT_BLOCK_TIMES = [
 
 def get_google_calendar_service():
     """
-    Initialize and return Google Calendar API service.
+    Get Google Calendar API service from the common Google API service.
     
     Returns:
         Resource: Google Calendar API service object
     """
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(
-        settings.GSHEET_CREDENTIALS, 
-        scopes=['https://www.googleapis.com/auth/calendar.readonly']
-    )
-    return build('calendar', 'v3', credentials=creds)
+    return google_api_service.get_calendar_service()
 
 def get_alt_day_event(target_date):
     """
