@@ -85,6 +85,7 @@ def create_post_service(user, data):
             title=data.get('title'),
             content=content,
             is_anonymous=data.get("is_anonymous"),
+            allow_teacher=data.get("allow_teacher", False),
         )
         post.save()
 
@@ -121,6 +122,9 @@ def update_post_service(user, post_id, data):
 
         if 'is_anonymous' in data:
             post.is_anonymous = data['is_anonymous']
+        
+        if 'allow_teacher' in data:
+            post.allow_teacher = data['allow_teacher']
 
         if 'courses' in data:
             course_ids = data['courses']

@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from forum.services.feed_services import get_for_you_posts, get_all_posts, paginate_posts, get_user_posts
+from forum.serializers import PostListSerializer
 from forum.services.schedule_services import (
     get_block_order_for_day,
     process_schedule_for_user,
@@ -24,10 +25,16 @@ def for_you(request):
     page = request.GET.get('page', 1)
     query = request.GET.get('q', '')
 
-    posts, page_obj = get_all_posts(request.user, query, page)
+    page_obj = get_all_posts(request.user, query, page)
+    
+    posts_data = PostListSerializer(page_obj.object_list, many=True, context={'request': request}).data
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return render(request, 'forum/components/post_list.html', {'posts': posts, 'page_obj': page_obj})
+        return render(request, 'forum/components/post_list.html', {
+            'posts': page_obj.object_list,
+            'posts_data': posts_data,
+            'page_obj': page_obj
+        })
 
     # Get schedule info
     pst = ZoneInfo("America/Los_Angeles")
@@ -88,7 +95,8 @@ def for_you(request):
         schedule_title = "Tomorrow's Schedule"
 
     return render(request, 'forum/for_you.html', {
-        'posts': posts,
+        'posts': page_obj.object_list,
+        'posts_data': posts_data,
         'greeting': greeting,
         'current_date': today_display,
         'tomorrow_date': tomorrow_display,
@@ -107,17 +115,30 @@ def for_you(request):
 def all_posts(request):
     query = request.GET.get('q', '')
     page = request.GET.get('page', 1)
-    posts, page_obj = get_all_posts(request.user, query, page)
+    page_obj = get_all_posts(request.user, query, page)
+    
+    posts_data = PostListSerializer(page_obj.object_list, many=True, context={'request': request}).data
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return render(request, 'forum/components/post_list.html', {'posts': posts})
+        return render(request, 'forum/components/post_list.html', {
+            'posts': page_obj.object_list,
+            'posts_data': posts_data,
+            'page_obj': page_obj
+        })
 
     return render(request, 'forum/all_posts.html', {
-        'posts': posts,
+        'posts': page_obj.object_list,
+        'posts_data': posts_data,
         'query': query,
+        'page_obj': page_obj
     })
 
 @login_required
 def my_posts(request):
-    posts = get_user_posts(request.user)
-    return render(request, 'forum/my_posts.html', {'posts': posts})
+    page_obj = get_user_posts(request.user)
+    posts_data = PostListSerializer(page_obj.object_list, many=True, context={'request': request}).data
+    return render(request, 'forum/my_posts.html', {
+        'posts': page_obj.object_list,
+        'posts_data': posts_data,
+        'page_obj': page_obj
+    })

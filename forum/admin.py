@@ -42,7 +42,7 @@ class UserProfileInline(admin.StackedInline):
 
 class UserAdmin(admin.ModelAdmin):
     inlines = [UserProfileInline]
-    list_display = ('school_email', 'first_name', 'last_name', 'is_staff', 'is_superuser')
+    list_display = ('school_email', 'first_name', 'last_name', 'is_teacher', 'is_staff', 'is_superuser')
     search_fields = ('school_email', 'first_name', 'last_name')
     ordering = ('school_email',)
     
@@ -51,7 +51,7 @@ class UserAdmin(admin.ModelAdmin):
             'fields': ('school_email', 'password')
         }),
         ('Personal info', {
-            'fields': ('first_name', 'last_name', 'personal_email', 'phone_number')
+            'fields': ('first_name', 'last_name', 'personal_email', 'phone_number', 'is_teacher')
         }),
         ('Permissions', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')

@@ -20,6 +20,13 @@ import sys
 import json
 import base64
 import ssl
+TIME_ZONE = 'America/Vancouver'
+USE_TZ = True
+
+CELERY_TIMEZONE = 'America/Vancouver'
+CELERY_ENABLE_UTC = False
+# Some older versions use this:
+CELERY_TIMEZONE_NAME = 'America/Vancouver'
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

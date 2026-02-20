@@ -130,7 +130,6 @@ from forum.api.timetable import (
 from forum.views.about_view import about_view
 from forum.views.privacy_view import privacy_view
 
-from forum.api.feed import api_for_you, api_all_posts
 from forum.api.debug import debug_logs
 
 from forum.api.notifications import (
@@ -152,7 +151,8 @@ from forum.api.posts import (
     unlike_post_api,
     follow_post_api,
     unfollow_post_api,
-    get_post_share_info_api
+    get_post_share_info_api,
+    for_you_api, all_posts_api
 )
 
 from forum.api.solutions import (
@@ -296,7 +296,7 @@ urlpatterns = [
     path('api/debug/logs/', debug_logs, name='api_debug_logs'),
     path('api/schedules/uniform/<str:target_date>/', check_ceremonial_uniform),
 
-    path('api/for-you/', api_for_you, name='api_for_you'),
+    path('api/for-you/', for_you_api, name='for_you_api'),
     path('api/posts/create/', create_post_api, name='api_create_post'),
     path('api/posts/<int:post_id>/', post_detail_api, name='api_post_detail'),
     path('api/posts/<int:post_id>/edit/', update_post_api, name='api_update_post'),
@@ -315,7 +315,7 @@ urlpatterns = [
     path('api/solutions/<int:solution_id>/delete/', delete_solution_api, name='api_delete_solution'),
     path('api/solutions/<int:solution_id>/vote/', vote_solution_api, name='api_vote_solution'),
     path('api/solutions/<int:solution_id>/accept/', accept_solution_api, name='api_accept_solution'),
-    path('api/all-posts/', api_all_posts, name='api_all_posts'),
+    path('api/all-posts/', all_posts_api, name='all_posts_api'),
     
     # Comment API endpoints
     path('api/solutions/<int:solution_id>/comments/create/', create_comment_api, name='api_create_comment'),

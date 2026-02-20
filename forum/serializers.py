@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Post, Solution, Comment, User, UserProfile, Course
+from .models import Post, Solution, Comment, User, UserProfile, Course, Notification
 from django.utils.timezone import localtime
 from .services.utils import process_post_preview
 from django.conf import settings
@@ -404,7 +404,7 @@ class PostListSerializer(serializers.ModelSerializer):
             'id', 'title', 'author', 'preview_text', 
             'created_at', 'courses', 'reply_count', 'views', 'like_count', 
             'is_liked', 'solution_count', 'comment_count', 'solved', 'is_following',
-            'first_image_url'
+            'first_image_url', 'is_anonymous', 'allow_teacher'
         ]
     
     def get_author(self, obj):
@@ -476,7 +476,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
         model = Post
         fields = [
             'id', 'title', 'content', 'author', 'courses', 'created_at',
-            'solved', 'views', 'is_anonymous', 'like_count', 'is_liked',
+            'solved', 'views', 'is_anonymous', 'allow_teacher', 'allow_teacher', 'like_count', 'is_liked',
             'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
             'is_following'
         ]
@@ -882,3 +882,31 @@ class AnonSolutionSerializer(serializers.ModelSerializer):
             from .models import SavedSolution
             return SavedSolution.objects.filter(user=request.user, solution=obj).exists()
         return False
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """Serializer for user notifications"""
+    sender = UserSerializer(read_only=True)
+    post_title = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    message_text = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Notification
+        fields = [
+            'id', 'sender', 'notification_type', 'post', 'solution', 'comment',
+            'message', 'message_text', 'created_at', 'is_read', 'post_title'
+        ]
+    
+    def get_post_title(self, obj):
+        """Get the related post title if available"""
+        if obj.post:
+            return obj.post.title
+        return None
+    
+    def get_created_at(self, obj):
+        return localtime(obj.created_at).isoformat()
+    
+    def get_message_text(self, obj):
+        """Strip HTML tags from message"""
+        from django.utils.html import strip_tags
+        return strip_tags(obj.message)

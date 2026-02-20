@@ -41,6 +41,21 @@
                     </i>
                 </div>
                 
+                {% if not user.is_teacher %}
+                <div class="form-check mt-2 mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_teacher" id="id_allow_teacher"
+                        {% if post %}{% if post.allow_teacher %}checked{% endif %}{% else %}checked{% endif %}>
+                    <label class="form-check-label" for="id_allow_teacher">
+                        Allow Teachers to View
+                    </label>
+                    <i class="bi bi-info-circle ms-3" 
+                        data-bs-toggle="tooltip" 
+                        data-bs-placement="right" 
+                        title="Check this box to allow teachers to see this post.">
+                    </i>
+                </div>
+                {% endif %}
+                
 
                 <button id="submitPostButton" type="submit" class="btn btn-primary" style="border-radius: 12px;">{{ action }} Post</button>
                 <a href="{% url 'for_you' %}" class="btn btn-secondary">Cancel</a>
@@ -94,6 +109,11 @@
                     formData.set('content', JSON.stringify(content));
                     formData.set('title', document.querySelector('#id_title').value);
                     formData.set('is_anonymous', document.getElementById('id_is_anonymous').checked ? 'on' : 'off');
+                    
+                    const allowTeacherCheckbox = document.getElementById('id_allow_teacher');
+                    if (allowTeacherCheckbox) {
+                        formData.set('allow_teacher', allowTeacherCheckbox.checked ? 'on' : 'off');
+                    }
 
                     courseSelector.selectedCourses.forEach(course => {
                         formData.append('courses', course.id);

@@ -109,6 +109,11 @@ class User(AbstractUser):
         help_text="Optional phone number in international format (e.g., +12345678900)"
     )
     
+    is_teacher = models.BooleanField(
+        default=False,
+        help_text="Indicates if this user is a teacher"
+    )
+    
     objects = UserManager()
 
     USERNAME_FIELD = 'school_email'
@@ -169,12 +174,17 @@ class Post(models.Model):
     title = models.CharField(max_length=200)
     content = models.JSONField() 
     created_at = models.DateTimeField(auto_now_add=True)
+    last_activity_at = models.DateTimeField(null=True, blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     search_vector = SearchVectorField(null=True, blank=True)
     courses = models.ManyToManyField(Course, related_name='posts', blank=True)
     solved = models.BooleanField(default = False)
     views = models.IntegerField(default = 0)
     is_anonymous = models.BooleanField(default=False)
+    allow_teacher = models.BooleanField(
+        default=True,
+        help_text="Allow teachers to view this post"
+    )
     
     accepted_solution = models.OneToOneField(
         'Solution',

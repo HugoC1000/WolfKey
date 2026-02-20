@@ -45,7 +45,7 @@ def process_post_data_upload(data):
                 int(c) if isinstance(c, str) and c.isdigit() else c 
                 for c in courses if c
             ]
-    boolean_fields = ['is_anonymous']
+    boolean_fields = ['is_anonymous', 'allow_teacher']
     for field in boolean_fields:
         if field in processed_data:
             processed_data[field] = convert_string_to_bool(processed_data[field])
@@ -60,9 +60,9 @@ def for_you_api(request):
         page = int(request.GET.get('page', 1))
         per_page = int(request.GET.get('limit', 10))
 
-        posts, page_obj = get_for_you_posts(request.user, page, per_page)
+        page_obj = get_for_you_posts(request.user, page, per_page)
         
-        serializer = PostListSerializer(posts, many=True, context={'request': request})
+        serializer = PostListSerializer(page_obj.object_list, many=True, context={'request': request})
         
         return Response({
             "posts": serializer.data,
@@ -82,14 +82,13 @@ def all_posts_api(request):
         per_page = int(request.GET.get('limit', 10))
         query = request.GET.get('q', '')
 
-        result = get_all_posts(request.user, query, page, per_page)
-        page_obj = result['page_obj']
+        page_obj = get_all_posts(request.user, query, page, per_page)
         
         serializer = PostListSerializer(page_obj.object_list, many=True, context={'request': request})
         
         return Response({
             "posts": serializer.data,
-            "has_next": result['has_next'],
+            "has_next": page_obj.has_next(),
             "page": page_obj.number,
             "total_pages": page_obj.paginator.num_pages,
             "query": query

@@ -45,9 +45,15 @@ class PostForm(forms.ModelForm):
         required=False, label="Post Anonymously",
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
+    
+    allow_teacher = forms.BooleanField(
+        required=False, label="Allow Teachers to View",
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    
     class Meta:
         model = Post
-        fields = ['title', 'content', 'courses', 'is_anonymous']
+        fields = ['title', 'content', 'courses', 'is_anonymous', 'allow_teacher']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
         }
@@ -223,6 +229,22 @@ class UserCourseHelpForm(forms.ModelForm):
 
 
 class CustomUserCreationForm(UserCreationForm):
+    USER_TYPE_CHOICES = [
+        ('', 'Select user type'),
+        ('student', 'Student'),
+        ('teacher', 'Teacher')
+    ]
+    
+    user_type = forms.ChoiceField(
+        required=True,
+        choices=USER_TYPE_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'id': 'id_user_type'
+        }),
+        help_text='Are you a student or a teacher?'
+    )
+    
     first_name = forms.CharField(
         required=True,
         widget=forms.TextInput(attrs={
@@ -261,7 +283,7 @@ class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = User
         # grade_level is stored on UserProfile, but we expose it on the registration form
-        fields = ('first_name', 'last_name', 'school_email', 'personal_email', 'password1', 'password2')
+        fields = ('user_type', 'first_name', 'last_name', 'school_email', 'personal_email', 'password1', 'password2')
 
     GRADE_CHOICES = [('', 'Select grade'), ('8', '8'), ('9', '9'), ('10', '10'), ('11', '11'), ('12', '12'),('13', '13')] # 13 is alumni
 
@@ -283,9 +305,19 @@ class CustomUserCreationForm(UserCreationForm):
             raise forms.ValidationError("This school email is already registered")
         return email
     
+    def clean_user_type(self):
+        user_type = self.cleaned_data.get('user_type')
+        if not user_type or user_type == '':
+            raise forms.ValidationError("Please select whether you are a student or teacher")
+        return user_type
+    
     def save(self, commit=True):
         user = super().save(commit=False)
         user.username = str(uuid.uuid4())[:30]
+        
+        # Set is_teacher based on user_type selection
+        user_type = self.cleaned_data.get('user_type')
+        user.is_teacher = (user_type == 'teacher')
 
         if commit:
             user.save()
