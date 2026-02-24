@@ -129,6 +129,16 @@ from forum.api.timetable import (
 
 from forum.views.about_view import about_view
 from forum.views.privacy_view import privacy_view
+from forum.views.volunteer_views import volunteer_hours_page
+from forum.views.volunteer_admin_views import (
+    volunteer_admin_page,
+    create_milestone,
+    update_milestone,
+    delete_milestone,
+    create_resource,
+    update_resource,
+    delete_resource,
+)
 
 from forum.api.debug import debug_logs
 
@@ -211,6 +221,14 @@ urlpatterns = [
 
     path('about', about_view, name = 'site_info'),
     path('privacy', privacy_view, name = 'privacy_policy'),
+    path('service/', volunteer_hours_page, name='volunteer_hours'),
+    path('service/admin/', volunteer_admin_page, name='volunteer_admin'),
+    path('service/admin/milestone/create/', create_milestone, name='create_milestone'),
+    path('service/admin/milestone/<int:milestone_id>/update/', update_milestone, name='update_milestone'),
+    path('service/admin/milestone/<int:milestone_id>/delete/', delete_milestone, name='delete_milestone'),
+    path('service/admin/resource/create/', create_resource, name='create_resource'),
+    path('service/admin/resource/<int:resource_id>/update/', update_resource, name='update_resource'),
+    path('service/admin/resource/<int:resource_id>/delete/', delete_resource, name='delete_resource'),
     
     # Auth related URLs
     path('register/', register, name='register'),
