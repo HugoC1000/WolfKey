@@ -11,3 +11,9 @@ __pycache__/
 venv/
 backup.sql
 celerybeat-schedule
+
+# Ignore local testing images in media folders
+media/profile_pictures/*
+!media/profile_pictures/default.png
+media/lunch_cards/*
+!media/lunch_cards/default.png
