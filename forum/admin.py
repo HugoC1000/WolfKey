@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
-from .models import Post, File, UserProfile, SavedPost, Solution, Course, CourseAlias, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, SavedSolution, FollowedPost, GradebookSnapshot
+from .models import Post, File, UserProfile, SavedPost, Solution, Course, CourseAlias, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, SavedSolution, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource
 
 
 # Register your models here.
@@ -15,6 +15,8 @@ admin.site.register(UserCourseHelp)
 admin.site.register(UpdateAnnouncement)
 admin.site.register(DailySchedule)
 admin.site.register(GradebookSnapshot)
+admin.site.register(VolunteerPinMilestone)
+admin.site.register(VolunteerResource)
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
@@ -42,7 +44,7 @@ class UserProfileInline(admin.StackedInline):
 
 class UserAdmin(admin.ModelAdmin):
     inlines = [UserProfileInline]
-    list_display = ('school_email', 'first_name', 'last_name', 'is_teacher', 'is_staff', 'is_superuser')
+    list_display = ('school_email', 'first_name', 'last_name', 'is_teacher', 'volunteer_coordinator', 'is_staff', 'is_superuser')
     search_fields = ('school_email', 'first_name', 'last_name')
     ordering = ('school_email',)
     
@@ -51,7 +53,7 @@ class UserAdmin(admin.ModelAdmin):
             'fields': ('school_email', 'password')
         }),
         ('Personal info', {
-            'fields': ('first_name', 'last_name', 'personal_email', 'phone_number', 'is_teacher')
+            'fields': ('first_name', 'last_name', 'personal_email', 'student_id', 'volunteer_coordinator', 'phone_number', 'is_teacher')
         }),
         ('Permissions', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')

@@ -19,7 +19,7 @@ def get_csrf_token(request):
     return JsonResponse({'csrfToken': request.META.get('CSRF_COOKIE')})
 
 
-def register_user(request, form, help_courses, experience_courses, schedule_data=None, allow_schedule_comparison=True, allow_grade_updates=True):
+def register_user(request, form, help_courses, experience_courses, schedule_data=None, allow_schedule_comparison=True):
     """
     Centralized service for user registration
     Returns (user, error_message) tuple
@@ -42,7 +42,6 @@ def register_user(request, form, help_courses, experience_courses, schedule_data
         
         # Set user preferences
         user.userprofile.allow_schedule_comparison = allow_schedule_comparison
-        user.userprofile.allow_grade_updates = allow_grade_updates
         
         # Set schedule courses if provided
         if schedule_data:

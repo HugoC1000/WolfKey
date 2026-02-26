@@ -26,7 +26,6 @@ def register(request):
             
             # Get preference settings (default to True if not present)
             allow_schedule_comparison = request.POST.get('allow_schedule_comparison') == 'on'
-            allow_grade_updates = request.POST.get('allow_grade_updates') == 'on'
             
             # Get schedule data
             schedule_data = {}
@@ -43,7 +42,7 @@ def register(request):
             user, error = register_user(
                 request, form, help_courses, experience_courses, 
                 schedule_data,
-                allow_schedule_comparison, allow_grade_updates
+                allow_schedule_comparison
             )
             if error:
                 messages.error(request, error)

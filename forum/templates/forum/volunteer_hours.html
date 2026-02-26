@@ -1,0 +1,171 @@
+{% extends "forum/base.html" %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'forum/css/volunteer-hours.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="volunteer-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h1 class="page-title" style="margin: 0;">Volunteer Service Hours</h1>
+        {% if user.is_staff or user.volunteer_coordinator %}
+        <a href="{% url 'volunteer_admin' %}" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.5rem;">
+            <i class="bi bi-gear-fill"></i> Manage Milestones
+        </a>
+        {% endif %}
+    </div>
+    
+    <!-- Top Stats Cards -->
+    <div class="stats-grid">
+        <!-- Total Hours Card -->
+        <div class="stat-card">
+            <div class="stat-content">
+                <div class="stat-label"> <p class = "mb-0"> Total Hours </p></div>
+                <div class="stat-value"><p class = "mb-0"> {{ user_hours|floatformat:1 }} </p></div>
+                <div class="stat-subtitle"> <p class = "mb-0">All time</p></div>
+            </div>
+            <div class="stat-icon">
+                <i class="bi bi-clock-history"></i>
+            </div>
+        </div>
+        
+        <!-- Current Pin Card -->
+        <div class="stat-card pin-card">
+            <div class="stat-content">
+                <div class="stat-label">Current Pin</div>
+                <div class="stat-value">
+                    {% if current_pin %}
+                        <p class="mb-0">{{ current_pin.name}}</p>
+                    {% else %}
+                        <p class="mb-0">None</p>
+                    {% endif %}
+                </div>
+                <div class="stat-subtitle">
+                    {% if current_pin %}
+                        <p class="mb-0">Earned at {{ current_pin.hours }} hrs</p>
+                    {% else %}
+                        <p class="mb-0">Start volunteering!</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="stat-icon">
+                {% if current_pin %}
+                    {% if forloop.last %}
+                        <i class="bi bi-trophy"></i>
+                    {% else %}
+                        <i class="bi bi-award-fill"></i>
+                    {% endif %}
+                {% else %}
+                    <i class="bi bi-award"></i>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Progress Bar -->
+    {% if next_pin %}
+    <div class="progress-section">
+        <div class="progress-header">
+            <span class="progress-title">Progress to {{ next_pin.name }}</span>
+            <span class="progress-percent">{{ progress_percentage|floatformat:0 }}%</span>
+        </div>
+        <div class="progress-bar-container">
+            <div class="progress-bar-fill" style="width: {{ progress_percentage }}%;"></div>
+        </div>
+        <div class="progress-labels">
+            <span>{% if current_pin %}{{ current_pin.hours }}{% else %}0{% endif %} hrs</span>
+            <span>{{ next_pin.hours }} hrs</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="progress-section">
+        <div class="progress-header">
+            <span class="progress-title">You finished everything!</span>
+        </div>
+        <div class="progress-bar-container">
+            <div class="progress-bar-fill" style="width: 100%;"></div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Main Content Grid -->
+    <div class="content-grid">
+        <!-- Pin Milestones Section -->
+        <div class="section-card milestones-section">
+            <h2 class="section-title">
+                <i class="bi bi-award"></i> Pin Milestones
+            </h2>
+            <div class="milestones-list">
+                {% for pin in pin_milestones %}
+                <div class="milestone-item {% if pin.achieved %}achieved{% endif %}">
+                    <div class="milestone-icon">
+                        {% if pin.achieved %}
+                            {% if forloop.last %}
+                                <i class="bi bi-trophy"></i>
+                            {% else %}
+                                <i class="bi bi-award-fill"></i>
+                            {% endif %}
+                        {% else %}
+                            <i class="bi bi-award"></i>
+                        {% endif %}
+                    </div>
+                    <div class="milestone-content">
+                        <div class="milestone-name">{{ pin.name }}</div>
+                        <div class="milestone-hours">{{ pin.hours }} hrs</div>
+                        {% if not pin.achieved %}
+                        <div class="milestone-progress-bar">
+                            <div class="milestone-progress-fill" style="width: {{ pin.progress }}%;"></div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if pin.achieved %}
+                    <div class="milestone-check">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    {% elif user_hours >= pin.hours|add:"-10" and user_hours < pin.hours %}
+                    <button class="milestone-btn apply-btn">
+                        Apply <i class="bi bi-box-arrow-up-right"></i>
+                    </button>
+                    {% else %}
+                    <div class="milestone-lock">
+                        <i class="bi bi-lock-fill"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Resources Section -->
+        <div class="section-card resources-section">
+            <h2 class="section-title">
+                <i class="bi bi-link"></i> Additional Resources
+            </h2>
+            <div class="resources-list">
+                {% for resource in resources %}
+                <a href="{{ resource.url }}" target="_blank" rel="noopener noreferrer" class="resource-item">
+                    <div class="resource-icon">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </div>
+                    <div class="resource-content">
+                        <div class="resource-title">{{ resource.title }}</div>
+                        {% if resource.description %}
+                        <div class="resource-description">{{ resource.description }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="resource-arrow">
+                        <i class="bi bi-chevron-right"></i>
+                    </div>
+                </a>
+                {% empty %}
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <p>No resources available at this time</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
