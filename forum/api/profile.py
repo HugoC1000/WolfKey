@@ -398,8 +398,7 @@ def update_privacy_preferences_api(request):
     
     Request body:
         {
-            "allow_schedule_comparison": bool,
-            "allow_grade_updates": bool
+            "allow_schedule_comparison": bool
         }
     
     Returns:
@@ -411,10 +410,9 @@ def update_privacy_preferences_api(request):
         
         # Get the boolean values from the request
         allow_schedule_comparison = data.get('allow_schedule_comparison')
-        allow_grade_updates = data.get('allow_grade_updates')
         
         # Validate that at least one preference is provided
-        if allow_schedule_comparison is None and allow_grade_updates is None:
+        if allow_schedule_comparison is None:
             return Response({
                 'error': 'At least one preference must be provided'
             }, status=status.HTTP_400_BAD_REQUEST)
@@ -422,9 +420,6 @@ def update_privacy_preferences_api(request):
         # Update the preferences
         if allow_schedule_comparison is not None:
             profile_user.userprofile.allow_schedule_comparison = allow_schedule_comparison
-        
-        if allow_grade_updates is not None:
-            profile_user.userprofile.allow_grade_updates = allow_grade_updates
         
         profile_user.userprofile.save()
         

@@ -127,11 +127,9 @@ def update_privacy_preferences(request, profile_user):
     """Handle privacy preferences update"""
     try:
         allow_schedule_comparison = request.POST.get('allow_schedule_comparison') == 'on'
-        allow_grade_updates = request.POST.get('allow_grade_updates') == 'on'
         display_email = request.POST.get('display_email') == 'on'
         
         profile_user.userprofile.allow_schedule_comparison = allow_schedule_comparison
-        profile_user.userprofile.allow_grade_updates = allow_grade_updates
         profile_user.userprofile.display_email = display_email
         profile_user.userprofile.save()
         

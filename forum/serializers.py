@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Post, Solution, Comment, User, UserProfile, Course, Notification
+from .models import Post, Solution, Comment, User, UserProfile, Course, Notification, VolunteerPinMilestone, VolunteerResource
 from django.utils.timezone import localtime
 from .services.utils import process_post_preview
 from django.conf import settings
@@ -50,7 +50,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     block_2E = CourseSerializer(read_only=True)
     grade_level = serializers.IntegerField(read_only=True)
     allow_schedule_comparison = serializers.BooleanField(read_only=True)
-    allow_grade_updates = serializers.BooleanField(read_only=True)
     profile_picture = serializers.SerializerMethodField()
     lunch_card = serializers.SerializerMethodField()
     has_wolfnet_password = serializers.SerializerMethodField()
@@ -71,7 +70,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'background_hue', 'profile_picture', 'lunch_card',
             'block_1A', 'block_1B', 'block_1D', 'block_1E',
             'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
-            'grade_level', 'allow_schedule_comparison', 'allow_grade_updates', 'display_email',
+            'grade_level', 'allow_schedule_comparison', 'display_email',
             'has_wolfnet_password', 'stats', 'courses', 'recent_posts',
             'can_compare', 'initial_users', 'schedule_blocks',
             'instagram_url', 'snapchat_url', 'linkedin_url'
@@ -233,7 +232,6 @@ class AnonUserProfileSerializer(serializers.ModelSerializer):
     block_2E = CourseSerializer(read_only=True)
     grade_level = serializers.SerializerMethodField()
     allow_schedule_comparison = serializers.BooleanField(read_only=True)
-    allow_grade_updates = serializers.BooleanField(read_only=True)
     profile_picture = serializers.SerializerMethodField()
     
     class Meta:
@@ -243,7 +241,7 @@ class AnonUserProfileSerializer(serializers.ModelSerializer):
             'background_hue', 'profile_picture',
             'block_1A', 'block_1B', 'block_1D', 'block_1E',
             'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
-            'grade_level', 'allow_schedule_comparison', 'allow_grade_updates'
+            'grade_level', 'allow_schedule_comparison'
         ]
     
     def get_profile_picture(self, obj):
@@ -910,3 +908,31 @@ class NotificationSerializer(serializers.ModelSerializer):
         """Strip HTML tags from message"""
         from django.utils.html import strip_tags
         return strip_tags(obj.message)
+
+class VolunteerPinMilestoneSerializer(serializers.ModelSerializer):
+    """Serializer for volunteer pin milestones"""
+    achieved = serializers.SerializerMethodField()
+    progress_percentage = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = VolunteerPinMilestone
+        fields = ['id', 'name', 'hours_required', 'has_other_requirements', 'achieved', 'progress_percentage']
+    
+    def get_achieved(self, obj):
+        """Check if user has achieved this milestone"""
+        user_hours = self.context.get('user_hours', 0)
+        return user_hours >= obj.hours_required
+    
+    def get_progress_percentage(self, obj):
+        """Calculate progress percentage to this milestone"""
+        user_hours = self.context.get('user_hours', 0)
+        if user_hours >= obj.hours_required:
+            return 100
+        return min(100, (user_hours / obj.hours_required) * 100) if obj.hours_required > 0 else 0
+
+class VolunteerResourceSerializer(serializers.ModelSerializer):
+    """Serializer for volunteer resources"""
+    
+    class Meta:
+        model = VolunteerResource
+        fields = ['id', 'title', 'url', 'description', 'display_order']
