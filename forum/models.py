@@ -475,10 +475,6 @@ class UserProfile(models.Model):
         default=True,
         help_text="Allow other users to view and compare your course schedule"
     )
-    allow_grade_updates = models.BooleanField(
-        default=True,
-        help_text="Enable automatic grade notifications from WolfNet"
-    )
     display_email = models.BooleanField(
         default=False,
         help_text="Display your email address on your public profile"

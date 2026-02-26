@@ -50,7 +50,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     block_2E = CourseSerializer(read_only=True)
     grade_level = serializers.IntegerField(read_only=True)
     allow_schedule_comparison = serializers.BooleanField(read_only=True)
-    allow_grade_updates = serializers.BooleanField(read_only=True)
     profile_picture = serializers.SerializerMethodField()
     lunch_card = serializers.SerializerMethodField()
     has_wolfnet_password = serializers.SerializerMethodField()
@@ -71,7 +70,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'background_hue', 'profile_picture', 'lunch_card',
             'block_1A', 'block_1B', 'block_1D', 'block_1E',
             'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
-            'grade_level', 'allow_schedule_comparison', 'allow_grade_updates', 'display_email',
+            'grade_level', 'allow_schedule_comparison', 'display_email',
             'has_wolfnet_password', 'stats', 'courses', 'recent_posts',
             'can_compare', 'initial_users', 'schedule_blocks',
             'instagram_url', 'snapchat_url', 'linkedin_url'
@@ -233,7 +232,6 @@ class AnonUserProfileSerializer(serializers.ModelSerializer):
     block_2E = CourseSerializer(read_only=True)
     grade_level = serializers.SerializerMethodField()
     allow_schedule_comparison = serializers.BooleanField(read_only=True)
-    allow_grade_updates = serializers.BooleanField(read_only=True)
     profile_picture = serializers.SerializerMethodField()
     
     class Meta:
@@ -243,7 +241,7 @@ class AnonUserProfileSerializer(serializers.ModelSerializer):
             'background_hue', 'profile_picture',
             'block_1A', 'block_1B', 'block_1D', 'block_1E',
             'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
-            'grade_level', 'allow_schedule_comparison', 'allow_grade_updates'
+            'grade_level', 'allow_schedule_comparison'
         ]
     
     def get_profile_picture(self, obj):
