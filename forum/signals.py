@@ -9,7 +9,7 @@ from .models import UserProfile, Solution, Comment
 @receiver(post_save, sender=Solution)
 def update_post_activity_on_solution(sender, instance, created, **kwargs):
     """Update the parent post's last_activity_at when a solution is created"""
-    if instance.post:
+    if created and instance.post:
         instance.post.last_activity_at = timezone.now()
         instance.post.save(update_fields=['last_activity_at'])
 
