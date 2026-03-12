@@ -60,6 +60,15 @@
                 <!-- Solution Author -->
                 <div class="author-info mt-3">
                     <div class="position-relative">
+                        {% if solution.post.is_anonymous and solution.author == solution.post.author %}
+                        <img 
+                            src="{{ MEDIA_URL }}profile_pictures/default.png" 
+                            alt="Anonymous" 
+                            class="profile-picture"
+                            style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; cursor: pointer;"
+                            id="profilePicture"
+                        >
+                        {% else %}
                         <img 
                             src="{{ solution.author.userprofile.profile_picture.url }}" 
                             alt="Profile Picture" 
@@ -67,11 +76,16 @@
                             style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; cursor: pointer;"
                             id="profilePicture"
                         >
+                        {% endif %}
                     </div>
                     <div>
                         <div class="d-flex align-items-center">
-                            <a href="{{ solution.author.get_absolute_url }}">{{ solution.author.get_full_name }}</a>
-                            {% if solution.author == post.author %}
+                            {% if solution.post.is_anonymous and solution.author == solution.post.author %}
+                                <span>Anonymous</span>
+                            {% else %}
+                                <a href="{{ solution.author.get_absolute_url }}">{{ solution.author.get_full_name }}</a>
+                            {% endif %}
+                            {% if solution.author == solution.post.author and not solution.post.is_anonymous %}
                                 <span class="badge bg-primary ms-2">OP</span>
                             {% endif %}
                         </div>

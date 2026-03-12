@@ -26,11 +26,24 @@ def notifications_api(request):
     """
     try:
         from forum.services.deep_link_service import create_notification_deep_link
+        from forum.serializers import AnonUserSerializer, UserSerializer
         
         notifications = all_notifications_service(request.user)
         
         notification_data = []
         for notification in notifications:
+            # Determine if sender should be anonymous
+            post = notification.post
+            if not post:
+                if notification.solution:
+                    post = notification.solution.post
+                elif notification.comment:
+                    post = notification.comment.solution.post if notification.comment.solution else None
+            
+            # Use anonymous data if post is anonymous and sender is post author
+            should_be_anon = (post and post.is_anonymous and 
+                             notification.sender_id == post.author_id)
+            
             # deep link data 
             deep_link_data = create_notification_deep_link(
                 notification_type=notification.notification_type,
@@ -41,17 +54,19 @@ def notifications_api(request):
                 user=notification.sender
             )
             
+            # Serialize sender appropriately
+            if should_be_anon:
+                sender_data = AnonUserSerializer(notification.sender, context={'request': request}).data
+            else:
+                sender_data = UserSerializer(notification.sender, context={'request': request}).data
+            
             data = {
                 'id': notification.id,
                 'notification_type': notification.notification_type,
                 'message': notification.message,
                 'is_read': notification.is_read,
                 'created_at': notification.created_at.isoformat(),
-                'sender': {
-                    'id': notification.sender.id,
-                    'full_name': notification.sender.get_full_name(),
-                    'username': notification.sender.username
-                } if notification.sender else None,
+                'sender': sender_data if notification.sender else None,
                 'post': {
                     'id': notification.post.id,
                     'title': notification.post.title

@@ -117,6 +117,13 @@ def send_course_notifications_service(post, courses):
 def send_solution_notification_service(solution):
     post = solution.post
     author = post.author
+    
+    # Use anonymous name if post is anonymous and solution author is post author
+    solution_author_name = (
+        "Anonymous" if (post.is_anonymous and solution.author_id == post.author_id)
+        else solution.author.get_full_name()
+    )
+    
     message = f'New solution to your question: {post.title}'
     url = post.get_absolute_url()
     email_subject = f'New solution to your question: {post.title}'
@@ -124,7 +131,7 @@ def send_solution_notification_service(solution):
         'solution.txt',
         author_full_name=author.get_full_name(),
         post_title=post.title,
-        solution_author=solution.author.get_full_name(),
+        solution_author=solution_author_name,
         site_url=settings.SITE_URL,
         post_url=url,
     )
@@ -142,8 +149,16 @@ def send_solution_notification_service(solution):
 
 def send_comment_notifications_service(comment, solution, parent_comment=None):
     notified_users = set()
+    post = solution.post
+    
+    # Determine if comment author should be anonymous
+    comment_author_name = (
+        "Anonymous" if (post.is_anonymous and comment.author_id == post.author_id)
+        else comment.author.get_full_name()
+    )
+    
     if solution.author != comment.author:
-        solution_author_message = f"{comment.author.get_full_name()} commented on your solution."
+        solution_author_message = f"{comment_author_name} commented on your solution."
         solution_author_email_subject = f"New comment on your solution for '{solution.post.title}'"
         solution_author_email_message = _render_email(
             'solution_comment.txt',
@@ -159,17 +174,18 @@ def send_comment_notifications_service(comment, solution, parent_comment=None):
             url=solution.get_absolute_url(),
             post=solution.post,
             solution=solution,
+            comment=comment,
             email_subject=solution_author_email_subject,
             email_message=solution_author_email_message,
         )
         notified_users.add(solution.author)
     if parent_comment and parent_comment.author != comment.author and parent_comment.author not in notified_users:
-        parent_author_message = f"{comment.author.get_full_name()} replied to your comment."
+        parent_author_message = f"{comment_author_name} replied to your comment."
         parent_author_email_subject = f"New reply to your comment on '{solution.post.title}'"
         parent_author_email_message = _render_email(
             'reply.txt',
             parent_author_full_name=parent_comment.author.get_full_name(),
-            comment_author_full_name=comment.author.get_full_name(),
+            comment_author_full_name=comment_author_name,
             site_url=settings.SITE_URL,
             comment_url=comment.get_absolute_url(),
         )
@@ -181,13 +197,14 @@ def send_comment_notifications_service(comment, solution, parent_comment=None):
             url=comment.get_absolute_url(),
             post=solution.post,
             solution=solution,
+            comment=comment,
             email_subject=parent_author_email_subject,
             email_message=parent_author_email_message,
         )
         notified_users.add(parent_comment.author)
 
 def send_notification_service(
-    recipient, sender, notification_type, message, url=None, post=None, solution=None, email_subject=None, email_message=None
+    recipient, sender, notification_type, message, url=None, post=None, solution=None, comment=None, email_subject=None, email_message=None
 ):
     created_notification = Notification.objects.create(
         recipient=recipient,
@@ -195,6 +212,7 @@ def send_notification_service(
         notification_type=notification_type,
         post=post,
         solution=solution,
+        comment=comment,
         message=message,
     )
     
