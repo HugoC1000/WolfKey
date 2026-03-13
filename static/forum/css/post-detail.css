@@ -109,7 +109,6 @@
   background-color: white;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 @media (min-width: 1200px) {
@@ -123,7 +122,6 @@
   background-color: white;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   border-width: 0px !important;
 }
 
@@ -135,12 +133,11 @@
 
 .solution-container {
   display: flex;
-  margin-bottom: 20px !important;
+  margin-bottom: 12px !important;
   border-radius: 12px;
   max-width: 650px;
   background-color: white;
   margin: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   position: relative;
 }
 
@@ -150,10 +147,15 @@
   }
 }
 
+@media (min-width: 1200px) {
+  .solutions-header {
+    max-width: 900px;
+  }
+}
+
 #solution-form-container {
   max-width: 650px;
   margin: 10px auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   border-radius: 12px;
   border-color: transparent;
   background-color: white;
@@ -202,9 +204,10 @@
 .post-stats {
   display: flex;
   align-items: center;
-  gap: 15px;
-  color: #666;
-  font-size: 14px;
+  gap: 12px;
+  color: #7c7c7c;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .post-content {
@@ -230,13 +233,6 @@
   background: white;
 }
 
-.solution-header {
-  display: flex;
-  align-items: center;
-  padding: 15px 20px;
-  border-bottom: 1px solid #e0e0e0;
-}
-
 .solution-stats {
   margin-left: auto;
   display: flex;
@@ -245,11 +241,11 @@
 }
 .solutions-header {
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
   gap: 100px;
   margin: 0 auto 20px auto;
-  max-width: 920px;
+  max-width: 600px;
   width: 100%;
 }
 
@@ -260,10 +256,9 @@
 }
 
 .accepted-solution {
-  padding-top: 12px;
+  padding-top: 8px;
   border: 1px solid #45cb7d;
   background: linear-gradient(to bottom, #aae6a3 -5%, #fff 6%, #fff 85%, #aae6a3 120%);
-  box-shadow: 0 0px 20px rgba(41, 234, 14, 0.9);
 }
 
 
@@ -276,41 +271,34 @@
   flex-direction: column;
   align-items: center;
   min-width: 40px;
-  padding: 10px;
+  padding: 6px 4px;
+  gap: 2px;
 }
 
 .vote-cell form {
-  margin-bottom: 5px;
+  margin-bottom: 0;
   text-align: center;
 }
 
 .vote-cell .save-solution-form {
-  margin-top: 15px;
+  margin-top: 8px;
   text-align: center;
 }
 
 .vote-button {
   background: none;
   border: none;
-  color: #babfc4;
+  padding: 2px;
   cursor: pointer;
-  padding: 5px;
-  left: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  transition: background-color 0.1s ease;
 }
 
 .vote-button:hover {
-  color: #838c95;
-}
-
-.vote-button.active {
-  color: #f48024;
-}
-
-.vote-button {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .vote-button:focus {
@@ -318,28 +306,29 @@
 }
 
 .vote-button svg path {
-  fill: #bbb;
-  transition: fill 0.2s ease;
+  fill: #878A8C;
+  transition: fill 0.1s ease;
 }
 
 .vote-button:hover svg path {
-  fill: #000000;
+  fill: #1c1c1c;
 }
 
 .vote-button.voted-up svg path {
-  fill: #2ecc71;
+  fill: #FF4500;
 }
 
 .vote-button.voted-down svg path {
-  fill: #e74c3c;
+  fill: #7193FF;
 }
 
 .vote-count {
-  font-size: 20px;
-  font-weight: bold;
-  color: #333;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1c1c1c;
   text-align: center;
-  margin: 10px 0;
+  margin: 4px 0;
+  line-height: 1;
 }
 
 
@@ -352,15 +341,21 @@
   border: none;
   border-color: transparent !important;
   cursor: pointer;
-  padding: 5px;
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease;
+  border-radius: 2px;
+  transition: background-color 0.1s ease, transform 0.1s ease;
+}
+
+.accept-button-accepted:hover {
+  background-color: rgba(34, 193, 195, 0.1) !important;
 }
 
 .accept-button-accepted path {
-  fill: green;
+  fill: #22C193;
+  transition: fill 0.1s ease;
 }
 
 .accept-button-unaccepted {
@@ -368,19 +363,29 @@
   border: none;
   border-color: transparent !important;
   cursor: pointer;
-  padding: 5px;
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease;
+  border-radius: 2px;
+  transition: background-color 0.1s ease, transform 0.1s ease;
+}
+
+.accept-button-unaccepted:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
 }
 
 .accept-button-unaccepted path {
-  fill: grey;
+  fill: #878A8C;
+  transition: fill 0.1s ease;
+}
+
+.accept-button-unaccepted:hover path {
+  fill: #1c1c1c;
 }
 
 .accept-button:hover {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 
@@ -392,60 +397,89 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 0;
+  padding: 4px;
   outline: none;
-  width: 24px;
-  height: 24px;
-  display: inline-block;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  transition: background-color 0.1s ease;
+}
+
+.star-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .star-button svg {
-  fill: #e3e6e8;
-  transition: all 0.2s ease;
+  fill: #878A8C;
+  transition: fill 0.1s ease;
 }
 
 .star-button:hover svg {
-  fill: #babfc4;
+  fill: #1c1c1c;
 }
 
 .star-button.active svg {
-  fill: #f5bd41;
+  fill: #FFB000;
+}
+
+.star-button.active:hover {
+  background-color: rgba(255, 176, 0, 0.1);
+}
+
+.star-button.active:hover svg {
+  fill: #FFB000;
 }
 
 .star-button:active {
-  transform: scale(1.1);
+  transform: scale(0.95);
 }
 
 .bookmark-button {
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 2px;
+  padding: 4px;
   outline: none;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: flex;
   justify-content: center;
   align-items: center;
+  border-radius: 2px;
+  transition: background-color 0.1s ease;
+}
+
+.bookmark-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .bookmark-button i {
-  margin-top: -20px;
-  font-size: 18px;
-  color: #babfc4;
-  transition: all 0.2s ease;
+  font-size: 16px;
+  color: #878A8C;
+  transition: color 0.1s ease;
 }
 
 .bookmark-button:hover i {
-  color: #6a737c;
+  color: #1c1c1c;
 }
 
 .bookmark-button.active i {
-  color: #0d6efd;
+  color: #0079D3;
+}
+
+.bookmark-button.active:hover {
+  background-color: rgba(0, 121, 211, 0.1);
+}
+
+.bookmark-button.active:hover i {
+  color: #0079D3;
 }
 
 .bookmark-button:active {
-  transform: scale(1.1);
+  transform: scale(0.95);
 }
 
 .vote-cell .fa-bookmark {
@@ -488,8 +522,6 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  /* REMOVE margin-left: 400px; */
-  /* REMOVE justify-content: flex-start; (This only affects text inside the button) */
   transition: all 0.2s ease;
 }
 
@@ -615,7 +647,27 @@
 }
 
 .comment-actions {
-  margin-left: 0.5rem;
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.comment-actions button,
+.comment-actions .btn {
+  padding: 2px 6px !important;
+  border-radius: 2px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  background: transparent !important;
+  border: none !important;
+  color: #878A8C !important;
+  transition: background-color 0.1s ease, color 0.1s ease !important;
+}
+
+.comment-actions button:hover,
+.comment-actions .btn:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  color: #1c1c1c !important;
 }
 
 .replies {
@@ -647,55 +699,120 @@ div[id^="comment-form-"][id$="-root"] {
 
 .actions {
   display: flex;
-  gap: 10px;
+  gap: 6px;
+  align-items: center;
 }
 
 .button {
-  padding: 5px 10px;
-  border-radius: 20px;
+  padding: 6px 12px;
+  border-radius: 4px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   cursor: pointer;
+  background: transparent;
+  border: none;
+  color: #878A8C;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #1c1c1c;
 }
 
 .follow-button {
-  background-color: #f0f0f0;
-  border: none;
-  color: #333;
+  color: #878A8C;
 }
 
 .follow-button.active {
-  background-color: #e6f7ff;
-  color: #0d6efd;
-  border: 1px solid #b3d7ff;
+  background-color: rgba(0, 121, 211, 0.1);
+  color: #0079D3;
+}
+
+.follow-button.active:hover {
+  background-color: rgba(0, 121, 211, 0.15);
+  color: #0079D3;
 }
 
 .follow-count {
-  margin-left: 5px;
-  color: #666;
+  margin-left: 4px;
+  font-weight: 400;
 }
 
 .add-answer-button {
-  background-color: white;
-  border: 1px solid #ddd;
-  color: #333;
+  color: #878A8C;
+}
+
+.add-answer-button a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.add-answer-button:hover a {
+  color: inherit;
 }
 
 .solution-actions {
   display: flex;
   align-items: center;
   width: 100%;
-  justify-content: flex-start;
+  justify-content: space-between;
+  margin-top: 4px;
+  gap: 4px;
+}
+
+.solution-container .post-content-cell {
+  padding: 1rem 0.375rem;
+}
+
+.comments-section {
+  margin-top: 4px;
+}
+
+.solution-actions .btn {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  color: #878A8C;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.solution-actions .btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #1c1c1c;
+}
+
+.solution-actions .btn-outline-secondary {
+  border: none;
+  color: #878A8C;
+}
+
+.solution-actions .btn-outline-danger {
+  border: none;
+  color: #878A8C;
+}
+
+.solution-actions .btn-outline-danger:hover {
+  background-color: rgba(255, 69, 0, 0.1);
+  color: #FF4500;
 }
 
 .default-actions {
   display: flex;
   align-items: center;
-  margin-right: 10px;
+  gap: 4px;
+  margin-left: auto;
 }
 
 .edit-actions {
-  margin-right: 10px;
+  display: flex;
+  gap: 4px;
 }
 
 .comment .edit-actions {
@@ -706,31 +823,117 @@ div[id^="comment-form-"][id$="-root"] {
     gap: 0.5rem; /* equivalent to Bootstrap's gap-2 */
 }
 
+.reply-button {
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #878A8C !important;
+  background: transparent !important;
+  border: none !important;
+  transition: background-color 0.1s ease, color 0.1s ease !important;
+}
+
+.reply-button:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  color: #1c1c1c !important;
+}
+
 /* Make bookmark icon and follow buttons more visible */
 button .fa-bookmark,
 button .fa-bookmark-slash,
 button .fa-bell,
 button .fa-bell-slash {
-  font-size: 1.1em;
+  font-size: 0.875rem;
 }
 
-.like-button.active .like-icon svg {
-  color: #e74c3c;
-  fill: #e74c3c;
+/* Reddit-style pill buttons */
+.pill-btn,
+.btn.pill-btn {
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  background: transparent !important;
+  border: none !important;
+  color: #5d5b5b !important;
+  transition: background-color 0.1s ease, color 0.1s ease !important;
 }
-.like-icon svg {
-  color: #000000;
-  fill: #000000;
-  transition: color 0.2s, fill 0.2s;
+
+.pill-btn:hover,
+.btn.pill-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  color: #1c1c1c !important;
 }
-.like-button:hover .like-icon svg {
-  color: #e74c3c;
-  fill: #e74c3c;
+
+.btn-outline-danger.pill-btn:hover {
+  background-color: rgba(255, 69, 0, 0.1) !important;
+  color: #FF4500 !important;
+}
+
+.btn-primary.pill-btn {
+  background-color: #0079D3 !important;
+  color: white !important;
+  border: none !important;
+}
+
+.btn-primary.pill-btn:hover {
+  background-color: #0060a8 !important;
+  color: white !important;
 }
 
 .like-button {
-  margin-top: auto;
-  margin-bottom: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #878A8C;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.like-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #1c1c1c;
+}
+
+.like-button:hover .like-icon svg {
+  color: #1c1c1c;
+  fill: #1c1c1c;
+}
+
+.like-button.active {
+  color: #FF4500;
+}
+
+.like-button.active .like-icon svg {
+  color: #FF4500;
+  fill: #FF4500;
+}
+
+.like-button.active:hover {
+  background-color: rgba(255, 69, 0, 0.1);
+  color: #FF4500;
+}
+
+.like-button.active:hover .like-icon svg {
+  color: #FF4500;
+  fill: #FF4500;
+}
+
+.like-icon svg {
+  color: #878A8C;
+  fill: #878A8C;
+  transition: color 0.1s, fill 0.1s;
+}
+
+.like-count {
+  font-weight: 400;
+  font-size: 12px;
 }
 
 /* =============================================================================

@@ -66,7 +66,10 @@ math-field::part(menu-item) {
     z-index: 9999;
 }
 
+.image-tool__image-picture {
+    border-radius: 12px;
+}
 
-.codex-editor__redactor {
-    padding-bottom: 10px !important;
-  }
+.ce-block__content{
+    margin: 0px 0px;
+}

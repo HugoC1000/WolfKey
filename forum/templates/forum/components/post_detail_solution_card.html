@@ -52,7 +52,7 @@
     <!-- Solution Content -->
     <div class="post-content-cell">
         <!-- Solution Author -->
-        <div class="author-info mt-2">
+        <div class="author-info">
             <div class="position-relative">
                 {% if post.is_anonymous and solution.author == post.author %}
                 <img 
@@ -97,7 +97,7 @@
             <div>
                 <button class="reply-button btn pill-btn btn-outline-secondary btn-sm" 
                         data-solution-id="{{ solution.id }}">
-                    Add a comment
+                    Add comment
                 </button>
             </div>
             {% endif %}
@@ -132,7 +132,6 @@
 
         <!-- Comments -->
         <div class="comments-section">
-            <br>
             <div class="comments">
                 {% include 'forum/components/comments_list.html' with comments=solution.comments.all %}
             </div>
