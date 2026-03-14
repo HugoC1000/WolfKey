@@ -4,8 +4,8 @@
      id="comment-{{ comment.id }}" 
      data-comment-id="{{ comment.id }}"
      data-depth="{{ comment.get_depth }}">
-    <div class="author-info">
-        <div class="position-relative" style = "margin-left: 3px;">
+    <div class="comment-layout">
+        <div class="comment-avatar-column">
             {% if post.is_anonymous and comment.author == post.author %}
             <img 
                 src="{{ MEDIA_URL }}profile_pictures/default.png" 
@@ -24,81 +24,85 @@
             >
             {% endif %}
         </div>
-        <div>
-            <div class="d-flex align-items-center">
-                {% if post.is_anonymous and comment.author == post.author %}
-                    <span>Anonymous</span>
-                {% else %}
-                    <a href="{{ comment.author.get_absolute_url }}">{{ comment.author.get_full_name }}</a>
+
+        <div class="comment-main-content">
+            <div class="author-info">
+                <div class="author-name"> 
+                    <div class="d-flex align-items-center">
+                        {% if post.is_anonymous and comment.author == post.author %}
+                            <span>Anonymous</span>
+                        {% else %}
+                            <a href="{{ comment.author.get_absolute_url }}">{{ comment.author.get_full_name }}</a>
+                        {% endif %}
+                        {% if comment.author == post.author and not post.is_anonymous  %}
+                            <span class="badge bg-primary ms-2">OP</span>
+                        {% endif %}
+                        <div class="comment-date text-muted" style="margin-left: 8px;">{{ comment.created_at|smart_timesince }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comment-content">
+                <div id="editorjs-comment-{{ comment.id }}"></div>
+            </div>
+
+            <div class="comment-metadata d-flex justify-content-between align-items-center mt-2">
+
+                <!-- Left: Reply Button -->
+                {% if user.is_authenticated %}
+                <div>
+                    <button class="reply-button btn pill-btn btn-outline-secondary btn-sm" 
+                            data-solution-id="{{ comment.solution.id }}"
+                            data-parent-id="{{ comment.id }}">
+                        <i class="bi bi-reply"></i> Reply
+                    </button>
+                </div>
                 {% endif %}
-                {% if comment.author == post.author and not post.is_anonymous  %}
-                    <span class="badge bg-primary ms-2">OP</span>
+
+                <!-- Right: Edit/Delete (and Save/Cancel if editing) -->
+                {% if user == comment.author %}
+                <div class="text-end">
+                    <div class="default-actions d-flex gap-2">
+                        <button class="edit-comment btn pill-btn btn-outline-secondary btn-sm" data-comment-id="{{ comment.id }}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="delete-comment btn pill-btn btn-outline-danger btn-sm" data-comment-id="{{ comment.id }}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <div class="edit-actions d-flex gap-2 mt-2" style="display: none;">
+                        <button class="save-comment btn pill-btn btn-success btn-sm" data-comment-id="{{ comment.id }}">
+                            <i class="bi bi-check-lg"></i> Save
+                        </button>
+                        <button class="cancel-comment btn pill-btn btn-secondary btn-sm" data-comment-id="{{ comment.id }}">
+                            <i class="bi bi-x-lg"></i> Cancel
+                        </button>
+                    </div>
+                </div>
                 {% endif %}
-                <div class="comment-date text-muted" style = "margin-left: 8px;">{{ comment.created_at|smart_timesince }}</div>
             </div>
 
-        </div>
-    </div>
-
-    <div class="comment-content">
-        <div id="editorjs-comment-{{ comment.id }}"></div>
-    </div>
-
-    <div class="comment-metadata d-flex justify-content-between align-items-center mt-2">
-
-        <!-- Left: Reply Button -->
-        {% if user.is_authenticated %}
-        <div>
-            <button class="reply-button btn pill-btn btn-outline-secondary btn-sm" 
-                    data-solution-id="{{ comment.solution.id }}"
-                    data-parent-id="{{ comment.id }}">
-                <i class="bi bi-reply"></i> Reply
-            </button>
-        </div>
-        {% endif %}
-
-        <!-- Right: Edit/Delete (and Save/Cancel if editing) -->
-        {% if user == comment.author %}
-        <div class="text-end">
-            <div class="default-actions d-flex gap-2">
-                <button class="edit-comment btn pill-btn btn-outline-secondary btn-sm" data-comment-id="{{ comment.id }}">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                <button class="delete-comment btn pill-btn btn-outline-danger btn-sm" data-comment-id="{{ comment.id }}">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-            <div class="edit-actions d-flex gap-2 mt-2" style="display: none;">
-                <button class="save-comment btn pill-btn btn-success btn-sm" data-comment-id="{{ comment.id }}">
-                    <i class="bi bi-check-lg"></i> Save
-                </button>
-                <button class="cancel-comment btn pill-btn btn-secondary btn-sm" data-comment-id="{{ comment.id }}">
-                    <i class="bi bi-x-lg"></i> Cancel
-                </button>
+            <div class="replies">
+                {% for reply in comment.replies.all %}
+                    {% if forloop.counter <= 2 %}
+                        {% include 'forum/components/comment.html' with comment=reply %}
+                    {% elif forloop.counter == 3 %}
+                        <div class="collapsed-replies" style="display: none;">
+                            {% include 'forum/components/comment.html' with comment=reply %}
+                    {% else %}
+                            {% include 'forum/components/comment.html' with comment=reply %}
+                    {% endif %}
+                {% endfor %}
+                {% if comment.replies.count > 2 %}
+                    </div>
+                    <button class="toggle-replies btn btn-link btn-sm" 
+                            data-comment-id="{{ comment.id }}"
+                            data-show-text="Show {{ comment.replies.count|add:'-2' }} more replies"
+                            data-hide-text="Hide replies">
+                        Show {{ comment.replies.count|add:'-2' }} more replies
+                    </button>
+                {% endif %}
             </div>
         </div>
-        {% endif %}
-    </div>
-
-    <div class="replies">
-        {% for reply in comment.replies.all %}
-            {% if forloop.counter <= 2 %}
-                {% include 'forum/components/comment.html' with comment=reply %}
-            {% elif forloop.counter == 3 %}
-                <div class="collapsed-replies" style="display: none;">
-                    {% include 'forum/components/comment.html' with comment=reply %}
-            {% else %}
-                    {% include 'forum/components/comment.html' with comment=reply %}
-            {% endif %}
-        {% endfor %}
-        {% if comment.replies.count > 2 %}
-            </div>
-            <button class="toggle-replies btn btn-link btn-sm" 
-                    data-comment-id="{{ comment.id }}"
-                    data-show-text="Show {{ comment.replies.count|add:'-2' }} more replies"
-                    data-hide-text="Hide replies">
-                Show {{ comment.replies.count|add:'-2' }} more replies
-            </button>
-        {% endif %}
     </div>
 </div>
