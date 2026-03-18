@@ -17,3 +17,4 @@ media/profile_pictures/*
 !media/profile_pictures/default.png
 media/lunch_cards/*
 !media/lunch_cards/default.png
+media/uploads/*
