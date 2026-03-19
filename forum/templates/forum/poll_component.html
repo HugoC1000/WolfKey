@@ -1,0 +1,60 @@
+{% if is_poll %}
+<div class="poll-container" style="border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-top: 15px; background-color: #f9f9f9;">
+    <!-- Answers Section -->
+    <div class="poll-section" style="margin-bottom: 25px;">
+        <h5 style="margin-bottom: 10px;">Options</h5>
+        <div id="pollAnswers" class="poll-answers-container">
+            <div class="poll-answer-item" style="display: flex; align-items: center; margin-bottom: 10px; gap: 10px;">
+                <input 
+                    type="text" 
+                    class="form-control poll-answer-input" 
+                    placeholder="Type your option" 
+                    value=""
+                    maxlength="500"
+                    data-index="0"
+                    style="flex: 1; border-radius: 8px; padding: 8px 12px;">
+                <button 
+                    type="button" 
+                    class="btn btn-sm delete-answer-btn"
+                    data-index="0"
+                    style="flex-shrink: 0; color: #999; background: none; border: none; padding: 0; font-size: 18px;"
+                    disabled>
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+            <div class="poll-answer-item" style="display: flex; align-items: center; margin-bottom: 10px; gap: 10px;">
+                <input 
+                    type="text" 
+                    class="form-control poll-answer-input" 
+                    placeholder="Type your option" 
+                    value=""
+                    maxlength="500"
+                    data-index="1"
+                    style="flex: 1; border-radius: 8px; padding: 8px 12px;">
+                <button 
+                    type="button" 
+                    class="btn btn-sm delete-answer-btn"
+                    data-index="1"
+                    style="flex-shrink: 0; color: #999; background: none; border: none; padding: 0; font-size: 18px;"
+                    disabled>
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+        <button type="button" id="addAnswerBtn" class="btn btn-sm" 
+            style="background-color: #333; color: white; border-radius: 8px; padding: 6px 12px; margin-top: 10px;">
+            + Add another option
+        </button>
+    </div>
+
+    <!-- Options Section -->
+    <div class="poll-section" style="margin-bottom: 10px;">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="pollMultiple">
+            <label class="form-check-label" for="pollMultiple">
+                Allow Multiple Options
+            </label>
+        </div>
+    </div>
+</div>
+{% endif %}

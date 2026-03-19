@@ -195,8 +195,14 @@ class Post(models.Model):
     Parent post model with common attributes for all post types.
     Uses multi-table inheritance for StandardPost and Poll subclasses.
     """
+    POST_TYPE_CHOICES = [
+        ('standard', 'Standard Post'),
+        ('poll', 'Poll'),
+    ]
+    
     title = models.CharField(max_length=200)
-    content = models.JSONField() 
+    content = models.JSONField()
+    post_type = models.CharField(max_length=20, choices=POST_TYPE_CHOICES, default='standard')
     created_at = models.DateTimeField(auto_now_add=True)
     last_activity_at = models.DateTimeField(null=True, blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)

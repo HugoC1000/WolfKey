@@ -35,13 +35,27 @@ def create_post(request):
                 # Create post using service
                 allow_teacher = True if request.user.is_teacher else (True if request.POST.get("allow_teacher") == 'on' else False)
                 
-                result = create_post_service(request.user, {
+                # Parse poll data if present
+                poll_data_json = request.POST.get('poll_data')
+                poll_data = None
+                if poll_data_json:
+                    try:
+                        poll_data = json.loads(poll_data_json)
+                        print(f"DEBUG: Parsed poll_data: {poll_data}")
+                    except (json.JSONDecodeError, TypeError):
+                        print(f"DEBUG: Failed to parse poll_data: {poll_data_json}")
+                        poll_data = None
+                
+                data_to_create = {
                     'title': form.cleaned_data['title'],
                     'content': content_data,
                     'courses': [course.id for course in form.cleaned_data['courses']],
                     'is_anonymous': True if request.POST.get("is_anonymous") == 'on' else False,
-                    'allow_teacher': allow_teacher
-                })
+                    'allow_teacher': allow_teacher,
+                    'poll_data': poll_data
+                }
+
+                result = create_post_service(request.user, data_to_create)
 
                 if 'error' in result:
                     messages.error(request, result['error'])
@@ -49,18 +63,28 @@ def create_post(request):
 
                 return redirect('post_detail', post_id=result['id'])
             except Exception as e:
+                import traceback
+                print(f"DEBUG: Exception during post creation: {str(e)}")
+                traceback.print_exc()
                 messages.error(request, f"Error creating post: {str(e)}")
+                return redirect('create_post')
         else:
             messages.error(request, f"Form validation failed: {form.errors}")
+            return redirect('create_post')
     else:
         form = PostForm()
+
+    # Check if this is a poll creation request
+    is_poll = request.GET.get('type') == 'poll'
 
     context = {
         'form': form,
         'action': 'Create',
         'post': None,
         'post_content': json.dumps({"blocks": [{"type": "paragraph", "data": {"text": ""}}]}),
-        'selected_courses_json': json.dumps([])
+        'selected_courses_json': json.dumps([]),
+        'is_poll': is_poll,
+        'poll_data': json.dumps({"is_poll": True, "question": "", "answers": ["", ""], "duration": "24", "allowMultiple": False}) if is_poll else json.dumps({"is_poll": False})
     }
     return render(request, 'forum/post_form.html', context)
 

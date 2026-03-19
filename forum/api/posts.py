@@ -50,6 +50,15 @@ def process_post_data_upload(data):
         if field in processed_data:
             processed_data[field] = convert_string_to_bool(processed_data[field])
     
+    # Handle poll_data - parse JSON string if present
+    if 'poll_data' in processed_data:
+        poll_data_str = processed_data['poll_data']
+        try:
+            if isinstance(poll_data_str, str):
+                processed_data['poll_data'] = json.loads(poll_data_str)
+        except (json.JSONDecodeError, TypeError):
+            processed_data['poll_data'] = None
+    
     return processed_data
 
 @api_view(['GET'])
@@ -117,6 +126,7 @@ def create_post_api(request):
         print("Request data, " , request.data)
         processed_data = process_post_data_upload(request.data)
         
+        # Parse content
         content_json = request.data.get('content')
         content_data = json.loads(content_json) if content_json else {}
         processed_data['content'] = content_data

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Post, Solution, Comment, User, UserProfile, Course, Notification, VolunteerPinMilestone, VolunteerResource
+from .models import Post, Solution, Comment, User, UserProfile, Course, Notification, VolunteerPinMilestone, VolunteerResource, Poll, PollOption, PollVote
 from django.utils.timezone import localtime
 from .services.utils import process_post_preview
 from django.conf import settings
@@ -469,6 +469,9 @@ class PostDetailSerializer(serializers.ModelSerializer):
     solutions = serializers.SerializerMethodField()
     has_solution_from_user = serializers.SerializerMethodField()
     is_following = serializers.SerializerMethodField()
+    poll_options = serializers.SerializerMethodField()
+    poll_info = serializers.SerializerMethodField()
+    user_vote = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
@@ -476,7 +479,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
             'id', 'title', 'content', 'author', 'courses', 'created_at',
             'solved', 'views', 'is_anonymous', 'allow_teacher', 'allow_teacher', 'like_count', 'is_liked',
             'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
-            'is_following'
+            'is_following', 'poll_options', 'poll_info', 'user_vote'
         ]
     
     def get_author(self, obj):
@@ -557,6 +560,40 @@ class PostDetailSerializer(serializers.ModelSerializer):
             from .models import FollowedPost
             return FollowedPost.objects.filter(user=request.user, post=obj).exists()
         return False
+    
+    def get_poll_options(self, obj):
+        """Get poll options if this is a poll"""
+        if isinstance(obj, Poll):
+            request = self.context.get('request')
+            context = dict(self.context) if self.context else {}
+            context['request'] = request
+            return PollOptionSerializer(obj.options.all(), many=True, context=context).data
+        return None
+    
+    def get_poll_info(self, obj):
+        """Get poll-specific information if this is a poll"""
+        if isinstance(obj, Poll):
+            return {
+                'allow_multiple_choice': obj.allow_multiple_choice,
+                'is_public_voting': obj.is_public_voting,
+                'total_votes': obj.votes.count()
+            }
+        return None
+    
+    def get_user_vote(self, obj):
+        """Get the current user's vote on this poll if applicable"""
+        if isinstance(obj, Poll):
+            request = self.context.get('request')
+            if request and request.user.is_authenticated:
+                try:
+                    poll_vote = PollVote.objects.get(poll=obj, user=request.user)
+                    return {
+                        'id': poll_vote.id,
+                        'selected_option_ids': list(poll_vote.selected_options.values_list('id', flat=True))
+                    }
+                except PollVote.DoesNotExist:
+                    return None
+        return None
 
 class AnonPostDetailSerializer(serializers.ModelSerializer):
     """Serializer for anonymous post detail views - when post.is_anonymous is True"""
@@ -956,3 +993,105 @@ class VolunteerResourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerResource
         fields = ['id', 'title', 'url', 'description', 'display_order']
+
+class PollOptionSerializer(serializers.ModelSerializer):
+    """Serializer for poll options"""
+    vote_count = serializers.SerializerMethodField()
+    percentage = serializers.SerializerMethodField()
+    user_voted = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PollOption
+        fields = ['id', 'text', 'vote_count', 'percentage', 'user_voted']
+    
+    def get_vote_count(self, obj):
+        """Get the number of votes for this option"""
+        return obj.votes.count()
+    
+    def get_percentage(self, obj):
+        """Get the percentage of votes for this option"""
+        poll = obj.poll
+        total_votes = poll.votes.count()
+        if total_votes == 0:
+            return 0
+        return round((obj.votes.count() / total_votes) * 100, 2)
+    
+    def get_user_voted(self, obj):
+        """Check if the current user voted for this option"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        
+        try:
+            poll_vote = PollVote.objects.get(poll=obj.poll, user=request.user)
+            return poll_vote.selected_options.filter(id=obj.id).exists()
+        except PollVote.DoesNotExist:
+            return False
+
+class PollSerializer(serializers.ModelSerializer):
+    """Serializer for poll posts"""
+    author = serializers.SerializerMethodField()
+    courses = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+    options = PollOptionSerializer(many=True, read_only=True)
+    user_vote = serializers.SerializerMethodField()
+    total_votes = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Poll
+        fields = [
+            'id', 'title', 'content', 'author', 'created_at',
+            'courses', 'like_count', 'is_liked', 'views',
+            'is_anonymous', 'allow_teacher', 'allow_multiple_choice',
+            'is_public_voting', 'options', 'user_vote', 'total_votes'
+        ]
+    
+    def get_author(self, obj):
+        """Get author information"""
+        if obj.is_anonymous and not self.context.get('request').user == obj.author:
+            return {'id': -1, 'full_name': 'Anonymous', 'profile_picture': None}
+        return {
+            'id': obj.author.id,
+            'full_name': obj.author.get_full_name(),
+            'profile_picture': obj.author.userprofile.profile_picture.url if obj.author.userprofile.profile_picture else None
+        }
+    
+    def get_courses(self, obj):
+        """Get courses associated with the poll"""
+        return [{'id': c.id, 'name': c.name} for c in obj.courses.all()]
+    
+    def get_created_at(self, obj):
+        """Get formatted creation date"""
+        return localtime(obj.created_at).isoformat()
+    
+    def get_like_count(self, obj):
+        """Get the number of likes"""
+        return obj.like_count()
+    
+    def get_is_liked(self, obj):
+        """Check if the current user liked this poll"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return obj.is_liked_by(request.user)
+    
+    def get_user_vote(self, obj):
+        """Get the current user's vote on this poll"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+        
+        try:
+            poll_vote = PollVote.objects.get(poll=obj, user=request.user)
+            return {
+                'id': poll_vote.id,
+                'selected_option_ids': list(poll_vote.selected_options.values_list('id', flat=True))
+            }
+        except PollVote.DoesNotExist:
+            return None
+    
+    def get_total_votes(self, obj):
+        """Get the total number of votes on this poll"""
+        return obj.votes.count()
