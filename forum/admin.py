@@ -1,10 +1,61 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
-from .models import Post, File, UserProfile, SavedPost, Solution, Course, CourseAlias, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, SavedSolution, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource
+from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, SavedPost, Solution, Course, CourseAlias, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, SavedSolution, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource
+
+
+class StandardPostInline(admin.StackedInline):
+    model = StandardPost
+    extra = 0
+    can_delete = False
+    verbose_name_plural = 'Standard Post Details'
+
+
+class PollOptionInline(admin.TabularInline):
+    model = PollOption
+    extra = 1
+    fields = ('text',)
+
+
+class PollInline(admin.StackedInline):
+    model = Poll
+    extra = 0
+    can_delete = False
+    verbose_name_plural = 'Poll Details'
+    fields = ('is_public_voting', 'allow_multiple_choice')
+
+
+class PostAdmin(admin.ModelAdmin):
+    inlines = [StandardPostInline, PollInline]
+    list_display = ('title', 'author', 'created_at', 'get_post_type')
+    list_filter = ('created_at', 'is_anonymous', 'allow_teacher')
+    search_fields = ('title', 'author__school_email', 'author__first_name', 'author__last_name')
+    readonly_fields = ('created_at', 'last_activity_at', 'search_vector')
+    
+    fieldsets = (
+        ('Post Content', {
+            'fields': ('title', 'content', 'author')
+        }),
+        ('Post Settings', {
+            'fields': ('is_anonymous', 'allow_teacher', 'solved')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'last_activity_at', 'views', 'courses', 'accepted_solution'),
+            'classes': ('collapse',),
+        }),
+    )
+    
+    def get_post_type(self, obj):
+        """Display the post type based on which subclass exists"""
+        if hasattr(obj, 'poll'):
+            return 'Poll'
+        elif hasattr(obj, 'standardpost'):
+            return 'Standard Post'
+        return 'Base Post'
+    get_post_type.short_description = 'Type'
 
 
 # Register your models here.
-admin.site.register(Post)
+admin.site.register(Post, PostAdmin)
 admin.site.register(File)
 admin.site.register(SavedPost)
 admin.site.register(FollowedPost)
