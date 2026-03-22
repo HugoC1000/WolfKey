@@ -100,7 +100,7 @@ def create_post(request):
         'post_content': json.dumps({"blocks": [{"type": "paragraph", "data": {"text": ""}}]}),
         'selected_courses_json': json.dumps([]),
         'is_poll': is_poll,
-        'poll_data': json.dumps({"is_poll": True, "question": "", "answers": ["", ""], "duration": "24", "allowMultiple": False}) if is_poll else json.dumps({"is_poll": False})
+        'poll_data': json.dumps({"is_poll": True, "question": "", "answers": ["", ""], "duration": "24", "allowMultiple": False, "isPublicVoting": True}) if is_poll else json.dumps({"is_poll": False})
     }
     return render(request, 'forum/post_form.html', context)
 
@@ -323,6 +323,7 @@ def vote_on_poll(request, post_id):
         if existing_vote:
             # Update existing vote
             existing_vote.selected_options.set(selected_option_ids)
+            existing_vote.save(update_fields=['updated_at'])
         else:
             # Create new vote
             poll_vote = PollVote.objects.create(poll=poll, user=request.user)

@@ -22,7 +22,8 @@ from forum.services.post_services import (
 from forum.serializers import (
     PostListSerializer,
     PostDetailSerializer,
-    UserSerializer
+    UserSerializer,
+    serialize_poll_display_data
 )
 
 def convert_string_to_bool(value):
@@ -262,7 +263,7 @@ def vote_on_poll_api(request, post_id):
     API endpoint to vote on a poll
     """
     try:
-        from forum.models import Poll, PollVote, PollOption
+        from forum.models import Poll, PollVote
         
         poll = Poll.objects.get(id=post_id)
         selected_option_ids = request.data.get('selected_option_ids', [])
@@ -275,14 +276,18 @@ def vote_on_poll_api(request, post_id):
         if existing_vote:
             # Update existing vote
             existing_vote.selected_options.set(selected_option_ids)
+            existing_vote.save(update_fields=['updated_at'])
         else:
             # Create new vote
             poll_vote = PollVote.objects.create(poll=poll, user=request.user)
             poll_vote.selected_options.set(selected_option_ids)
+
+        poll_data = serialize_poll_display_data(poll, request=request) or {}
         
         return Response({
             'success': True,
-            'message': 'Vote recorded successfully'
+            'message': 'Vote recorded successfully',
+            **poll_data
         }, status=status.HTTP_200_OK)
     except Poll.DoesNotExist:
         return Response({'error': 'Poll not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -307,9 +312,13 @@ def remove_poll_vote_api(request, post_id):
             return Response({'error': 'No vote found to remove'}, status=status.HTTP_404_NOT_FOUND)
         
         poll_vote.delete()
+
+        poll_data = serialize_poll_display_data(poll, request=request) or {}
+
         return Response({
             'success': True,
-            'message': 'Vote removed successfully'
+            'message': 'Vote removed successfully',
+            **poll_data
         }, status=status.HTTP_200_OK)
     except Poll.DoesNotExist:
         return Response({'error': 'Poll not found'}, status=status.HTTP_404_NOT_FOUND)

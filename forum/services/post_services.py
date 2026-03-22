@@ -314,7 +314,7 @@ def create_poll_service(user, data):
             is_anonymous=data.get('is_anonymous', False),
             allow_teacher=data.get('allow_teacher', False),
             allow_multiple_choice=data.get('allowMultiple', False),
-            is_public_voting=True
+            is_public_voting=data.get('isPublicVoting', True)
         )
         poll.save()
 

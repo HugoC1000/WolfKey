@@ -33,8 +33,26 @@
             <div class="poll-result">
                 <span class="poll-option-text">{{ option.text }}</span>
                 <div class="vote-stats">
+                    {% if post_data.poll_info.is_public_voting %}
+                    <div class="option-voters{% if not option.recent_voters %} hidden{% endif %}" data-option-voters>
+                        {% for voter in option.recent_voters %}
+                        <img
+                            src="{{ voter.profile_picture_url }}"
+                            alt="{{ voter.full_name }}"
+                            title="{{ voter.full_name }}"
+                            class="option-voter-avatar"
+                        >
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                     <span class="vote-count">{{ option.vote_count }}</span>
+                    {% if post_data.poll_info.is_public_voting %}
+                    <button type="button" class="vote-text votes-link" data-show-voters>
+                        {% if option.vote_count == 1 %}vote{% else %}votes{% endif %}
+                    </button>
+                    {% else %}
                     <span class="vote-text">{% if option.vote_count == 1 %}vote{% else %}votes{% endif %}</span>
+                    {% endif %}
                     <span class="vote-percent">{{ option.percentage|floatformat:0 }}%</span>
                     <svg class="checkmark" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
@@ -48,8 +66,10 @@
     <!-- Vote Summary and Actions -->
     <div class="poll-actions">
         <div class="vote-summary">
-            <strong class="total-votes">{{ post_data.poll_info.total_votes }}</strong>
-            <span>{% if post_data.poll_info.total_votes == 1 %}vote{% else %}votes{% endif %}</span>
+            <div class="vote-summary-count">
+                <strong class="total-votes">{{ post_data.poll_info.total_votes }}</strong>
+                <span class="total-votes-text">{% if post_data.poll_info.total_votes == 1 %}vote{% else %}votes{% endif %}</span>
+            </div>
         </div>
         
         {% if not read_only %}
@@ -63,6 +83,34 @@
         </div>
         {% endif %}
     </div>
+
+    {% if post_data.poll_info.is_public_voting %}
+    <div class="poll-voters-modal hidden" data-voters-modal>
+        <div class="poll-voters-backdrop" data-voters-close></div>
+        <div class="poll-voters-dialog" role="dialog" aria-modal="true" aria-labelledby="poll-voters-title-{{ post.id }}">
+            <div class="poll-voters-header">
+                <h6 id="poll-voters-title-{{ post.id }}" data-voters-title>Votes</h6>
+                <button type="button" class="poll-voters-close" data-voters-close aria-label="Close voters list">&times;</button>
+            </div>
+            <div class="poll-voters-list" data-voters-list></div>
+        </div>
+    </div>
+    <script type="application/json" data-option-voters-json>
+        {
+        {% for option in post_data.poll_options %}
+            "{{ option.id }}": [
+                {% for voter in option.voters %}
+                {
+                    "full_name": "{{ voter.full_name|escapejs }}",
+                    "profile_picture_url": "{{ voter.profile_picture_url|escapejs }}",
+                    "profile_url": "{{ voter.profile_url|escapejs }}"
+                }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ]{% if not forloop.last %},{% endif %}
+        {% endfor %}
+        }
+    </script>
+    {% endif %}
 </div>
 
 {% if not read_only %}
@@ -82,9 +130,22 @@
     const voteButton = container.querySelector('.poll-vote-button:not([data-role])');
     const removeButton = container.querySelector('[data-role="remove"]');
     const totalVotesEl = container.querySelector('.total-votes');
-    const totalVotesTextEl = container.querySelector('.vote-summary span');
+    const totalVotesTextEl = container.querySelector('.total-votes-text');
+    const votersModalEl = container.querySelector('[data-voters-modal]');
+    const votersListEl = container.querySelector('[data-voters-list]');
+    const votersTitleEl = container.querySelector('[data-voters-title]');
+    const optionVotersDataEl = container.querySelector('[data-option-voters-json]');
     const optionElements = Array.from(container.querySelectorAll('.poll-option'));
     const csrfToken = getCsrfToken();
+    let optionVotersByOptionId = {};
+
+    try {
+        if (optionVotersDataEl) {
+            optionVotersByOptionId = JSON.parse(optionVotersDataEl.textContent || '{}');
+        }
+    } catch (e) {
+        optionVotersByOptionId = {};
+    }
 
     // Keep poll interactions from bubbling to card-level navigation handlers.
     ['click', 'mousedown', 'touchstart'].forEach(eventName => {
@@ -110,6 +171,81 @@
     function updateButtons(hasVoted) {
         if (voteButton) voteButton.classList.toggle('hidden', hasVoted);
         if (removeButton) removeButton.classList.toggle('hidden', !hasVoted);
+    }
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderOptionVoters(optionEl, recentVoters) {
+        const optionVotersEl = optionEl.querySelector('[data-option-voters]');
+        if (!optionVotersEl) return;
+
+        if (!Array.isArray(recentVoters) || recentVoters.length === 0) {
+            optionVotersEl.innerHTML = '';
+            optionVotersEl.classList.add('hidden');
+            return;
+        }
+
+        optionVotersEl.innerHTML = recentVoters.map(voter => {
+            const fullName = escapeHtml(voter.full_name || 'Voter');
+            const profilePictureUrl = escapeHtml(voter.profile_picture_url || '');
+            return `<img src="${profilePictureUrl}" alt="${fullName}" title="${fullName}" class="option-voter-avatar">`;
+        }).join('');
+
+        optionVotersEl.classList.remove('hidden');
+    }
+
+    function renderVotersListMarkup(voters) {
+        if (!Array.isArray(voters) || voters.length === 0) {
+            return '<div class="voter-list-empty">No votes yet.</div>';
+        }
+
+        return voters.map(voter => {
+            const fullName = escapeHtml(voter.full_name || 'Voter');
+            const profilePictureUrl = escapeHtml(voter.profile_picture_url || '');
+            const profileUrl = escapeHtml(voter.profile_url || '#');
+            return `<a href="${profileUrl}" class="voter-list-item"><img src="${profilePictureUrl}" alt="${fullName}" class="voter-list-avatar"><span>${fullName}</span></a>`;
+        }).join('');
+    }
+
+    function openVotersModalForOption(optionEl) {
+        if (!votersModalEl || !votersListEl || !votersTitleEl) return;
+
+        const optionLabel = optionEl.querySelector('.poll-result .poll-option-text')?.textContent?.trim() || 'Option';
+        votersTitleEl.textContent = `${optionLabel} votes`;
+
+        const optionId = optionEl.dataset.optionId;
+        const voters = optionVotersByOptionId[String(optionId)] || [];
+        votersListEl.innerHTML = renderVotersListMarkup(voters);
+        votersModalEl.classList.remove('hidden');
+    }
+
+    function closeVotersModal() {
+        if (!votersModalEl) return;
+        votersModalEl.classList.add('hidden');
+    }
+
+    function bindVotesLinks() {
+        container.querySelectorAll('.votes-link').forEach(link => {
+            if (link.dataset.bound === 'true') return;
+            link.dataset.bound = 'true';
+
+            link.addEventListener('click', event => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const optionEl = link.closest('.poll-option');
+                if (optionEl) {
+                    openVotersModalForOption(optionEl);
+                }
+            });
+        });
     }
 
     function setMode(hasVoted, selectedOptionIds) {
@@ -196,8 +332,13 @@
             const clampedPercent = Math.max(0, Math.min(100, rawPercent));
 
             optionEl.querySelector('.vote-count').textContent = option.vote_count;
-            optionEl.querySelector('.vote-text').textContent = option.vote_count === 1 ? 'vote' : 'votes';
+            const voteTextEl = optionEl.querySelector('.vote-text');
+            if (voteTextEl) {
+                voteTextEl.textContent = option.vote_count === 1 ? 'vote' : 'votes';
+            }
             optionEl.querySelector('.vote-percent').textContent = Math.round(clampedPercent) + '%';
+            renderOptionVoters(optionEl, option.recent_voters);
+            optionVotersByOptionId[String(option.id)] = Array.isArray(option.voters) ? option.voters : [];
 
             optionStates.push({
                 optionEl,
@@ -230,11 +371,22 @@
         if (totalVotesTextEl) {
             totalVotesTextEl.textContent = data.poll_info.total_votes === 1 ? 'vote' : 'votes';
         }
+
+        bindVotesLinks();
     }
 
     // Bind events
     voteButton?.addEventListener('click', submitVote);
     removeButton?.addEventListener('click', removeVote);
+    container.querySelectorAll('[data-voters-close]').forEach(closeEl => {
+        closeEl.addEventListener('click', closeVotersModal);
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && votersModalEl && !votersModalEl.classList.contains('hidden')) {
+            closeVotersModal();
+        }
+    });
+    bindVotesLinks();
 })();
 </script>
 {% endif %}

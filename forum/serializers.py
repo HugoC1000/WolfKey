@@ -1000,10 +1000,30 @@ class PollOptionSerializer(serializers.ModelSerializer):
     vote_count = serializers.SerializerMethodField()
     percentage = serializers.SerializerMethodField()
     user_voted = serializers.SerializerMethodField()
+    recent_voters = serializers.SerializerMethodField()
+    voters = serializers.SerializerMethodField()
     
     class Meta:
         model = PollOption
-        fields = ['id', 'text', 'vote_count', 'percentage', 'user_voted']
+        fields = ['id', 'text', 'vote_count', 'percentage', 'user_voted', 'recent_voters', 'voters']
+
+    def _serialize_voter(self, voter, profile_serializer):
+        profile_picture_url = ANONYMOUS_PROFILE_PICTURE
+
+        try:
+            user_profile = voter.userprofile
+        except Exception:
+            user_profile = None
+
+        if user_profile is not None:
+            profile_picture_url = profile_serializer.get_profile_picture(user_profile) or ANONYMOUS_PROFILE_PICTURE
+
+        return {
+            'id': voter.id,
+            'full_name': voter.get_full_name() or voter.username,
+            'profile_picture_url': profile_picture_url,
+            'profile_url': voter.get_absolute_url()
+        }
     
     def get_vote_count(self, obj):
         """Get the number of votes for this option"""
@@ -1028,6 +1048,34 @@ class PollOptionSerializer(serializers.ModelSerializer):
             return poll_vote.selected_options.filter(id=obj.id).exists()
         except PollVote.DoesNotExist:
             return False
+
+    def get_recent_voters(self, obj):
+        """Get up to three most recent voters for this option when voting is public."""
+        if not obj.poll.is_public_voting:
+            return []
+
+        recent_votes = obj.votes.select_related('user', 'user__userprofile').order_by('-updated_at')[:3]
+        profile_serializer = UserProfileSerializer(context=self.context)
+        recent_voters = []
+
+        for vote in recent_votes:
+            recent_voters.append(self._serialize_voter(vote.user, profile_serializer))
+
+        return recent_voters
+
+    def get_voters(self, obj):
+        """Get all voters for this option when voting is public."""
+        if not obj.poll.is_public_voting:
+            return []
+
+        votes = obj.votes.select_related('user', 'user__userprofile').order_by('-updated_at')
+        profile_serializer = UserProfileSerializer(context=self.context)
+        voters = []
+
+        for vote in votes:
+            voters.append(self._serialize_voter(vote.user, profile_serializer))
+
+        return voters
 
 
 class PollSerializer(serializers.ModelSerializer):

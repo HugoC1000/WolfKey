@@ -230,6 +230,7 @@
                     {% if is_poll %}
                     const titleInput = document.querySelector('#id_title');
                     const multipleCheckbox = document.getElementById('pollMultiple');
+                    const publicVotingCheckbox = document.getElementById('pollPublicVoting');
 
                     const filteredAnswers = pollAnswers.filter(a => a.trim() !== '');
                     
@@ -244,7 +245,8 @@
                         isPoll: true,
                         question: titleInput.value,
                         answers: filteredAnswers,
-                        allowMultiple: multipleCheckbox.checked
+                        allowMultiple: multipleCheckbox.checked,
+                        isPublicVoting: publicVotingCheckbox ? publicVotingCheckbox.checked : true
                     };
                     formData.set('poll_data', JSON.stringify(pollData));
                     {% else %}
