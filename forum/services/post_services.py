@@ -292,7 +292,6 @@ def create_poll_service(user, data):
     Service to create a poll with options
     """
     try:
-        print(f"DEBUG: create_poll_service called with data: {data}")
         title = data.get('question')
         if not title:
             return {'error': 'Poll question is required'}

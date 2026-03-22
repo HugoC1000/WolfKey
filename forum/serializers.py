@@ -395,6 +395,7 @@ class PostListSerializer(serializers.ModelSerializer):
     comment_count = serializers.SerializerMethodField()
     solved = serializers.SerializerMethodField()
     first_image_url = serializers.SerializerMethodField()
+    poll_data = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
@@ -402,7 +403,7 @@ class PostListSerializer(serializers.ModelSerializer):
             'id', 'title', 'author', 'preview_text', 
             'created_at', 'courses', 'reply_count', 'views', 'like_count', 
             'is_liked', 'solution_count', 'comment_count', 'solved', 'is_following',
-            'first_image_url', 'is_anonymous', 'allow_teacher'
+            'first_image_url', 'is_anonymous', 'allow_teacher', 'poll_data'
         ]
     
     def get_author(self, obj):
@@ -456,6 +457,11 @@ class PostListSerializer(serializers.ModelSerializer):
     def get_first_image_url(self, obj):
         """Extract the first image URL from the post content JSON"""
         return obj.get_first_image_url()
+
+    def get_poll_data(self, obj):
+        """Get normalized poll payload for list/card display."""
+        request = self.context.get('request')
+        return serialize_poll_display_data(obj, request=request)
 
 class PostDetailSerializer(serializers.ModelSerializer):
     """Serializer for individual post views"""
@@ -560,40 +566,35 @@ class PostDetailSerializer(serializers.ModelSerializer):
             from .models import FollowedPost
             return FollowedPost.objects.filter(user=request.user, post=obj).exists()
         return False
+
+    def _get_poll_data(self, obj):
+        """Get cached poll payload for detail views."""
+        if obj.post_type != 'poll':
+            return None
+
+        if not hasattr(self, '_poll_data_cache'):
+            self._poll_data_cache = {}
+
+        if obj.id not in self._poll_data_cache:
+            request = self.context.get('request')
+            self._poll_data_cache[obj.id] = serialize_poll_display_data(obj, request=request)
+
+        return self._poll_data_cache[obj.id]
     
     def get_poll_options(self, obj):
         """Get poll options if this is a poll"""
-        if isinstance(obj, Poll):
-            request = self.context.get('request')
-            context = dict(self.context) if self.context else {}
-            context['request'] = request
-            return PollOptionSerializer(obj.options.all(), many=True, context=context).data
-        return None
+        poll_data = self._get_poll_data(obj)
+        return poll_data.get('poll_options') if poll_data else None
     
     def get_poll_info(self, obj):
         """Get poll-specific information if this is a poll"""
-        if isinstance(obj, Poll):
-            return {
-                'allow_multiple_choice': obj.allow_multiple_choice,
-                'is_public_voting': obj.is_public_voting,
-                'total_votes': obj.votes.count()
-            }
-        return None
+        poll_data = self._get_poll_data(obj)
+        return poll_data.get('poll_info') if poll_data else None
     
     def get_user_vote(self, obj):
         """Get the current user's vote on this poll if applicable"""
-        if isinstance(obj, Poll):
-            request = self.context.get('request')
-            if request and request.user.is_authenticated:
-                try:
-                    poll_vote = PollVote.objects.get(poll=obj, user=request.user)
-                    return {
-                        'id': poll_vote.id,
-                        'selected_option_ids': list(poll_vote.selected_options.values_list('id', flat=True))
-                    }
-                except PollVote.DoesNotExist:
-                    return None
-        return None
+        poll_data = self._get_poll_data(obj)
+        return poll_data.get('user_vote') if poll_data else None
 
 class AnonPostDetailSerializer(serializers.ModelSerializer):
     """Serializer for anonymous post detail views - when post.is_anonymous is True"""
@@ -1028,61 +1029,29 @@ class PollOptionSerializer(serializers.ModelSerializer):
         except PollVote.DoesNotExist:
             return False
 
+
 class PollSerializer(serializers.ModelSerializer):
-    """Serializer for poll posts"""
-    author = serializers.SerializerMethodField()
-    courses = serializers.SerializerMethodField()
-    created_at = serializers.SerializerMethodField()
-    like_count = serializers.SerializerMethodField()
-    is_liked = serializers.SerializerMethodField()
-    options = PollOptionSerializer(many=True, read_only=True)
+    """Serializer for poll display payload used across templates and views."""
+    poll_options = PollOptionSerializer(source='options', many=True, read_only=True)
+    poll_info = serializers.SerializerMethodField()
     user_vote = serializers.SerializerMethodField()
-    total_votes = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Poll
-        fields = [
-            'id', 'title', 'content', 'author', 'created_at',
-            'courses', 'like_count', 'is_liked', 'views',
-            'is_anonymous', 'allow_teacher', 'allow_multiple_choice',
-            'is_public_voting', 'options', 'user_vote', 'total_votes'
-        ]
-    
-    def get_author(self, obj):
-        """Get author information"""
-        if obj.is_anonymous and not self.context.get('request').user == obj.author:
-            return {'id': -1, 'full_name': 'Anonymous', 'profile_picture': None}
+        fields = ['poll_options', 'poll_info', 'user_vote']
+
+    def get_poll_info(self, obj):
         return {
-            'id': obj.author.id,
-            'full_name': obj.author.get_full_name(),
-            'profile_picture': obj.author.userprofile.profile_picture.url if obj.author.userprofile.profile_picture else None
+            'allow_multiple_choice': obj.allow_multiple_choice,
+            'is_public_voting': obj.is_public_voting,
+            'total_votes': obj.votes.count()
         }
-    
-    def get_courses(self, obj):
-        """Get courses associated with the poll"""
-        return [{'id': c.id, 'name': c.name} for c in obj.courses.all()]
-    
-    def get_created_at(self, obj):
-        """Get formatted creation date"""
-        return localtime(obj.created_at).isoformat()
-    
-    def get_like_count(self, obj):
-        """Get the number of likes"""
-        return obj.like_count()
-    
-    def get_is_liked(self, obj):
-        """Check if the current user liked this poll"""
-        request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
-            return False
-        return obj.is_liked_by(request.user)
-    
+
     def get_user_vote(self, obj):
-        """Get the current user's vote on this poll"""
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return None
-        
+
         try:
             poll_vote = PollVote.objects.get(poll=obj, user=request.user)
             return {
@@ -1091,7 +1060,35 @@ class PollSerializer(serializers.ModelSerializer):
             }
         except PollVote.DoesNotExist:
             return None
-    
-    def get_total_votes(self, obj):
-        """Get the total number of votes on this poll"""
-        return obj.votes.count()
+
+
+def serialize_poll_display_data(post_or_poll, request=None):
+    """Build poll display payload from a Post or Poll instance using one serializer."""
+    if not post_or_poll:
+        return None
+
+    poll = post_or_poll if isinstance(post_or_poll, Poll) else None
+
+    if poll is None:
+        if getattr(post_or_poll, 'post_type', None) != 'poll':
+            return None
+        try:
+            poll = Poll.objects.get(post_ptr_id=post_or_poll.id)
+        except Poll.DoesNotExist:
+            return None
+
+    context = {'request': request} if request is not None else {}
+    return PollSerializer(poll, context=context).data
+
+
+def attach_poll_data_to_posts(posts, serialized_posts):
+    """Attach serializer-provided poll payload onto post objects for template rendering."""
+    poll_data_by_post_id = {
+        serialized_post.get('id'): serialized_post.get('poll_data')
+        for serialized_post in serialized_posts
+    }
+
+    for post in posts:
+        post.poll_data = poll_data_by_post_id.get(post.id)
+
+    return posts

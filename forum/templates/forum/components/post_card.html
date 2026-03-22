@@ -5,7 +5,8 @@
 </head>
 
 <div class="card clickable post {% if post.accepted_solution %}highlighted-card-green{% endif %}" 
-     data-post-url="{% url 'post_detail' post.id %}">
+     data-post-url="{% url 'post_detail' post.id %}"
+     data-post-id="{{ post.id }}">
     {% if post.accepted_solution %}
         <div class="banner">Solved</div>
     {% endif %}
@@ -46,7 +47,12 @@
                         </span>
                     </p>
                     <h4 class="card-title post-card-title">{{ post.title }}</h4>
-                    <p class="card-text mt-2 post-card-text">{{ post.preview_text|truncatewords:250 }}</p>
+                    
+                    {% if post.post_type == 'poll' and post.poll_data %}
+                        {% include 'forum/components/poll_display.html' with post_data=post.poll_data read_only=False %}
+                    {% else %}
+                        <p class="card-text mt-2 post-card-text">{{ post.preview_text|truncatewords:250 }}</p>
+                    {% endif %}
                     
                     {% if post.get_first_image_url %}
                         <div class="post-image-preview mt-2 mb-2 text-center">
@@ -233,8 +239,8 @@
         const card = e.target.closest('.card.clickable');
         if (!card) return;
 
-        // Ignore clicks on interactive elements
-        if (e.target.closest(' button, input, textarea, select')) return;
+        // Ignore clicks on interactive elements and poll areas
+        if (e.target.closest('button, input, textarea, select, .poll-display, .poll-container')) return;
 
         // Ignore if user is selecting text
         if (window.getSelection && window.getSelection().toString()) return;

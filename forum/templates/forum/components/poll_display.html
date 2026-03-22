@@ -1,0 +1,241 @@
+{% if post.post_type == 'poll' %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'forum/css/poll-display.css' %}">
+
+<div class="poll-container" data-post-id="{{ post.id }}">
+    <!-- Poll Subtitle -->
+    <div class="poll-subtitle">
+        {% if post_data.poll_info.allow_multiple_choice %}
+            Select multiple answers
+        {% else %}
+            Select one answer
+        {% endif %}
+    </div>
+
+    <!-- Poll Options -->
+    <div class="poll-options">
+        {% for option in post_data.poll_options %}
+        <div class="poll-option {% if post_data.user_vote %}voted{% else %}voting{% endif %} {% if post_data.user_vote and option.id in post_data.user_vote.selected_option_ids %}user-voted{% endif %}"
+             data-option-id="{{ option.id }}"
+             style="--vote-percent: {{ option.percentage|floatformat:2 }}%;">
+            
+            <!-- Voting Input -->
+            <label class="poll-input">
+                <span class="poll-option-text">{{ option.text }}</span>
+                {% if post_data.poll_info.allow_multiple_choice %}
+                    <input type="checkbox" class="poll-option-input" data-option-id="{{ option.id }}">
+                {% else %}
+                    <input type="radio" name="poll-options" class="poll-option-input" data-option-id="{{ option.id }}">
+                {% endif %}
+            </label>
+            
+            <!-- Results Display -->
+            <div class="poll-result">
+                <span class="poll-option-text">{{ option.text }}</span>
+                <div class="vote-stats">
+                    <span class="vote-count">{{ option.vote_count }}</span>
+                    <span class="vote-text">{% if option.vote_count == 1 %}vote{% else %}votes{% endif %}</span>
+                    <span class="vote-percent">{{ option.percentage|floatformat:0 }}%</span>
+                    <svg class="checkmark" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Vote Summary and Actions -->
+    <div class="poll-actions">
+        <div class="vote-summary">
+            <strong class="total-votes">{{ post_data.poll_info.total_votes }}</strong>
+            <span>{% if post_data.poll_info.total_votes == 1 %}vote{% else %}votes{% endif %}</span>
+        </div>
+        
+        {% if not read_only %}
+        <div class="poll-buttons">
+            <button type="button" class="btn btn-primary btn-sm poll-vote-button {% if post_data.user_vote %}hidden{% endif %}" data-post-id="{{ post.id }}">
+                Vote
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm poll-vote-button {% if not post_data.user_vote %}hidden{% endif %}" data-role="remove">
+                Remove Vote
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if not read_only %}
+<script>
+(function() {
+    const scriptElement = document.currentScript;
+    const previousElement = scriptElement?.previousElementSibling;
+    const container = previousElement?.classList.contains('poll-container')
+        ? previousElement
+        : scriptElement?.closest('.card')?.querySelector('.poll-container');
+
+    if (!container) return;
+
+    const postId = container.dataset.postId;
+    if (!postId) return;
+
+    const voteButton = container.querySelector('.poll-vote-button:not([data-role])');
+    const removeButton = container.querySelector('[data-role="remove"]');
+    const totalVotesEl = container.querySelector('.total-votes');
+    const totalVotesTextEl = container.querySelector('.vote-summary span');
+    const optionElements = Array.from(container.querySelectorAll('.poll-option'));
+    const csrfToken = getCsrfToken();
+
+    // Keep poll interactions from bubbling to card-level navigation handlers.
+    ['click', 'mousedown', 'touchstart'].forEach(eventName => {
+        container.addEventListener(eventName, event => {
+            event.stopPropagation();
+        });
+    });
+
+    function getCsrfToken() {
+        let token = document.querySelector('[data-csrf]')?.dataset.csrf;
+        if (token) return token;
+        token = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        if (token) return token;
+        token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        return token || '';
+    }
+
+    function getSelectedOptionIds() {
+        return Array.from(container.querySelectorAll('.poll-option-input:checked'))
+            .map(input => input.dataset.optionId);
+    }
+
+    function updateButtons(hasVoted) {
+        if (voteButton) voteButton.classList.toggle('hidden', hasVoted);
+        if (removeButton) removeButton.classList.toggle('hidden', !hasVoted);
+    }
+
+    function setMode(hasVoted, selectedOptionIds) {
+        const selectedSet = new Set((selectedOptionIds || []).map(String));
+
+        optionElements.forEach(option => {
+            const optionId = option.dataset.optionId;
+            const input = option.querySelector('.poll-option-input');
+
+            option.classList.toggle('voted', hasVoted);
+            option.classList.toggle('voting', !hasVoted);
+            option.classList.toggle('user-voted', hasVoted && selectedSet.has(optionId));
+
+            if (input) {
+                input.checked = hasVoted ? selectedSet.has(optionId) : false;
+            }
+        });
+
+        updateButtons(hasVoted);
+    }
+
+    async function postJson(url, body) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            ...(body ? { body: JSON.stringify(body) } : {})
+        });
+
+        return response.json();
+    }
+
+    async function submitVote() {
+        const selectedOptionIds = getSelectedOptionIds();
+
+        if (!selectedOptionIds.length) {
+            alert('Please select at least one option');
+            return;
+        }
+
+        try {
+            const data = await postJson(`/post/${postId}/vote/`, {
+                selected_option_ids: selectedOptionIds
+            });
+
+            if (data.success) {
+                const votedOptionIds = data.user_vote?.selected_option_ids || selectedOptionIds;
+                setMode(true, votedOptionIds);
+                applyPollData(data, true);
+            }
+        } catch (e) {
+            console.error('Vote error:', e);
+        }
+    }
+
+    async function removeVote() {
+        if (!confirm('Remove your vote?')) return;
+
+        try {
+            const data = await postJson(`/post/${postId}/remove-vote/`);
+
+            if (data.success) {
+                setMode(false);
+                applyPollData(data);
+            }
+        } catch (e) {
+            console.error('Remove vote error:', e);
+        }
+    }
+
+    function applyPollData(data, animateBars = false) {
+        if (!data.poll_options || !data.poll_info) return;
+
+        const optionStates = [];
+
+        data.poll_options.forEach(option => {
+            const optionEl = container.querySelector(`[data-option-id="${option.id}"]`);
+            if (!optionEl) return;
+
+            const rawPercent = Number(option.percentage) || 0;
+            const clampedPercent = Math.max(0, Math.min(100, rawPercent));
+
+            optionEl.querySelector('.vote-count').textContent = option.vote_count;
+            optionEl.querySelector('.vote-text').textContent = option.vote_count === 1 ? 'vote' : 'votes';
+            optionEl.querySelector('.vote-percent').textContent = Math.round(clampedPercent) + '%';
+
+            optionStates.push({
+                optionEl,
+                clampedPercent
+            });
+        });
+
+        if (animateBars) {
+            optionStates.forEach(({ optionEl }) => {
+                optionEl.style.setProperty('--vote-percent', '0%');
+            });
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    optionStates.forEach(({ optionEl, clampedPercent }) => {
+                        optionEl.style.setProperty('--vote-percent', `${clampedPercent}%`);
+                    });
+                });
+            });
+        } else {
+            optionStates.forEach(({ optionEl, clampedPercent }) => {
+                optionEl.style.setProperty('--vote-percent', `${clampedPercent}%`);
+            });
+        }
+
+        if (totalVotesEl) {
+            totalVotesEl.textContent = data.poll_info.total_votes;
+        }
+
+        if (totalVotesTextEl) {
+            totalVotesTextEl.textContent = data.poll_info.total_votes === 1 ? 'vote' : 'votes';
+        }
+    }
+
+    // Bind events
+    voteButton?.addEventListener('click', submitVote);
+    removeButton?.addEventListener('click', removeVote);
+})();
+</script>
+{% endif %}
+{% endif %}

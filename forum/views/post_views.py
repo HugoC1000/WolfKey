@@ -8,7 +8,7 @@ from django.utils.html import escape
 from forum.models import Post, Solution, FollowedPost, SavedSolution, Notification, PostLike
 from ..services.utils import selective_quote_replace, detect_bad_words
 from forum.forms import SolutionForm, CommentForm, PostForm
-from forum.serializers import PostDetailSerializer
+from forum.serializers import PostDetailSerializer, serialize_poll_display_data
 from forum.services.post_services import (
     create_post_service,
     update_post_service,
@@ -22,6 +22,25 @@ from forum.services.post_services import (
 from forum.services.notification_services import mark_notifications_by_post_service
 
 logger = logging.getLogger(__name__)
+
+
+def build_poll_response_data(poll, request=None):
+    """
+    Build a JSON-safe poll payload for frontend updates.
+    """
+    poll_data = serialize_poll_display_data(poll, request=request)
+    if poll_data is not None:
+        return poll_data
+
+    return {
+        'poll_options': [],
+        'poll_info': {
+            'allow_multiple_choice': poll.allow_multiple_choice,
+            'is_public_voting': poll.is_public_voting,
+            'total_votes': poll.votes.count()
+        },
+        'user_vote': None
+    }
 
 @login_required
 def create_post(request):
@@ -41,9 +60,7 @@ def create_post(request):
                 if poll_data_json:
                     try:
                         poll_data = json.loads(poll_data_json)
-                        print(f"DEBUG: Parsed poll_data: {poll_data}")
                     except (json.JSONDecodeError, TypeError):
-                        print(f"DEBUG: Failed to parse poll_data: {poll_data_json}")
                         poll_data = None
                 
                 data_to_create = {
@@ -64,7 +81,6 @@ def create_post(request):
                 return redirect('post_detail', post_id=result['id'])
             except Exception as e:
                 import traceback
-                print(f"DEBUG: Exception during post creation: {str(e)}")
                 traceback.print_exc()
                 messages.error(request, f"Error creating post: {str(e)}")
                 return redirect('create_post')
@@ -269,5 +285,128 @@ def unfollow_post(request, post_id):
                 'followers_count': result['followers_count']
             })
         
+        return redirect('post_detail', post_id=post_id)
+
+@login_required
+def vote_on_poll(request, post_id):
+    """
+    View to vote on a poll
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        from forum.models import Poll, PollVote
+        
+        poll = Poll.objects.get(id=post_id)
+        
+        # Get selected option IDs from POST data
+        content_type = request.headers.get('Content-Type', '')
+        if 'application/json' in content_type:
+            data = json.loads(request.body)
+            selected_option_ids = data.get('selected_option_ids', [])
+        else:
+            selected_option_ids = request.POST.getlist('selected_option_ids')
+        
+        if not selected_option_ids:
+            error_msg = 'No options selected'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'error': error_msg}, status=400)
+            messages.error(request, error_msg)
+            return redirect('post_detail', post_id=post_id)
+        
+        # Convert to integers
+        selected_option_ids = [int(id) for id in selected_option_ids]
+        
+        # Check if user already voted
+        existing_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
+        if existing_vote:
+            # Update existing vote
+            existing_vote.selected_options.set(selected_option_ids)
+        else:
+            # Create new vote
+            poll_vote = PollVote.objects.create(poll=poll, user=request.user)
+            poll_vote.selected_options.set(selected_option_ids)
+        
+        # Handle AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Vote recorded successfully',
+                **build_poll_response_data(poll, request=request)
+            }, status=200)
+        
+        # Handle regular form submissions
+        messages.success(request, 'Your vote has been recorded')
+        return redirect('post_detail', post_id=post_id)
+        
+    except Poll.DoesNotExist:
+        error_msg = 'Poll not found'
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'error': error_msg}, status=404)
+        messages.error(request, error_msg)
+        return redirect('feed')
+    except ValueError as e:
+        error_msg = f'Invalid option IDs: {str(e)}'
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'error': error_msg}, status=400)
+        messages.error(request, error_msg)
+        return redirect('post_detail', post_id=post_id)
+    except Exception as e:
+        error_msg = f'Error recording vote: {str(e)}'
+        logger.error(error_msg)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'error': error_msg}, status=500)
+        messages.error(request, error_msg)
+        return redirect('post_detail', post_id=post_id)
+
+
+@login_required
+def remove_poll_vote(request, post_id):
+    """
+    View to remove a vote from a poll
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        from forum.models import Poll, PollVote
+        
+        poll = Poll.objects.get(id=post_id)
+        poll_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
+        
+        if not poll_vote:
+            error_msg = 'No vote found to remove'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'error': error_msg}, status=404)
+            messages.error(request, error_msg)
+            return redirect('post_detail', post_id=post_id)
+        
+        poll_vote.delete()
+        
+        # Handle AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Vote removed successfully',
+                **build_poll_response_data(poll, request=request)
+            }, status=200)
+        
+        # Handle regular form submissions
+        messages.success(request, 'Your vote has been removed')
+        return redirect('post_detail', post_id=post_id)
+        
+    except Poll.DoesNotExist:
+        error_msg = 'Poll not found'
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'error': error_msg}, status=404)
+        messages.error(request, error_msg)
+        return redirect('feed')
+    except Exception as e:
+        error_msg = f'Error removing vote: {str(e)}'
+        logger.error(error_msg)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'error': error_msg}, status=500)
+        messages.error(request, error_msg)
         return redirect('post_detail', post_id=post_id)
     return JsonResponse({'success': False}, status=400)

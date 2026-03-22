@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.authentication import TokenAuthentication
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
@@ -250,5 +250,68 @@ def get_post_share_info_api(request, post_id):
         if 'error' in result:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
         return Response(result, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def vote_on_poll_api(request, post_id):
+    """
+    API endpoint to vote on a poll
+    """
+    try:
+        from forum.models import Poll, PollVote, PollOption
+        
+        poll = Poll.objects.get(id=post_id)
+        selected_option_ids = request.data.get('selected_option_ids', [])
+        
+        if not selected_option_ids:
+            return Response({'error': 'No options selected'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if user already voted
+        existing_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
+        if existing_vote:
+            # Update existing vote
+            existing_vote.selected_options.set(selected_option_ids)
+        else:
+            # Create new vote
+            poll_vote = PollVote.objects.create(poll=poll, user=request.user)
+            poll_vote.selected_options.set(selected_option_ids)
+        
+        return Response({
+            'success': True,
+            'message': 'Vote recorded successfully'
+        }, status=status.HTTP_200_OK)
+    except Poll.DoesNotExist:
+        return Response({'error': 'Poll not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def remove_poll_vote_api(request, post_id):
+    """
+    API endpoint to remove a vote from a poll
+    """
+    try:
+        from forum.models import Poll, PollVote
+        
+        poll = Poll.objects.get(id=post_id)
+        poll_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
+        
+        if not poll_vote:
+            return Response({'error': 'No vote found to remove'}, status=status.HTTP_404_NOT_FOUND)
+        
+        poll_vote.delete()
+        return Response({
+            'success': True,
+            'message': 'Vote removed successfully'
+        }, status=status.HTTP_200_OK)
+    except Poll.DoesNotExist:
+        return Response({'error': 'Poll not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

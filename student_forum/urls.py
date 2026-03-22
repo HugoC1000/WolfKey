@@ -35,7 +35,9 @@ from forum.views.post_views import (
     like_post,
     unlike_post,
     follow_post,
-    unfollow_post
+    unfollow_post,
+    vote_on_poll,
+    remove_poll_vote
 )
 
 from forum.views.feed_views import (
@@ -168,7 +170,9 @@ from forum.api.posts import (
     follow_post_api,
     unfollow_post_api,
     get_post_share_info_api,
-    for_you_api, all_posts_api
+    for_you_api, all_posts_api,
+    vote_on_poll_api,
+    remove_poll_vote_api
 )
 
 from forum.api.solutions import (
@@ -212,6 +216,8 @@ urlpatterns = [
     path('post/create/', create_post, name='create_post'),
     path('posts/<int:post_id>/like/', like_post, name='like_post'),
     path('posts/<int:post_id>/unlike/', unlike_post, name='unlike_post'),
+    path('post/<int:post_id>/vote/', vote_on_poll, name='vote_on_poll'),
+    path('post/<int:post_id>/remove-vote/', remove_poll_vote, name='remove_poll_vote'),
 
     path('solution/<int:solution_id>/edit/', edit_solution, name='edit_solution'),
     path('solution/<int:solution_id>/delete/', delete_solution, name='delete_solution'),
@@ -337,6 +343,10 @@ urlpatterns = [
     path('api/posts/<int:post_id>/follow/', follow_post_api, name='api_follow_post'),
     path('api/posts/<int:post_id>/unfollow/', unfollow_post_api, name='api_unfollow_post'),
     path('api/posts/<int:post_id>/share/', get_post_share_info_api, name='api_post_share_info'),
+    
+    # Poll voting API endpoints
+    path('api/posts/<int:post_id>/vote/', vote_on_poll_api, name='api_vote_on_poll'),
+    path('api/posts/<int:post_id>/remove-vote/', remove_poll_vote_api, name='api_remove_poll_vote'),
     
     # Solution API endpoints
     path('api/posts/<int:post_id>/solutions/create/', create_solution_api, name='api_create_solution'),
