@@ -46,7 +46,7 @@
                         </span>
                     </p>
                     <h4 class="card-title post-card-title">{{ post.title }}</h4>
-                    <p class="card-text mt-2 post-card-text">{{ post.preview_text|truncatewords:250 }}</p>
+                    <p class="card-text mt-2 post-card-text">{{ post.preview_text|truncatechars:700|linebreaksbr }}</p>
                     
                     {% if post.get_first_image_url %}
                         <div class="post-image-preview mt-2 mb-2 text-center">

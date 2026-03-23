@@ -1,6 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from forum.models import User, Post, Course, Solution, Comment
+from forum.services.utils import process_post_preview
 import json
 
 class GeneralURLTests(TestCase):
@@ -230,7 +231,7 @@ class APIDeleteAccountTests(TestCase):
         
         # Verify user is NOT deleted
         self.assertTrue(User.objects.filter(id=self.user.id).exists())
-        
+
     def test_delete_account_invalid_token(self):
         """Test account deletion with invalid token"""
         url = reverse('api_delete_account')
@@ -244,3 +245,71 @@ class APIDeleteAccountTests(TestCase):
         
         # Verify user is NOT deleted
         self.assertTrue(User.objects.filter(id=self.user.id).exists())
+
+
+class PostPreviewFormattingTests(TestCase):
+    def _build_post(self, content):
+        return type('PostStub', (), {'content': content})()
+
+    def test_post_preview_supports_multiple_block_types(self):
+        content = {
+            'blocks': [
+                {'type': 'header', 'data': {'text': 'Main Heading'}},
+                {'type': 'paragraph', 'data': {'text': 'Paragraph line 1<br>Paragraph line 2'}},
+                {'type': 'list', 'data': {'items': ['First bullet', 'Second bullet']}},
+                {'type': 'checklist', 'data': {'items': [{'text': 'Checked item', 'checked': True}]}},
+                {'type': 'quote', 'data': {'text': 'Quoted text', 'caption': 'Speaker'}},
+                {'type': 'code', 'data': {'code': 'x = 1'}},
+                {'type': 'table', 'data': {'content': [['A', 'B'], ['1', '2']]}},
+                {'type': 'warning', 'data': {'title': 'Heads up', 'message': 'Be careful'}},
+                {'type': 'image', 'data': {'caption': 'Figure caption'}},
+                {'type': 'math', 'data': {'math': 'x^2 + y^2'}},
+            ]
+        }
+
+        preview = process_post_preview(self._build_post(content))
+
+        self.assertIn('Main Heading', preview)
+        self.assertIn('Paragraph line 1\nParagraph line 2', preview)
+        self.assertIn('First bullet', preview)
+        self.assertIn('Checked item', preview)
+        self.assertIn('Quoted text\nSpeaker', preview)
+        self.assertIn('x = 1', preview)
+        self.assertIn('A | B', preview)
+        self.assertIn('Heads up\nBe careful', preview)
+        self.assertIn('Figure caption', preview)
+        self.assertIn('x^2 + y^2', preview)
+
+    def test_post_preview_preserves_newlines_from_inline_breaks(self):
+        content = {
+            'blocks': [
+                {'type': 'paragraph', 'data': {'text': 'Line one<br>Line two<br/>Line three'}}
+            ]
+        }
+
+        preview = process_post_preview(self._build_post(content))
+
+        self.assertEqual(preview, 'Line one\nLine two\nLine three')
+
+    def test_post_preview_parses_json_string_content(self):
+        content = json.dumps({
+            'blocks': [
+                {'type': 'paragraph', 'data': {'text': 'From JSON string'}}
+            ]
+        })
+
+        preview = process_post_preview(self._build_post(content))
+
+        self.assertEqual(preview, 'From JSON string')
+
+    def test_post_preview_returns_empty_string_when_no_text(self):
+        content = {
+            'blocks': [
+                {'type': 'delimiter', 'data': {}},
+                {'type': 'image', 'data': {'caption': ''}},
+            ]
+        }
+
+        preview = process_post_preview(self._build_post(content))
+
+        self.assertEqual(preview, '')

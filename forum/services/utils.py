@@ -1,6 +1,8 @@
 import re
 import os
 import uuid
+import json
+from html import unescape
 from django.utils.html import strip_tags
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -15,6 +17,164 @@ from urllib.parse import urlparse
 ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/heic']
 ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic']
 
+PREVIEW_FALLBACK_KEYS = (
+    'text',
+    'content',
+    'caption',
+    'title',
+    'message',
+    'code',
+    'math',
+    'value',
+)
+
+
+def _normalize_preview_text(value, preserve_newlines=True):
+    """Normalize Editor.js-derived text while keeping meaningful line breaks."""
+    if value is None:
+        return ''
+
+    text = str(value)
+    text = text.replace('&nbsp;', ' ')
+    text = re.sub(r'<br\s*/?>', '\n' if preserve_newlines else ' ', text, flags=re.IGNORECASE)
+    text = strip_tags(text)
+    text = unescape(text)
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    text = re.sub(r'[\t\f\v ]+', ' ', text)
+    text = re.sub(r' *\n *', '\n', text)
+
+    if preserve_newlines:
+        text = re.sub(r'\n{3,}', '\n\n', text)
+    else:
+        text = text.replace('\n', ' ')
+
+    return text.strip()
+
+
+def _extract_list_items(items):
+    """Extract text from Editor.js list/checklist item structures."""
+    lines = []
+    if not isinstance(items, list):
+        return lines
+
+    for item in items:
+        if isinstance(item, str):
+            text = _normalize_preview_text(item)
+            if text:
+                lines.append(text)
+            continue
+
+        if not isinstance(item, dict):
+            continue
+
+        text = _normalize_preview_text(item.get('content') or item.get('text') or '')
+        if text:
+            lines.append(text)
+
+        nested_items = item.get('items')
+        if nested_items:
+            lines.extend(_extract_list_items(nested_items))
+
+    return lines
+
+
+def _extract_fallback_fragments(value):
+    """Recursively extract common textual fields from unknown block payloads."""
+    if isinstance(value, str):
+        text = _normalize_preview_text(value)
+        return [text] if text else []
+
+    if isinstance(value, list):
+        fragments = []
+        for item in value:
+            fragments.extend(_extract_fallback_fragments(item))
+        return fragments
+
+    if isinstance(value, dict):
+        fragments = []
+        for key in PREVIEW_FALLBACK_KEYS:
+            if key in value:
+                fragments.extend(_extract_fallback_fragments(value.get(key)))
+        return fragments
+
+    return []
+
+
+def _extract_block_preview_text(block):
+    """Extract previewable text from a single Editor.js block."""
+    if not isinstance(block, dict):
+        return ''
+
+    block_type = block.get('type', '')
+    data = block.get('data', {})
+    if not isinstance(data, dict):
+        return ''
+
+    if block_type in {'paragraph', 'header'}:
+        return _normalize_preview_text(data.get('text', ''))
+
+    if block_type == 'list':
+        return '\n'.join(_extract_list_items(data.get('items', [])))
+
+    if block_type == 'checklist':
+        return '\n'.join(_extract_list_items(data.get('items', [])))
+
+    if block_type == 'quote':
+        fragments = [
+            _normalize_preview_text(data.get('text', '')),
+            _normalize_preview_text(data.get('caption', '')),
+        ]
+        return '\n'.join([fragment for fragment in fragments if fragment])
+
+    if block_type == 'code':
+        return _normalize_preview_text(data.get('code', ''))
+
+    if block_type == 'math':
+        return _normalize_preview_text(
+            data.get('math') or data.get('text') or data.get('formula') or ''
+        )
+
+    if block_type == 'table':
+        rows = []
+        for row in data.get('content', []):
+            if not isinstance(row, list):
+                continue
+            cells = []
+            for cell in row:
+                cell_text = _normalize_preview_text(cell, preserve_newlines=False)
+                if cell_text:
+                    cells.append(cell_text)
+            if cells:
+                rows.append(' | '.join(cells))
+        return '\n'.join(rows)
+
+    if block_type == 'warning':
+        fragments = [
+            _normalize_preview_text(data.get('title', '')),
+            _normalize_preview_text(data.get('message', '')),
+        ]
+        return '\n'.join([fragment for fragment in fragments if fragment])
+
+    if block_type == 'image':
+        return _normalize_preview_text(data.get('caption', ''))
+
+    if block_type == 'delimiter':
+        return ''
+
+    return '\n'.join(_extract_fallback_fragments(data))
+
+
+def _coerce_post_content(content):
+    """Parse JSON-string content where possible so block extraction can run."""
+    if isinstance(content, str):
+        stripped = content.strip()
+        if stripped.startswith('{') or stripped.startswith('['):
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                return content
+    return content
+
 def process_post_preview(post):
     """
     Generate a preview text for a post by extracting and cleaning paragraph blocks from Editor.js content.
@@ -25,25 +185,30 @@ def process_post_preview(post):
     Returns:
         str: Concatenated and cleaned preview text.
     """
-    if isinstance(post.content, dict) and 'blocks' in post.content:
-        paragraphs = []
-        for block in post.content['blocks']:
-            if block.get('type') == 'paragraph':
-                text = block.get('data', {}).get('text', '')
-                text = re.sub(r'<br\s*/?>', ' ', text)
-                text = re.sub(r'<i\s*/?>', ' ', text)
-                text = re.sub(r'<em\s*/?>', ' ', text)
-                text = text.replace('&nbsp;', ' ') 
-                text = strip_tags(text)
-                text = ' '.join(text.split())
-                if text:
-                    paragraphs.append(text)
-        return ' '.join(paragraphs)
-    else:
-        text = str(post.content)
-        text = re.sub(r'<br\s*/?>', ' ', text)
-        text = strip_tags(text)
-        return ' '.join(text.split())
+    content = _coerce_post_content(getattr(post, 'content', post))
+
+    if isinstance(content, dict) and 'blocks' in content:
+        block_texts = []
+        for block in content.get('blocks', []):
+            text = _extract_block_preview_text(block)
+            if text:
+                block_texts.append(text)
+
+        if block_texts:
+            return '\n'.join(block_texts)
+
+        # Editor.js payload with no extractable block text should not show serialized JSON.
+        return ''
+
+    if isinstance(content, dict):
+        fragments = _extract_fallback_fragments(content)
+        return '\n'.join(fragments) if fragments else ''
+
+    if isinstance(content, list):
+        fragments = _extract_fallback_fragments(content)
+        return '\n'.join(fragments) if fragments else ''
+
+    return _normalize_preview_text(content)
     
 def annotate_post_card_context(posts, user):
     from forum.models import FollowedPost
