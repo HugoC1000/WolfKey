@@ -345,7 +345,7 @@ def vote_on_poll(request, post_id):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'error': error_msg}, status=404)
         messages.error(request, error_msg)
-        return redirect('feed')
+        return redirect('/')
     except ValueError as e:
         error_msg = f'Invalid option IDs: {str(e)}'
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
