@@ -16,6 +16,30 @@ class PollOptionInline(admin.TabularInline):
     fields = ('text',)
 
 
+class PollAdmin(admin.ModelAdmin):
+    inlines = [PollOptionInline]
+    list_display = ('title', 'author', 'created_at', 'is_public_voting', 'allow_multiple_choice')
+    list_filter = ('is_public_voting', 'allow_multiple_choice', 'created_at')
+    search_fields = ('title', 'author__school_email', 'author__first_name', 'author__last_name')
+    readonly_fields = ('created_at', 'last_activity_at')
+
+    fieldsets = (
+        ('Post Content', {
+            'fields': ('title', 'content', 'author')
+        }),
+        ('Poll Settings', {
+            'fields': ('is_public_voting', 'allow_multiple_choice')
+        }),
+        ('Post Settings', {
+            'fields': ('is_anonymous', 'allow_teacher', 'solved')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'last_activity_at', 'views', 'courses', 'accepted_solution'),
+            'classes': ('collapse',),
+        }),
+    )
+
+
 class PollInline(admin.StackedInline):
     model = Poll
     extra = 0
@@ -56,6 +80,7 @@ class PostAdmin(admin.ModelAdmin):
 
 # Register your models here.
 admin.site.register(Post, PostAdmin)
+admin.site.register(Poll, PollAdmin)
 admin.site.register(File)
 admin.site.register(SavedPost)
 admin.site.register(FollowedPost)
