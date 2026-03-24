@@ -1038,16 +1038,15 @@ class PollOptionSerializer(serializers.ModelSerializer):
         return round((obj.votes.count() / total_votes) * 100, 2)
     
     def get_user_voted(self, obj):
-        """Check if the current user voted for this option"""
-        request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
+        """Check if the current user voted for this option using cached PollVote from context."""
+        user_vote = self.context.get('user_vote')
+        
+        # If no user_vote in context, user is not authenticated or didn't vote
+        if user_vote is None:
             return False
         
-        try:
-            poll_vote = PollVote.objects.get(poll=obj.poll, user=request.user)
-            return poll_vote.selected_options.filter(id=obj.id).exists()
-        except PollVote.DoesNotExist:
-            return False
+        # Check if this option is in the user's selected options
+        return user_vote.selected_options.filter(id=obj.id).exists()
 
     def get_recent_voters(self, obj):
         """Get up to three most recent voters for this option when voting is public."""
@@ -1080,7 +1079,7 @@ class PollOptionSerializer(serializers.ModelSerializer):
 
 class PollSerializer(serializers.ModelSerializer):
     """Serializer for poll display payload used across templates and views."""
-    poll_options = PollOptionSerializer(source='options', many=True, read_only=True)
+    poll_options = serializers.SerializerMethodField()
     poll_info = serializers.SerializerMethodField()
     user_vote = serializers.SerializerMethodField()
 
@@ -1094,6 +1093,29 @@ class PollSerializer(serializers.ModelSerializer):
             'is_public_voting': obj.is_public_voting,
             'total_votes': obj.votes.count()
         }
+
+    def get_poll_options(self, obj):
+        """Fetch user's vote once and pass it to child serializer to avoid N+1 queries."""
+        request = self.context.get('request')
+        user_vote = None
+        
+        if request and request.user.is_authenticated:
+            try:
+                user_vote = PollVote.objects.get(poll=obj, user=request.user)
+            except PollVote.DoesNotExist:
+                pass
+        
+        # Create child serializer context with cached user_vote
+        child_context = self.context.copy()
+        child_context['user_vote'] = user_vote
+        child_context['poll_id'] = obj.id
+        
+        serializer = PollOptionSerializer(
+            obj.options.all(),
+            many=True,
+            context=child_context
+        )
+        return serializer.data
 
     def get_user_vote(self, obj):
         request = self.context.get('request')
