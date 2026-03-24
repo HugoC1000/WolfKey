@@ -80,8 +80,7 @@ def create_post(request):
 
                 return redirect('post_detail', post_id=result['id'])
             except Exception as e:
-                import traceback
-                traceback.print_exc()
+                logger.exception("Error creating post")
                 messages.error(request, f"Error creating post: {str(e)}")
                 return redirect('create_post')
         else:
