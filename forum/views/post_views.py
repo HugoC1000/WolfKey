@@ -401,7 +401,7 @@ def remove_poll_vote(request, post_id):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'error': error_msg}, status=404)
         messages.error(request, error_msg)
-        return redirect('feed')
+        return redirect('/')
     except Exception as e:
         error_msg = f'Error removing vote: {str(e)}'
         logger.error(error_msg)
