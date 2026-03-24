@@ -483,7 +483,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
         model = Post
         fields = [
             'id', 'title', 'content', 'author', 'courses', 'created_at',
-            'solved', 'views', 'is_anonymous', 'allow_teacher', 'allow_teacher', 'like_count', 'is_liked',
+            'solved', 'views', 'is_anonymous', 'allow_teacher', 'like_count', 'is_liked',
             'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
             'is_following', 'poll_options', 'poll_info', 'user_vote'
         ]

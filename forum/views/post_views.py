@@ -80,8 +80,7 @@ def create_post(request):
 
                 return redirect('post_detail', post_id=result['id'])
             except Exception as e:
-                import traceback
-                traceback.print_exc()
+                logger.exception("Error creating post")
                 messages.error(request, f"Error creating post: {str(e)}")
                 return redirect('create_post')
         else:
@@ -317,17 +316,43 @@ def vote_on_poll(request, post_id):
         
         # Convert to integers
         selected_option_ids = [int(id) for id in selected_option_ids]
-        
+        try:
+            selected_option_ids = [int(id) for id in selected_option_ids]
+        except (TypeError, ValueError):
+            error_msg = 'Invalid option selection'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'error': error_msg}, status=400)
+            messages.error(request, error_msg)
+            return redirect('post_detail', post_id=post_id)
+
+        # Ensure selected options belong to this poll
+        valid_option_ids = list(
+            poll.options.filter(id__in=selected_option_ids).values_list('id', flat=True)
+        )
+        if not valid_option_ids:
+            error_msg = 'No valid options selected'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'error': error_msg}, status=400)
+            messages.error(request, error_msg)
+            return redirect('post_detail', post_id=post_id)
+
+        # Enforce single-choice constraint when multiple choice is not allowed
+        if not getattr(poll, 'allow_multiple_choice', False) and len(valid_option_ids) > 1:
+            error_msg = 'You may only select one option for this poll'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'error': error_msg}, status=400)
+            messages.error(request, error_msg)
+            return redirect('post_detail', post_id=post_id)
+
         # Check if user already voted
         existing_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
         if existing_vote:
             # Update existing vote
-            existing_vote.selected_options.set(selected_option_ids)
-            existing_vote.save(update_fields=['updated_at'])
+            existing_vote.selected_options.set(valid_option_ids)
         else:
             # Create new vote
             poll_vote = PollVote.objects.create(poll=poll, user=request.user)
-            poll_vote.selected_options.set(selected_option_ids)
+            poll_vote.selected_options.set(valid_option_ids)
         
         # Handle AJAX requests
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -346,7 +371,7 @@ def vote_on_poll(request, post_id):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'error': error_msg}, status=404)
         messages.error(request, error_msg)
-        return redirect('feed')
+        return redirect('/')
     except ValueError as e:
         error_msg = f'Invalid option IDs: {str(e)}'
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -402,7 +427,7 @@ def remove_poll_vote(request, post_id):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'error': error_msg}, status=404)
         messages.error(request, error_msg)
-        return redirect('feed')
+        return redirect('/')
     except Exception as e:
         error_msg = f'Error removing vote: {str(e)}'
         logger.error(error_msg)
