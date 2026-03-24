@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.authentication import TokenAuthentication
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
@@ -22,7 +22,8 @@ from forum.services.post_services import (
 from forum.serializers import (
     PostListSerializer,
     PostDetailSerializer,
-    UserSerializer
+    UserSerializer,
+    serialize_poll_display_data
 )
 
 def convert_string_to_bool(value):
@@ -49,6 +50,15 @@ def process_post_data_upload(data):
     for field in boolean_fields:
         if field in processed_data:
             processed_data[field] = convert_string_to_bool(processed_data[field])
+    
+    # Handle poll_data - parse JSON string if present
+    if 'poll_data' in processed_data:
+        poll_data_str = processed_data['poll_data']
+        try:
+            if isinstance(poll_data_str, str):
+                processed_data['poll_data'] = json.loads(poll_data_str)
+        except (json.JSONDecodeError, TypeError):
+            processed_data['poll_data'] = None
     
     return processed_data
 
@@ -117,6 +127,7 @@ def create_post_api(request):
         print("Request data, " , request.data)
         processed_data = process_post_data_upload(request.data)
         
+        # Parse content
         content_json = request.data.get('content')
         content_data = json.loads(content_json) if content_json else {}
         processed_data['content'] = content_data
@@ -240,5 +251,76 @@ def get_post_share_info_api(request, post_id):
         if 'error' in result:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
         return Response(result, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def vote_on_poll_api(request, post_id):
+    """
+    API endpoint to vote on a poll
+    """
+    try:
+        from forum.models import Poll, PollVote
+        
+        poll = Poll.objects.get(id=post_id)
+        selected_option_ids = request.data.get('selected_option_ids', [])
+        
+        if not selected_option_ids:
+            return Response({'error': 'No options selected'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if user already voted
+        existing_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
+        if existing_vote:
+            # Update existing vote
+            existing_vote.selected_options.set(selected_option_ids)
+            existing_vote.save(update_fields=['updated_at'])
+        else:
+            # Create new vote
+            poll_vote = PollVote.objects.create(poll=poll, user=request.user)
+            poll_vote.selected_options.set(selected_option_ids)
+
+        poll_data = serialize_poll_display_data(poll, request=request) or {}
+        
+        return Response({
+            'success': True,
+            'message': 'Vote recorded successfully',
+            **poll_data
+        }, status=status.HTTP_200_OK)
+    except Poll.DoesNotExist:
+        return Response({'error': 'Poll not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def remove_poll_vote_api(request, post_id):
+    """
+    API endpoint to remove a vote from a poll
+    """
+    try:
+        from forum.models import Poll, PollVote
+        
+        poll = Poll.objects.get(id=post_id)
+        poll_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
+        
+        if not poll_vote:
+            return Response({'error': 'No vote found to remove'}, status=status.HTTP_404_NOT_FOUND)
+        
+        poll_vote.delete()
+
+        poll_data = serialize_poll_display_data(poll, request=request) or {}
+
+        return Response({
+            'success': True,
+            'message': 'Vote removed successfully',
+            **poll_data
+        }, status=status.HTTP_200_OK)
+    except Poll.DoesNotExist:
+        return Response({'error': 'Poll not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
