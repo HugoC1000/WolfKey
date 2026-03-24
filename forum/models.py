@@ -191,21 +191,30 @@ class CourseAlias(models.Model):
     course = models.ForeignKey(Course, related_name='aliases', on_delete=models.CASCADE)
     
 class Post(models.Model):
+    """
+    Parent post model with common attributes for all post types.
+    Uses multi-table inheritance for StandardPost and Poll subclasses.
+    """
+    POST_TYPE_CHOICES = [
+        ('standard', 'Standard Post'),
+        ('poll', 'Poll'),
+    ]
+    
     title = models.CharField(max_length=200)
-    content = models.JSONField() 
+    content = models.JSONField()
+    post_type = models.CharField(max_length=20, choices=POST_TYPE_CHOICES, default='standard')
     created_at = models.DateTimeField(auto_now_add=True)
     last_activity_at = models.DateTimeField(null=True, blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     search_vector = SearchVectorField(null=True, blank=True)
     courses = models.ManyToManyField(Course, related_name='posts', blank=True)
-    solved = models.BooleanField(default = False)
-    views = models.IntegerField(default = 0)
     is_anonymous = models.BooleanField(default=False)
     allow_teacher = models.BooleanField(
         default=True,
         help_text="Allow teachers to view this post"
     )
-    
+    solved = models.BooleanField(default=False)
+    views = models.IntegerField(default=0)
     accepted_solution = models.OneToOneField(
         'Solution',
         null=True,
@@ -213,6 +222,9 @@ class Post(models.Model):
         on_delete=models.SET_NULL,
         related_name='accepted_for'
     )
+
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self):
         return self.title
@@ -226,16 +238,19 @@ class Post(models.Model):
         Post.objects.filter(id=self.id).update(search_vector=search_vector)
 
     def get_absolute_url(self):
+        """Get URL for this post. Should be overridden in subclasses if needed."""
         return reverse('post_detail', args=[self.id])
 
     def like_count(self):
+        """Get the number of likes on this post"""
         return self.likes.count()
 
     def is_liked_by(self, user):
+        """Check if a specific user has liked this post"""
         if not user.is_authenticated:
             return False
         return self.likes.filter(user=user).exists()
-    
+
     def get_author(self, ignore_anonymous=False):
         """Return author object with anonymous profile picture if post is anonymous
         
@@ -244,7 +259,6 @@ class Post(models.Model):
                             If False (default), return anonymous indicator for anonymous posts.
         """
         if self.is_anonymous and not ignore_anonymous:
-            # Return anonymous indicator for anonymous posts
             return {
                 'user': self.author,
                 'is_anonymous': True
@@ -279,6 +293,102 @@ class Post(models.Model):
             
         except (json.JSONDecodeError, AttributeError, TypeError):
             return None
+
+
+class StandardPost(Post):
+    """
+    Standard discussion post type. Inherits from Post.
+    """
+
+    class Meta:
+        verbose_name = "Standard Post"
+        verbose_name_plural = "Standard Posts"
+
+
+class Poll(Post):
+    """
+    Poll post type. Inherits from Post and adds poll-specific features like
+    voting options, public/private voting, and multiple choice support.
+    """
+    is_public_voting = models.BooleanField(
+        default=True,
+        help_text="If True, voting is public and results visible to all. If False, voting is private."
+    )
+    allow_multiple_choice = models.BooleanField(
+        default=False,
+        help_text="If True, users can select multiple options (multiselect). If False, only one option allowed."
+    )
+
+    class Meta:
+        verbose_name = "Poll"
+        verbose_name_plural = "Polls"
+
+    def get_poll_options(self):
+        """Get all poll options for this poll"""
+        return self.options.all()
+
+    def get_user_vote(self, user):
+        """Get the vote record for a specific user"""
+        try:
+            return self.votes.get(user=user)
+        except PollVote.DoesNotExist:
+            return None
+
+    def get_vote_summary(self):
+        """Get summary of poll options with vote counts"""
+        summary = []
+        total_votes = self.votes.count()
+        
+        for option in self.options.all():
+            vote_count = option.votes.count()
+            percentage = (vote_count / total_votes * 100) if total_votes > 0 else 0
+            summary.append({
+                'option': option,
+                'vote_count': vote_count,
+                'percentage': percentage
+            })
+        
+        return summary
+
+
+class PollOption(models.Model):
+    """
+    Individual option/choice in a poll
+    """
+    poll = models.ForeignKey(Poll, on_delete=models.CASCADE, related_name='options')
+    text = models.CharField(max_length=500, help_text="The option text/choice")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = "Poll Option"
+        verbose_name_plural = "Poll Options"
+
+    def __str__(self):
+        return f"{self.poll.title} - {self.text}"
+
+
+class PollVote(models.Model):
+    """
+    Represents a user's vote in a poll. Supports multiselect by using ManyToMany relationship.
+    """
+    poll = models.ForeignKey(Poll, on_delete=models.CASCADE, related_name='votes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='poll_votes')
+    selected_options = models.ManyToManyField(
+        PollOption,
+        related_name='votes',
+        help_text="The option(s) selected by the user"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['poll', 'user']  # One vote per user per poll
+        verbose_name = "Poll Vote"
+        verbose_name_plural = "Poll Votes"
+
+    def __str__(self):
+        return f"{self.user.username} voted on {self.poll.title}"
     
 class SavedPost(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="saved_posts")

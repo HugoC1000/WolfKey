@@ -66,10 +66,46 @@ math-field::part(menu-item) {
     z-index: 9999;
 }
 
+.ce-paragraph {
+    font-size: .875rem;
+    line-height: .25rem;
+}
+
 .image-tool__image-picture {
     border-radius: 12px;
+    margin: 0px auto;
 }
 
 .ce-block__content{
     margin: 0px 0px;
+}
+
+.author-name{
+    font-size: 0.875rem;
+  line-height: 1rem;
+  font-weight: 700;
+}
+
+.codex-editor {
+    position: relative;
+    z-index: 1;
+}
+
+/* Keep the active editor above neighboring editors so its menus are not hidden. */
+.codex-editor:focus-within {
+    z-index: 400;
+}
+
+/* Ensure all Editor.js toolbars/popovers stack above editor content blocks. */
+.ce-popover,
+.ce-popover__container,
+.ce-inline-toolbar,
+.ce-conversion-toolbar,
+.ce-settings,
+.ce-toolbar {
+    z-index: 5000 !important;
+}
+
+.codex-editor__redactor {
+    overflow: visible !important;
 }

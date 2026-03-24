@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.db.models import F, Case, When, IntegerField
-from forum.models import Post, Course, PostLike, FollowedPost
+from forum.models import Post, Course, PostLike, FollowedPost, Poll, PollOption
 from forum.services.utils import detect_bad_words, selective_quote_replace
 from forum.services.notification_services import send_course_notifications_service
 import json
@@ -74,6 +74,18 @@ def get_post_detail_service(post_id, user=None):
 
 def create_post_service(user, data):
     try:
+        # Check if this is a poll
+        poll_data = data.get('poll_data')
+        if poll_data and isinstance(poll_data, dict) and poll_data.get('isPoll'):
+            # Create as poll
+            poll_data['title'] = data.get('title')
+            poll_data['content'] = data.get('content')
+            poll_data['is_anonymous'] = data.get('is_anonymous', False)
+            poll_data['allow_teacher'] = data.get('allow_teacher', False)
+            poll_data['courses'] = data.get('courses', [])
+            return create_poll_service(user, poll_data)
+        
+        # Regular post creation
         content = data.get('content')
         if not content:
             return {'error': 'Content is required'}
@@ -84,6 +96,7 @@ def create_post_service(user, data):
             author=user,
             title=data.get('title'),
             content=content,
+            post_type='standard',
             is_anonymous=data.get("is_anonymous"),
             allow_teacher=data.get("allow_teacher", False),
         )
@@ -270,4 +283,56 @@ def get_post_share_info_service(post_id, request):
         }
     except Exception as e:
         logger.error(f"Error getting share info for post {post_id}: {str(e)}")
+        return {'error': str(e)}
+
+def create_poll_service(user, data):
+    """
+    Service to create a poll with options
+    """
+    try:
+        title = data.get('question')
+        if not title:
+            return {'error': 'Poll question is required'}
+
+        content = data.get('content', {})
+        if not content:
+            content = {"blocks": [{"type": "paragraph", "data": {"text": f"{title}"}}]}
+
+        # Validate answers
+        answers = data.get('answers', [])
+        if len(answers) < 2:
+            return {'error': 'At least 2 answers are required for a poll'}
+
+        # Create poll
+        poll = Poll(
+            author=user,
+            title=title,
+            content=content,
+            post_type='poll',
+            is_anonymous=data.get('is_anonymous', False),
+            allow_teacher=data.get('allow_teacher', False),
+            allow_multiple_choice=data.get('allowMultiple', False),
+            is_public_voting=data.get('isPublicVoting', True)
+        )
+        poll.save()
+
+        # Create poll options
+        for answer_text in answers:
+            if answer_text.strip():
+                PollOption.objects.create(poll=poll, text=answer_text.strip())
+
+        # Add courses
+        course_ids = data.get('courses', [])
+        if course_ids:
+            courses = Course.objects.filter(id__in=course_ids)
+            poll.courses.set(courses)
+            send_course_notifications_service(poll, courses)
+
+        return {
+            'id': poll.id,
+            'url': poll.get_absolute_url(),
+            'message': 'Poll created successfully'
+        }
+    except Exception as e:
+        logger.error(f"Error creating poll: {str(e)}")
         return {'error': str(e)}

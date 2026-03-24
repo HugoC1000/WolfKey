@@ -11,6 +11,7 @@ from django.conf import settings
 from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from typing import Optional, Dict, Any
+import httplib2
 
 
 class GoogleAPIService:
@@ -60,7 +61,13 @@ class GoogleAPIService:
                 settings.GSHEET_CREDENTIALS,
                 scopes=['https://www.googleapis.com/auth/calendar.readonly']
             )
-            self._calendar_service = build('calendar', 'v3', credentials=creds)
+            
+            # Create httplib2 HTTP object with 30 second timeout
+            http = httplib2.Http(timeout=30)
+            authorized_http = creds.authorize(http)
+            
+            # Build calendar service with authorized HTTP client
+            self._calendar_service = build('calendar', 'v3', http=authorized_http)
         return self._calendar_service
     
     def get_sheet(self, spreadsheet_name: str, worksheet_index: int = 0):

@@ -13,7 +13,6 @@
 <div class="row justify-content-center">
     <div class="card">
         <div class="card-body">
-            <h2 class="card-title">{{ action }} Post</h2>
             <form id="postForm" method="post" action="{% if post %}{% url 'edit_post' post.id %}{% else %}{% url 'create_post' %}{% endif %}" enctype="multipart/form-data">
                 {% csrf_token %}
                 
@@ -24,6 +23,11 @@
                 <h3>Content:</h3>
                 <div id="editorjs" class="post-form-editor"></div>
                 <input type="hidden" id="editorjs-content" name="content">
+                <input type="hidden" id="poll-data" name="poll_data" value="">
+
+                {% if is_poll %}
+                {% include 'forum/poll_component.html' %}
+                {% endif %}
 
                 <h3 class="mt-4">Select a Course:</h3>
                 <div id="postCoursesSelector"></div>
@@ -92,6 +96,113 @@
         let selectedCourses = {% if selected_courses_json %}{{ selected_courses_json|safe }}{% else %}[]{% endif %};
         let submitClicked = false;
 
+        // Poll component setup
+        const maxAnswers = 10;
+        const minAnswers = 2;
+        let pollAnswers = ['', ''];
+
+        // Handle poll answer inputs
+        document.addEventListener('input', (e) => {
+            if (e.target.classList.contains('poll-answer-input')) {
+                const index = parseInt(e.target.dataset.index);
+                pollAnswers[index] = e.target.value;
+            }
+        });
+
+        // Add answer button
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'addAnswerBtn' || e.target.closest('#addAnswerBtn')) {
+                e.preventDefault();
+                if (pollAnswers.length < maxAnswers) {
+                    addPollAnswer();
+                }
+            }
+        });
+
+        // Delete answer buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.delete-answer-btn')) {
+                const btn = e.target.closest('.delete-answer-btn');
+                const index = parseInt(btn.dataset.index);
+                if (pollAnswers.length > minAnswers) {
+                    deletePollAnswer(index);
+                }
+            }
+        });
+        function addPollAnswer() {
+            pollAnswers.push('');
+            const container = document.getElementById('pollAnswers');
+            const newIndex = pollAnswers.length - 1;
+            
+            const item = document.createElement('div');
+            item.className = 'poll-answer-item';
+            item.style.cssText = 'display: flex; align-items: center; margin-bottom: 10px; gap: 10px;';
+            item.innerHTML = `
+                <input 
+                    type="text" 
+                    class="form-control poll-answer-input" 
+                    placeholder="Type your answer" 
+                    value=""
+                    maxlength="500"
+                    data-index="${newIndex}"
+                    style="flex: 1; border-radius: 8px; padding: 8px 12px;">
+                <button 
+                    type="button" 
+                    class="btn btn-sm delete-answer-btn"
+                    data-index="${newIndex}"
+                    style="flex-shrink: 0; color: #999; background: none; border: none; padding: 0; font-size: 18px;">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+            container.appendChild(item);
+
+            // Update delete button states
+            updateDeleteButtons();
+        }
+
+        function deletePollAnswer(index) {
+            pollAnswers.splice(index, 1);
+            rerenderAnswers();
+            updateDeleteButtons();
+        }
+
+        function rerenderAnswers() {
+            const container = document.getElementById('pollAnswers');
+            container.innerHTML = '';
+
+            pollAnswers.forEach((answer, index) => {
+                const item = document.createElement('div');
+                item.className = 'poll-answer-item';
+                item.style.cssText = 'display: flex; align-items: center; margin-bottom: 10px; gap: 10px;';
+                item.innerHTML = `
+                    <input 
+                        type="text" 
+                        class="form-control poll-answer-input" 
+                        placeholder="Type your answer" 
+                        value="${answer}"
+                        maxlength="500"
+                        data-index="${index}"
+                        style="flex: 1; border-radius: 8px; padding: 8px 12px;">
+                    <button 
+                        type="button" 
+                        class="btn btn-sm delete-answer-btn"
+                        data-index="${index}"
+                        style="flex-shrink: 0; color: #999; background: none; border: none; padding: 0; font-size: 18px;"
+                        ${pollAnswers.length <= minAnswers ? 'disabled' : ''}>
+                        <i class="bi bi-trash"></i>
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function updateDeleteButtons() {
+            const deleteButtons = document.querySelectorAll('.delete-answer-btn');
+            deleteButtons.forEach(btn => {
+                btn.disabled = pollAnswers.length <= minAnswers;
+            });
+        }
+
         // Prevent enter key from submitting form
         form.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
@@ -115,6 +226,33 @@
                         formData.set('allow_teacher', allowTeacherCheckbox.checked ? 'on' : 'off');
                     }
 
+                    // Add poll data if this is a poll
+                    {% if is_poll %}
+                    const titleInput = document.querySelector('#id_title');
+                    const multipleCheckbox = document.getElementById('pollMultiple');
+                    const publicVotingCheckbox = document.getElementById('pollPublicVoting');
+
+                    const filteredAnswers = pollAnswers.filter(a => a.trim() !== '');
+                    
+                    if (!titleInput.value.trim()) {
+                        throw new Error('Poll question/title is required');
+                    }
+                    if (filteredAnswers.length < minAnswers) {
+                        throw new Error(`At least ${minAnswers} answers are required`);
+                    }
+
+                    const pollData = {
+                        isPoll: true,
+                        question: titleInput.value,
+                        answers: filteredAnswers,
+                        allowMultiple: multipleCheckbox.checked,
+                        isPublicVoting: publicVotingCheckbox ? publicVotingCheckbox.checked : true
+                    };
+                    formData.set('poll_data', JSON.stringify(pollData));
+                    {% else %}
+                    formData.set('poll_data', JSON.stringify({ isPoll: false }));
+                    {% endif %}
+
                     courseSelector.selectedCourses.forEach(course => {
                         formData.append('courses', course.id);
                     });
@@ -136,6 +274,8 @@
                     }
                 } catch (error) {
                     console.error('Error submitting form:', error);
+                    alert(error.message || 'An error occurred while submitting the form');
+                    submitClicked = false;
                 }
             }
         });

@@ -51,9 +51,8 @@
 
     <!-- Solution Content -->
     <div class="post-content-cell">
-        <!-- Solution Author -->
-        <div class="author-info">
-            <div class="position-relative">
+        <div class="solution-main-layout">
+            <div class="solution-avatar-column">
                 {% if post.is_anonymous and solution.author == post.author %}
                 <img 
                     src="{{ MEDIA_URL }}profile_pictures/default.png" 
@@ -72,25 +71,29 @@
                 >
                 {% endif %}
             </div>
-            <div>
-                <div class="d-flex align-items-center">
-                    {% if post.is_anonymous and solution.author == post.author %}
-                        <span>Anonymous</span>
-                    {% else %}
-                        <a href="{{ solution.author.get_absolute_url }}">{{ solution.author.get_full_name }}</a>
-                    {% endif %}
-                    {% if solution.author == post.author and not post.is_anonymous %}
-                        <span class="badge bg-primary ms-2">OP</span>
-                    {% endif %}
-                    <span class="text-muted ms-2">Answered {{ solution.created_at|smart_timesince }}</span>
-                </div>
-            </div>
-        </div>
-        <div id="editorjs-solution-{{ solution.id }}"></div>
 
-        <!-- Solution Actions -->
-        {% if user.is_authenticated %}
-        <div class="solution-actions d-flex justify-content-between align-items-center" data-solution-id="{{ solution.id }}">
+            <div class="solution-main-content">
+                <!-- Solution Author -->
+                <div class="author-info">
+                    <div class="author-name"> 
+                        <div class="d-flex align-items-center">
+                            {% if post.is_anonymous and solution.author == post.author %}
+                                <span>Anonymous</span>
+                            {% else %}
+                                <a href="{{ solution.author.get_absolute_url }}">{{ solution.author.get_full_name }}</a>
+                            {% endif %}
+                            {% if solution.author == post.author and not post.is_anonymous %}
+                                <span class="badge bg-primary ms-2">OP</span>
+                            {% endif %}
+                            <span class="text-muted ms-2">Answered {{ solution.created_at|smart_timesince }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="editorjs-solution-{{ solution.id }}"></div>
+
+                <!-- Solution Actions -->
+                {% if user.is_authenticated %}
+                <div class="solution-actions d-flex justify-content-between align-items-center" data-solution-id="{{ solution.id }}">
     
             <!-- Left: Add Comment Button -->
             {% if user.is_authenticated %}
@@ -124,16 +127,18 @@
                     <button class="btn pill-btn btn-secondary btn-sm" onclick="cancelSolutionEdit(Number('{{ solution.id }}'))"><i class="bi bi-x-lg"></i> Cancel</button>
                 </div>
             </div>
-            {% endif %}
-        </div>
+                    {% endif %}
+                </div>
 
 
-        {% endif %}
+                {% endif %}
 
-        <!-- Comments -->
-        <div class="comments-section">
-            <div class="comments">
-                {% include 'forum/components/comments_list.html' with comments=solution.comments.all %}
+                <!-- Comments -->
+                <div class="comments-section">
+                    <div class="comments">
+                        {% include 'forum/components/comments_list.html' with comments=solution.comments.all %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
