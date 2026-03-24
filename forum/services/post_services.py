@@ -3,8 +3,6 @@ from django.db.models import F, Case, When, IntegerField
 from forum.models import Post, Course, PostLike, FollowedPost, Poll, PollOption
 from forum.services.utils import detect_bad_words, selective_quote_replace
 from forum.services.notification_services import send_course_notifications_service
-from django.utils import timezone
-from datetime import timedelta
 import json
 import logging
 
