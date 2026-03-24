@@ -1,8 +1,8 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.utils import timezone
-from .models import UserProfile, Solution, Comment
+from .models import UserProfile, Solution, Comment, PollVote
 
 
 # Update post last_activity_at when a solution is added or updated
@@ -22,3 +22,11 @@ def update_post_activity_on_comment(sender, instance, created, **kwargs):
         if instance.solution and instance.solution.post:
             instance.solution.post.last_activity_at = timezone.now()
             instance.solution.post.save(update_fields=['last_activity_at'])
+
+
+@receiver(post_save, sender=PollVote)
+def update_post_activity_on_poll_vote_save(sender, instance, **kwargs):
+    """Update the parent poll post's last_activity_at when a vote is created or changed."""
+    if instance.poll:
+        instance.poll.last_activity_at = timezone.now()
+        instance.poll.save(update_fields=['last_activity_at'])

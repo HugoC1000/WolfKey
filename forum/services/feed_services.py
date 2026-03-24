@@ -1,10 +1,18 @@
 from django.db.models import Q, F, Count
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector, TrigramSimilarity
+from django.db.models.functions import Coalesce
 from forum.models import Post, Course
 from forum.services.course_services import get_user_courses
 from forum.services.utils import process_post_preview, add_course_context, annotate_post_card_context
 from django.core.paginator import Paginator
 from django.utils.timezone import localtime
+
+
+def _order_by_recent_activity(queryset):
+    """Order by most recent activity, falling back to creation time."""
+    return queryset.annotate(
+        recent_updated_at=Coalesce('last_activity_at', 'created_at')
+    ).order_by('-recent_updated_at', '-created_at')
 
 def get_for_you_posts(user, page=1, per_page=8):
     """
@@ -35,8 +43,8 @@ def get_for_you_posts(user, page=1, per_page=8):
     
     if user.is_authenticated and user.is_teacher:
         base_qs = base_qs.filter(allow_teacher=True)
-    
-    base_qs = base_qs.order_by('-last_activity_at')
+
+    base_qs = _order_by_recent_activity(base_qs)
 
     paginator = Paginator(base_qs, per_page)
     
@@ -78,10 +86,11 @@ def get_all_posts(user, query='', page=1, per_page=8):
     if query:
         search_query = SearchQuery(query)
         base_qs = base_qs.annotate(
-            rank=SearchRank(F('search_vector'), search_query) + TrigramSimilarity('title', query)
-        ).filter(rank__gte=0.3).order_by('-rank')
+            rank=SearchRank(F('search_vector'), search_query) + TrigramSimilarity('title', query),
+            recent_updated_at=Coalesce('last_activity_at', 'created_at')
+        ).filter(rank__gte=0.3).order_by('-rank', '-recent_updated_at', '-created_at')
     else:
-        base_qs = base_qs.order_by('-last_activity_at')
+        base_qs = _order_by_recent_activity(base_qs)
 
     # Paginate the base queryset first to preserve ordering
     paginator = Paginator(base_qs, per_page)
@@ -137,7 +146,7 @@ def paginate_posts(posts_queryset, page=1, limit=10):
 
 def get_user_posts(user, page=1, per_page=8):
     page = int(page)
-    posts = Post.objects.filter(author=user).order_by('-created_at')
+    posts = _order_by_recent_activity(Post.objects.filter(author=user))
     
     paginator = Paginator(posts, per_page)
     page_obj = paginator.get_page(page)
