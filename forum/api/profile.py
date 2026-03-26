@@ -14,6 +14,7 @@ from django.contrib.auth import get_user_model
 from forum.models import User, UserCourseExperience, UserCourseHelp
 from forum.services.profile_service import (
     get_profile_context,
+    get_profile_posts_page,
     update_profile_info,
     update_profile_picture,
     update_lunch_card,
@@ -60,6 +61,43 @@ def get_profile_api(request, username=None):
         
     except Exception as e:
         logger.error(f"Error getting profile for {username}: {str(e)}")
+        return Response({
+            'error': f'An error occurred: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_profile_posts_api(request, username):
+    """Get paginated posts authored by a profile user (view-compatible behavior)."""
+    try:
+        page = int(request.GET.get('page', 1))
+        per_page = int(request.GET.get('limit', 10))
+
+        profile_user = get_object_or_404(User, username=username)
+        page_obj = get_profile_posts_page(
+            viewing_user=request.user,
+            profile_user=profile_user,
+            page=page,
+            per_page=per_page,
+        )
+
+        from forum.serializers import PostListSerializer
+        serializer = PostListSerializer(page_obj.object_list, many=True, context={'request': request})
+
+        return Response({
+            'posts': serializer.data,
+            'has_next': page_obj.has_next(),
+            'page': page_obj.number,
+            'total_pages': page_obj.paginator.num_pages,
+            'username': profile_user.username,
+            'is_qa_user': profile_user.is_teacher,
+        }, status=status.HTTP_200_OK)
+    except ValueError:
+        return Response({'error': 'Invalid pagination values.'}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Error getting posts for profile {username}: {str(e)}")
         return Response({
             'error': f'An error occurred: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

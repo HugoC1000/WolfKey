@@ -221,7 +221,7 @@ class APIDeleteAccountTests(TestCase):
         
         # Verify user is NOT deleted
         self.assertTrue(User.objects.filter(id=self.user.id).exists())
-        
+
     def test_delete_account_no_auth(self):
         """Test account deletion without authentication"""
         url = reverse('api_delete_account')
@@ -245,6 +245,89 @@ class APIDeleteAccountTests(TestCase):
         
         # Verify user is NOT deleted
         self.assertTrue(User.objects.filter(id=self.user.id).exists())
+
+
+class APIProfilePostsTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.viewer = User.objects.create_user(
+            username='vieweruser',
+            password='viewerpass123',
+            school_email='viewer@wpga.ca',
+            first_name='View',
+            last_name='Er'
+        )
+        self.qa_user = User.objects.create_user(
+            username='qauser',
+            password='qapass123',
+            school_email='qa@wpga.ca',
+            first_name='QA',
+            last_name='User',
+            is_teacher=True
+        )
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            password='otherpass123',
+            school_email='other@wpga.ca',
+            first_name='Other',
+            last_name='User'
+        )
+
+        from rest_framework.authtoken.models import Token
+        self.token = Token.objects.create(user=self.viewer)
+
+        Post.objects.create(
+            title='QA Visible Old',
+            content={'blocks': []},
+            author=self.qa_user,
+            is_anonymous=False
+        )
+        Post.objects.create(
+            title='QA Visible New',
+            content={'blocks': []},
+            author=self.qa_user,
+            is_anonymous=False
+        )
+        Post.objects.create(
+            title='QA Anonymous Hidden',
+            content={'blocks': []},
+            author=self.qa_user,
+            is_anonymous=True
+        )
+        Post.objects.create(
+            title='Other User Post',
+            content={'blocks': []},
+            author=self.other_user,
+            is_anonymous=False
+        )
+
+    def test_get_profile_posts_api_returns_only_public_posts_for_requested_user(self):
+        url = reverse('api_get_profile_posts', kwargs={'username': self.qa_user.username})
+        response = self.client.get(url, HTTP_AUTHORIZATION=f'Token {self.token.key}')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertEqual(payload['username'], self.qa_user.username)
+        self.assertTrue(payload['is_qa_user'])
+
+        titles = [post['title'] for post in payload['posts']]
+        self.assertIn('QA Visible Old', titles)
+        self.assertIn('QA Visible New', titles)
+        self.assertNotIn('QA Anonymous Hidden', titles)
+        self.assertNotIn('Other User Post', titles)
+
+    def test_get_profile_posts_api_supports_pagination(self):
+        url = reverse('api_get_profile_posts', kwargs={'username': self.qa_user.username})
+        response = self.client.get(f'{url}?limit=1', HTTP_AUTHORIZATION=f'Token {self.token.key}')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertEqual(len(payload['posts']), 1)
+        self.assertEqual(payload['posts'][0]['title'], 'QA Visible New')
+        self.assertTrue(payload['has_next'])
+        self.assertEqual(payload['total_pages'], 2)
 
 
 class PostPreviewFormattingTests(TestCase):

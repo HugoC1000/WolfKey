@@ -1,16 +1,59 @@
 import json
+from django.core.paginator import Paginator
+from django.db.models import Count
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from forum.models import User, Course, Post, Solution, UserCourseExperience, UserCourseHelp, UserProfile
 from forum.forms import UserCourseExperienceForm, UserCourseHelpForm
-from forum.services.utils import detect_bad_words
+from forum.services.utils import detect_bad_words, annotate_post_card_context
 from forum.serializers import BlockSerializer
+
+
+def get_profile_posts_page(viewing_user, profile_user, page=1, per_page=8):
+    """Return paginated public profile posts for a target user."""
+    page = int(page)
+    per_page = int(per_page)
+
+    base_qs = Post.objects.filter(
+        author=profile_user,
+        is_anonymous=False,
+    )
+
+    if viewing_user.is_authenticated and viewing_user.is_teacher:
+        base_qs = base_qs.filter(allow_teacher=True)
+
+    base_qs = base_qs.annotate(
+        recent_updated_at=Coalesce('last_activity_at', 'created_at')
+    ).order_by('-recent_updated_at', '-created_at')
+
+    paginator = Paginator(base_qs, per_page)
+
+    # Return an empty page if page number is out of range.
+    if page > paginator.num_pages and paginator.num_pages > 0:
+        empty_page = paginator.get_page(paginator.num_pages)
+        empty_page.object_list = []
+        return empty_page
+
+    page_obj = paginator.get_page(page)
+    post_ids = [post.id for post in page_obj.object_list]
+
+    posts_qs = Post.objects.filter(id__in=post_ids).annotate(
+        solution_count=Count('solutions', distinct=True),
+        comment_count=Count('solutions__comments', distinct=True),
+        total_response_count=Count('solutions', distinct=True) + Count('solutions__comments', distinct=True)
+    ).select_related('author').prefetch_related('courses', 'solutions__comments')
+
+    posts_dict = {post.id: post for post in posts_qs}
+    ordered_posts = [posts_dict[pid] for pid in post_ids if pid in posts_dict]
+    ordered_posts = annotate_post_card_context(ordered_posts, viewing_user)
+
+    page_obj.object_list = ordered_posts
+    return page_obj
 
 def get_profile_context(request, username):
     profile_user = get_object_or_404(User, username=username)
-    recent_posts = Post.objects.filter(
-        author=profile_user,
-        is_anonymous=False
-    ).order_by('-created_at')[:3]
+    recent_posts_page = get_profile_posts_page(request.user, profile_user, page=1, per_page=3)
+    recent_posts = recent_posts_page.object_list
     posts_count = Post.objects.filter(author=profile_user).count()
     solutions_count = Solution.objects.filter(author=profile_user).count()
 
