@@ -165,3 +165,63 @@ def check_ceremonial_uniform(request, target_date):
             'error': 'Internal server error',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_and_process_schedule(request, user_id):
+    """
+    Token-authenticated API: return both raw and processed schedule for a user for a given date.
+    
+    Combines getting the raw block order and times with the processed schedule containing
+    course names. This eliminates the need for multiple API calls.
+    
+    Query Parameters:
+        date (str, optional): Date in YYYY-MM-DD format. Defaults to today in PST.
+    
+    Returns:
+        Response: JSON response with:
+            - raw_schedule: Object containing:
+                - date (str): Formatted date string
+                - blocks (List[Optional[str]]): List of block identifiers
+                - times (List[Optional[str]]): List of time ranges
+            - processed_schedule (List[Dict]): Processed schedule with course names and times
+            - early_dismissal (bool): Whether it's an early dismissal day
+            - late_start (bool): Whether it's a late start day
+    """
+    from django.shortcuts import get_object_or_404
+    from forum.models import User
+
+    try:
+        user = get_object_or_404(User, id=user_id)
+
+        # allow optional date param (ISO format), default to today's date in PST
+        pst = ZoneInfo("America/Los_Angeles")
+        now_pst = datetime.now(pst)
+        target_date = request.query_params.get('date') or now_pst.date().isoformat()
+        
+        # Get raw schedule data
+        raw_schedule = get_block_order_for_day(target_date)
+        
+        # Process schedule for user
+        processed = process_schedule_for_user(user, raw_schedule)
+        
+        # Parse and format the date
+        date_obj = _parse_iso_date(target_date)
+        formatted_date = _convert_to_sheet_date_format(date_obj)
+
+        return Response({
+            'raw_schedule': {
+                'date': formatted_date,
+                'blocks': raw_schedule['blocks'],
+                'times': raw_schedule['times']
+            },
+            'processed_schedule': processed,
+            'early_dismissal': raw_schedule.get('early_dismissal', False),
+            'late_start': raw_schedule.get('late_start', False)
+        }, status=status.HTTP_200_OK)
+    except ValueError as e:
+        return Response({'error': 'Invalid date format', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        print(f"Error in get_and_process_schedule: {e}")
+        return Response({'error': 'User or profile not found'}, status=status.HTTP_404_NOT_FOUND)

@@ -73,7 +73,7 @@ def get_profile_posts_api(request, username):
     """Get paginated posts authored by a profile user (view-compatible behavior)."""
     try:
         page = int(request.GET.get('page', 1))
-        per_page = int(request.GET.get('limit', 10))
+        per_page = int(request.GET.get('limit', 3))
 
         profile_user = get_object_or_404(User, username=username)
         page_obj = get_profile_posts_page(

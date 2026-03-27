@@ -24,46 +24,10 @@
                                 {{ current_date}}
                             </span>
                         </div>
-                        <div class="d-flex gap-2 mb-2 justify-content-end flex-wrap">
-                            {% if ceremonial_required_today %}
-                            <span class="badge rounded-pill schedule-badge-ceremonial">
-                                <i class="fas fa-user-tie me-1"></i>Ceremonial Uniform
-                            </span>
-                            {% endif %}
-                            {% if early_dismissal_today %}
-                            <span class="badge rounded-pill schedule-badge-early">
-                                <i class="fas fa-clock me-1"></i>Early Dismissal
-                            </span>
-                            {% endif %}
-                            {% if late_start_today %}
-                            <span class="badge rounded-pill schedule-badge-late">
-                                <i class="fas fa-coffee me-1"></i>Late Start
-                            </span>
-                            {% endif %}
+                        <div class="d-flex gap-2 mb-2 justify-content-end flex-wrap" id="today-badges">
                         </div>
-                        <ul class="list-group shadow-sm rounded"id = "today-schedule">
-                            {% if schedule_today %}
-                                {% for item in schedule_today %}
-                                {% if item == "no school"  %}
-                                <li class="list-group-item">
-                                    <p style = "margin-bottom: 0px;">No School</p>
-                                </li>
-                                {% else %}
-                                    <li class="list-group-item">
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <p style = "margin-bottom: 0px;">{{ item.block }}</p>
-                                            {% if item.time %}
-                                                <p style = "margin-bottom: 0px;">{{ item.time }} </p>
-                                            {% endif %}
-                                        </div>
-                                    </li>
-                                {% endif %}
-                                {% endfor %}
-                            {% else %}
-                                <li class="list-group-item">
-                                    <p style = "margin-bottom: 0px;">Schedule unavailable</p>
-                                </li>
-                            {% endif %}
+                        <ul class="list-group shadow-sm rounded" id="today-schedule">
+                            <li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading schedule...</li>
                         </ul>
                     </div>
 
@@ -78,52 +42,16 @@
                             <button id="prev-day" class="btn btn-sm btn-outline-secondary" title="Previous day">
                                 <i class="fas fa-chevron-left"></i>
                             </button>
-                            <input type="date" id="schedule-date-picker" class="form-control form-control-sm" style="max-width: 150px;" value="{{ tomorrow_iso }}" data-tomorrow="{{ tomorrow_iso }}">
+                            <input type="date" id="schedule-date-picker" class="form-control form-control-sm" style="max-width: 150px;" value="{{ tomorrow_iso }}" data-tomorrow="{{ tomorrow_iso }}" data-today="{{ today_iso }}">
                             <button id="next-day" class="btn btn-sm btn-outline-secondary" title="Next day">
                                 <i class="fas fa-chevron-right"></i>
                             </button>
                         </div>
                     </div>
                     <div class="d-flex gap-2 mb-2 justify-content-end flex-wrap" id="schedule-badges">
-                        {% if ceremonial_required_tomorrow %}
-                        <span class="badge rounded-pill schedule-badge-ceremonial">
-                            <i class="fas fa-user-tie me-1"></i>Ceremonial Uniform
-                        </span>
-                        {% endif %}
-                        {% if early_dismissal_tomorrow %}
-                        <span class="badge rounded-pill schedule-badge-early">
-                            <i class="fas fa-clock me-1"></i>Early Dismissal
-                        </span>
-                        {% endif %}
-                        {% if late_start_tomorrow %}
-                        <span class="badge rounded-pill schedule-badge-late">
-                            <i class="fas fa-coffee me-1"></i>Late Start
-                        </span>
-                        {% endif %}
                     </div>
-                    <ul class="list-group shadow-sm rounded" id = "tomorrow-schedule">
-                        {% if schedule_tomorrow %}
-                            {% for item in schedule_tomorrow %}
-                            {% if item == "no school"  %}
-                            <li class="list-group-item">
-                                <p style = "margin-bottom: 0px;">No School</p>
-                            </li>
-                            {% else %}
-                            <li class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <p style = "margin-bottom: 0px;">{{ item.block }}</p>
-                                    {% if item.time %}
-                                        <p style = "margin-bottom: 0px;">{{ item.time }} </p>
-                                    {% endif %}
-                                </div>
-                            </li>
-                            {% endif %}
-                            {% endfor %}
-                        {% else %}
-                            <li class="list-group-item">
-                                <p style = "margin-bottom: 0px;">Schedule unavailable</p>
-                            </li>
-                        {% endif %}
+                    <ul class="list-group shadow-sm rounded" id="tomorrow-schedule">
+                        <li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading schedule...</li>
                     </ul>
                     </div>
                 </div>
