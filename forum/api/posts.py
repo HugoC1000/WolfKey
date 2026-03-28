@@ -68,7 +68,7 @@ def process_post_data_upload(data):
 def for_you_api(request):
     try:
         page = int(request.GET.get('page', 1))
-        per_page = int(request.GET.get('limit', 10))
+        per_page = int(request.GET.get('limit', 8))
 
         page_obj = get_for_you_posts(request.user, page, per_page)
         
@@ -89,7 +89,7 @@ def for_you_api(request):
 def all_posts_api(request):
     try:
         page = int(request.GET.get('page', 1))
-        per_page = int(request.GET.get('limit', 10))
+        per_page = int(request.GET.get('limit', 8))
         query = request.GET.get('q', '')
 
         page_obj = get_all_posts(request.user, query, page, per_page)

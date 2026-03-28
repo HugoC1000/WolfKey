@@ -292,6 +292,7 @@ class AnonUserSerializer(serializers.ModelSerializer):
     last_name = serializers.SerializerMethodField()
     profile_picture_url = serializers.SerializerMethodField()
     grade_level = serializers.SerializerMethodField()
+    username = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -300,6 +301,9 @@ class AnonUserSerializer(serializers.ModelSerializer):
             'school_email', 'personal_email', 'phone_number', 
             'date_joined', 'userprofile', 'profile_picture_url', 'grade_level'
         ]
+
+    def get_username(self, obj):
+        return ''
     
     def get_first_name(self, obj):
         return "Anonymous"
@@ -1020,6 +1024,7 @@ class PollOptionSerializer(serializers.ModelSerializer):
 
         return {
             'id': voter.id,
+            'username' : voter.username,
             'full_name': voter.get_full_name() or voter.username,
             'profile_picture_url': profile_picture_url,
             'profile_url': voter.get_absolute_url()

@@ -103,6 +103,7 @@ from forum.api.schedule import(
     get_user_blocks_api,
     check_ceremonial_uniform,
     process_schedule_api,
+    get_and_process_schedule,
 )
 from forum.views.schedule_views import (
     daily_schedule_view,
@@ -192,6 +193,7 @@ from forum.api.comment import (
 
 from forum.api.profile import (
     get_profile_api,
+    get_profile_posts_api,
     update_profile_api,
     upload_profile_picture_api,
     upload_lunch_card_api,
@@ -328,6 +330,7 @@ urlpatterns = [
     path('api/schedules/daily/<str:target_date>/', get_daily_schedule, name='api_get_daily_schedule'),
     path('api/user-blocks/<int:user_id>/', get_user_blocks_api, name='api_get_user_schedule'),
     path('api/process-schedule/<int:user_id>/', process_schedule_api, name='api_process_schedule'),
+    path('api/schedules/combined/<int:user_id>/', get_and_process_schedule, name='api_get_and_process_schedule'),
     path('api/debug/logs/', debug_logs, name='api_debug_logs'),
     path('api/schedules/uniform/<str:target_date>/', check_ceremonial_uniform),
 
@@ -380,6 +383,7 @@ urlpatterns = [
     path('api/profile/courses/update/', update_courses_api, name='api_update_courses'),
     path('api/profile/preferences/update/', update_privacy_preferences_api, name='api_update_privacy_preferences'),
     path('api/profile/<str:username>/', get_profile_api, name='api_get_profile'),
+    path('api/profile/<str:username>/posts/', get_profile_posts_api, name='api_get_profile_posts'),
     path('api/profile/experience/add/', add_experience_api, name='api_add_experience'),
     path('api/profile/help/add/', add_help_request_api, name='api_add_help_request'),
     path('api/profile/experience/<int:experience_id>/remove/', remove_experience_api, name='api_remove_experience'),
