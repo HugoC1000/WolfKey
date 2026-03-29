@@ -33,7 +33,8 @@ def volunteer_hours_page(request):
             'name': milestone.name,
             'hours': milestone.hours_required,
             'achieved': user_hours >= milestone.hours_required,
-            'progress': min(100, (user_hours / milestone.hours_required) * 100) if user_hours < milestone.hours_required else 100
+            'progress': min(100, (user_hours / milestone.hours_required) * 100) if user_hours < milestone.hours_required else 100,
+            'has_other_requirements': milestone.has_other_requirements
         })
     
     # Calculate current pin and progress
