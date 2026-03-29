@@ -116,7 +116,7 @@
                         {% endif %}
                     </div>
                     <div class="milestone-content">
-                        <div class="milestone-name">{{ pin.name }}</div>
+                        <div class="milestone-name">{{ pin.name }}{% if pin.has_other_requirements %}<span style="color: red;">*</span>{% endif %}</div>
                         <div class="milestone-hours">{{ pin.hours }} hrs</div>
                         {% if not pin.achieved %}
                         <div class="milestone-progress-bar">
@@ -139,6 +139,7 @@
                     {% endif %}
                 </div>
                 {% endfor %}
+                <div> *This pin has additional requirements beyond hours, check the service website for details</div>
             </div>
         </div>
         
