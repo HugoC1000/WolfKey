@@ -318,22 +318,25 @@ class CustomUserCreationForm(UserCreationForm):
         # Set is_teacher based on user_type selection
         user_type = self.cleaned_data.get('user_type')
         user.is_teacher = (user_type == 'teacher')
-
-        if commit:
-            user.save()
-
+        
+        # Set personal_email default before saving
         if not user.personal_email:
             user.personal_email = user.school_email
-        # Save grade_level to the related UserProfile if provided
-        grade_val = self.cleaned_data.get('grade_level')
-        try:
-            # grade_level on profile is IntegerField, allow blank
-            if grade_val is not None and grade_val != '':
-                user.userprofile.grade_level = int(grade_val)
-                user.userprofile.save()
-        except Exception:
-            # If profile doesn't exist yet or conversion fails, ignore silently
-            pass
+
+        if commit:
+            # The User.save() method will automatically populate student_id from school_email
+            user.save()
+            
+            # Save grade_level to the related UserProfile if provided
+            grade_val = self.cleaned_data.get('grade_level')
+            try:
+                # grade_level on profile is IntegerField, allow blank
+                if grade_val is not None and grade_val != '':
+                    user.userprofile.grade_level = int(grade_val)
+                    user.userprofile.save()
+            except Exception:
+                # If profile doesn't exist yet or conversion fails, ignore silently
+                pass
 
         return user
 

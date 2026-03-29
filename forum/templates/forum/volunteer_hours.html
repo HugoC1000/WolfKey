@@ -91,11 +91,16 @@
     
     <!-- Main Content Grid -->
     <div class="content-grid">
-        <!-- Pin Milestones Section -->
+        <!-- Pin Milestones Section and Links-->
         <div class="section-card milestones-section">
-            <h2 class="section-title">
-                <i class="bi bi-award"></i> Pin Milestones
-            </h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 style="margin: 0;"><i class="bi bi-award"></i> Pin Milestones</h2>
+    
+    <div style="display: flex; gap: 10px;">
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSf11H9-OXDOos2l5HM041oZO7mgHR4bo9ycJdFOfeRHMHCsHw/viewform" target="_blank" style="background-color: #007bff; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 14px;">Log hours</a>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfdZwB-5wlC4_zwrGRRyBsUxx-Vw1XaOmJ9RfJ_UelwUDeDnQ/viewform" target="_blank" style="background-color: #007bff; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 14px;">Apply for pins</a>
+    </div>
+</div>
             <div class="milestones-list">
                 {% for pin in pin_milestones %}
                 <div class="milestone-item {% if pin.achieved %}achieved{% endif %}">
@@ -111,7 +116,7 @@
                         {% endif %}
                     </div>
                     <div class="milestone-content">
-                        <div class="milestone-name">{{ pin.name }}</div>
+                        <div class="milestone-name">{{ pin.name }}{% if pin.has_other_requirements %}<span style="color: red;">*</span>{% endif %}</div>
                         <div class="milestone-hours">{{ pin.hours }} hrs</div>
                         {% if not pin.achieved %}
                         <div class="milestone-progress-bar">
@@ -134,6 +139,7 @@
                     {% endif %}
                 </div>
                 {% endfor %}
+                <div> *This pin has additional requirements beyond hours, check the service website for details</div>
             </div>
         </div>
         

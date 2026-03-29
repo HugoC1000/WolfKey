@@ -245,6 +245,11 @@
                     </a>
                 </li>
                 <li>
+                    <a href="{% url 'volunteer_hours' %}" class="sidebar-item{% if request.resolver_match.url_name == 'volunteer_hours' %} active{% endif %}" data-title="Volunteer">
+                        <i class="bi {% if request.resolver_match.url_name == 'volunteer_hours' %}bi-heart-fill{% else %}bi-heart{% endif %}"></i> <span class="sidebar-text">Volunteer</span>
+                    </a>
+                </li>
+                <li>
                     <a href="{% url 'course_comparer' %}" class="sidebar-item" data-title="Course Comparer">
                         {% if request.resolver_match.url_name == 'course_comparer' %} 
                         <i class="bi bi-calendar-range-fill"></i> <span class="sidebar-text">Match</span>
