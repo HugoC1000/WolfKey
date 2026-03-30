@@ -205,6 +205,8 @@ def get_and_process_schedule(request, user_id):
         
         # Process schedule for user
         processed = process_schedule_for_user(user, raw_schedule)
+        # Determine if ceremonial uniform is required for this user/date
+        is_required = is_ceremonial_uniform_required(user=user, iso_date=target_date)
         
         # Parse and format the date
         date_obj = _parse_iso_date(target_date)
@@ -217,6 +219,7 @@ def get_and_process_schedule(request, user_id):
                 'times': raw_schedule['times']
             },
             'processed_schedule': processed,
+            'ceremonial_uniform_required': is_required,
             'early_dismissal': raw_schedule.get('early_dismissal', False),
             'late_start': raw_schedule.get('late_start', False)
         }, status=status.HTTP_200_OK)

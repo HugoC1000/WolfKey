@@ -12,6 +12,9 @@ from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from typing import Optional, Dict, Any
 import httplib2
+from googleapiclient.errors import HttpError
+from gspread.exceptions import APIError
+import time
 
 
 class GoogleAPIService:
@@ -69,6 +72,23 @@ class GoogleAPIService:
             # Build calendar service with authorized HTTP client
             self._calendar_service = build('calendar', 'v3', http=authorized_http)
         return self._calendar_service
+
+    def _with_backoff(self, func, *args, **kwargs):
+        """Run `func` with simple exponential backoff on transient errors.
+
+        Retries HttpError, gspread APIError and OSError (network issues).
+        """
+        max_attempts = 4
+        delay = 1.0
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return func(*args, **kwargs)
+            except (HttpError, APIError, OSError) as e:
+                if attempt == max_attempts:
+                    raise
+                print(f"Google API call failed (attempt {attempt}): {e}; retrying in {delay}s")
+                time.sleep(delay)
+                delay *= 2
     
     def get_sheet(self, spreadsheet_name: str, worksheet_index: int = 0):
         """
@@ -90,8 +110,10 @@ class GoogleAPIService:
         
         if cache_key not in self._cached_sheets:
             client = self._initialize_sheets_client()
-            spreadsheet = client.open(spreadsheet_name)
-            self._cached_sheets[cache_key] = spreadsheet.get_worksheet(worksheet_index)
+            # Wrap open and get_worksheet with backoff to handle transient errors
+            spreadsheet = self._with_backoff(client.open, spreadsheet_name)
+            worksheet = self._with_backoff(spreadsheet.get_worksheet, worksheet_index)
+            self._cached_sheets[cache_key] = worksheet
         
         return self._cached_sheets[cache_key]
     
@@ -115,8 +137,10 @@ class GoogleAPIService:
         
         if cache_key not in self._cached_sheets:
             client = self._initialize_sheets_client()
-            spreadsheet = client.open_by_key(spreadsheet_key)
-            self._cached_sheets[cache_key] = spreadsheet.get_worksheet(worksheet_index)
+            # Wrap open_by_key and get_worksheet with backoff to handle transient errors
+            spreadsheet = self._with_backoff(client.open_by_key, spreadsheet_key)
+            worksheet = self._with_backoff(spreadsheet.get_worksheet, worksheet_index)
+            self._cached_sheets[cache_key] = worksheet
         
         return self._cached_sheets[cache_key]
     
