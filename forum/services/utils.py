@@ -2,8 +2,9 @@ import re
 import os
 import uuid
 import json
-from html import unescape
+from html import unescape, escape
 from django.utils.html import strip_tags
+from django.utils.safestring import mark_safe
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
@@ -27,6 +28,103 @@ PREVIEW_FALLBACK_KEYS = (
     'math',
     'value',
 )
+
+
+def _sanitize_href(href):
+    """
+    Validate and sanitize href attributes to prevent XSS attacks.
+    Allows http, https, mailto, and relative URLs only.
+    """
+    if not href:
+        return None
+    
+    href = href.strip()
+    
+    # Allow relative URLs
+    if href.startswith('/') or href.startswith('#'):
+        return escape(href)
+    
+    # Allow safe protocols
+    if href.startswith(('http://', 'https://', 'mailto:')):
+        # Basic URL validation - check for obvious XSS patterns
+        if 'javascript:' in href.lower() or 'data:' in href.lower():
+            return None
+        return escape(href)
+    
+    return None
+
+
+def _preserve_links_in_html(html_content):
+    """
+    Extract links from HTML while keeping them as proper <a> tags.
+    Strips other HTML tags but preserves <a href="...">text</a> structure.
+    """
+    if not html_content:
+        return ''
+    
+    # Pattern to match <a> tags with href attributes
+    link_pattern = r'<a\s+[^>]*href=["\']([^"\']*)["\'][^>]*>([^<]*)</a>'
+    
+    # Replace all <a> tags with placeholders
+    placeholder_map = {}
+    counter = [0]
+    
+    def replace_link(match):
+        href = match.group(1)
+        text = match.group(2)
+        sanitized_href = _sanitize_href(href)
+        
+        if not sanitized_href:
+            # If href is invalid, just return the text
+            return escape(text)
+        
+        placeholder = f'__LINK_PLACEHOLDER_{counter[0]}__'
+        placeholder_map[placeholder] = f'<a href="{sanitized_href}">{escape(text)}</a>'
+        counter[0] += 1
+        return placeholder
+    
+    # Replace all link tags
+    html_content = re.sub(link_pattern, replace_link, html_content, flags=re.IGNORECASE)
+    
+    # Strip all other HTML tags
+    html_content = strip_tags(html_content)
+    
+    # Unescape HTML entities
+    html_content = unescape(html_content)
+    
+    # Restore the links
+    for placeholder, link_html in placeholder_map.items():
+        html_content = html_content.replace(placeholder, link_html)
+    
+    return html_content
+
+
+def _normalize_preview_text_with_links(value, preserve_newlines=True):
+    """
+    Normalize Editor.js-derived text while preserving <a> tags.
+    Returns HTML-safe text with links preserved.
+    """
+    if value is None:
+        return ''
+
+    text = str(value)
+    text = text.replace('&nbsp;', ' ')
+    text = re.sub(r'<br\s*/?>', '\n' if preserve_newlines else ' ', text, flags=re.IGNORECASE)
+    
+    # Preserve links
+    text = _preserve_links_in_html(text)
+    
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    text = re.sub(r'[\t\f\v ]+', ' ', text)
+    text = re.sub(r' *\n *', '\n', text)
+
+    if preserve_newlines:
+        text = re.sub(r'\n{3,}', '\n\n', text)
+    else:
+        text = text.replace('\n', ' ')
+
+    return text.strip()
+
 
 
 def _normalize_preview_text(value, preserve_newlines=True):
@@ -164,6 +262,43 @@ def _extract_block_preview_text(block):
     return '\n'.join(_extract_fallback_fragments(data))
 
 
+def _extract_block_preview_html(block):
+    """Extract previewable HTML from a single Editor.js block, preserving links."""
+    if not isinstance(block, dict):
+        return ''
+
+    block_type = block.get('type', '')
+    data = block.get('data', {})
+    if not isinstance(data, dict):
+        return ''
+
+    if block_type in {'paragraph', 'header'}:
+        return _normalize_preview_text_with_links(data.get('text', ''))
+
+    if block_type == 'list':
+        return '\n'.join(_extract_list_items(data.get('items', [])))
+
+    if block_type == 'checklist':
+        return '\n'.join(_extract_list_items(data.get('items', [])))
+
+    if block_type == 'code':
+        return _normalize_preview_text_with_links(data.get('code', ''))
+
+    if block_type == 'math':
+        return _normalize_preview_text_with_links(
+            data.get('math') or data.get('text') or data.get('formula') or ''
+        )
+
+    if block_type == 'image':
+        return _normalize_preview_text_with_links(data.get('caption', ''))
+
+    if block_type == 'delimiter':
+        return ''
+
+    return '\n'.join(_extract_fallback_fragments(data))
+
+
+
 def _coerce_post_content(content):
     """Parse JSON-string content where possible so block extraction can run."""
     if isinstance(content, str):
@@ -209,6 +344,42 @@ def process_post_preview(post):
         return '\n'.join(fragments) if fragments else ''
 
     return _normalize_preview_text(content)
+
+
+def process_post_preview_html(post):
+    """
+    Generate HTML preview text for a post, preserving links while stripping other HTML tags.
+
+    Args:
+        post: Post object with a content attribute (dict or str).
+
+    Returns:
+        str: Concatenated and cleaned preview HTML with preserved links.
+    """
+    content = _coerce_post_content(getattr(post, 'content', post))
+
+    if isinstance(content, dict) and 'blocks' in content:
+        block_texts = []
+        for block in content.get('blocks', []):
+            text = _extract_block_preview_html(block)
+            if text:
+                block_texts.append(text)
+
+        if block_texts:
+            return '\n'.join(block_texts)
+
+        # Editor.js payload with no extractable block text should not show serialized JSON.
+        return ''
+
+    if isinstance(content, dict):
+        fragments = _extract_fallback_fragments(content)
+        return '\n'.join(fragments) if fragments else ''
+
+    if isinstance(content, list):
+        fragments = _extract_fallback_fragments(content)
+        return '\n'.join(fragments) if fragments else ''
+
+    return _normalize_preview_text_with_links(content)
     
 def annotate_post_card_context(posts, user):
     from forum.models import FollowedPost
@@ -231,6 +402,7 @@ def annotate_post_card_context(posts, user):
     
     for post in posts:
         post.preview_text = process_post_preview(post)
+        post.preview_html = mark_safe(process_post_preview_html(post))
         add_course_context(post, experienced_courses, help_needed_courses)
         
         post.is_liked_by_user = post.id in liked_post_ids

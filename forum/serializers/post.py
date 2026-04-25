@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from forum.models import Post
 from django.utils.timezone import localtime
-from forum.services.utils import process_post_preview
+from forum.services.utils import process_post_preview, process_post_preview_html
 from .user import AnonUserSerializer, UserSerializer
 
 
@@ -9,6 +9,7 @@ class PostListSerializer(serializers.ModelSerializer):
     """Serializer for post list/feed views - matches paginate_posts structure"""
     author = serializers.SerializerMethodField()
     preview_text = serializers.SerializerMethodField()
+    preview_html = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     courses = serializers.SerializerMethodField()
     reply_count = serializers.SerializerMethodField()
@@ -24,7 +25,7 @@ class PostListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = [
-            'id', 'title', 'author', 'preview_text', 
+            'id', 'title', 'author', 'preview_text', 'preview_html',
             'created_at', 'courses', 'reply_count', 'views', 'like_count', 
             'is_liked', 'solution_count', 'comment_count', 'solved', 'is_following',
             'first_image_url', 'is_anonymous', 'allow_teacher', 'poll_data'
@@ -41,8 +42,12 @@ class PostListSerializer(serializers.ModelSerializer):
             return UserSerializer(author_info['user'], context=self.context).data
     
     def get_preview_text(self, obj):
-        return process_post_preview(obj)
+        # Return HTML-preserving preview for API consumers that expect preview_text
+        return process_post_preview_html(obj)
     
+    def get_preview_html(self, obj):
+        return process_post_preview_html(obj)
+
     def get_created_at(self, obj):
         return localtime(obj.created_at).isoformat()
     
