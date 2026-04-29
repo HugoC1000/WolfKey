@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404, redirect
 from forum.models import Notification
 from forum.serializers import NotificationSerializer
@@ -14,19 +15,24 @@ from forum.services.notification_services import (
 def all_notifications(request):
     from django.utils.html import strip_tags
     notifications_queryset = all_notifications_service(request.user)
+    page = int(request.GET.get('page', 1))
+    per_page = int(request.GET.get('limit', 8))
+    paginator = Paginator(notifications_queryset, per_page)
+    page_obj = paginator.get_page(page)
     
     notifications_data = NotificationSerializer(
-        notifications_queryset, 
+        page_obj.object_list, 
         many=True, 
         context={'request': request}
     ).data
     
-    for n in notifications_queryset:
+    for n in page_obj.object_list:
         n.message = strip_tags(n.message)
     
     return render(request, 'forum/notifications.html', {
-        'notifications': notifications_queryset,
-        'notifications_data': notifications_data
+        'notifications': page_obj.object_list,
+        'notifications_data': notifications_data,
+        'page_obj': page_obj,
     })
 
 @login_required

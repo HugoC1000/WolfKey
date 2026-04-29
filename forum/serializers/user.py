@@ -38,15 +38,15 @@ class CourseSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    block_1A = CourseSerializer(read_only=True)
-    block_1B = CourseSerializer(read_only=True)
-    block_1D = CourseSerializer(read_only=True)
-    block_1E = CourseSerializer(read_only=True)
-    block_2A = CourseSerializer(read_only=True)
-    block_2B = CourseSerializer(read_only=True)
-    block_2C = CourseSerializer(read_only=True)
-    block_2D = CourseSerializer(read_only=True)
-    block_2E = CourseSerializer(read_only=True)
+    block_1A = serializers.SerializerMethodField()
+    block_1B = serializers.SerializerMethodField()
+    block_1D = serializers.SerializerMethodField()
+    block_1E = serializers.SerializerMethodField()
+    block_2A = serializers.SerializerMethodField()
+    block_2B = serializers.SerializerMethodField()
+    block_2C = serializers.SerializerMethodField()
+    block_2D = serializers.SerializerMethodField()
+    block_2E = serializers.SerializerMethodField()
     grade_level = serializers.IntegerField(read_only=True)
     allow_schedule_comparison = serializers.BooleanField(read_only=True)
     profile_picture = serializers.SerializerMethodField()
@@ -75,6 +75,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'instagram_url', 'snapchat_url', 'linkedin_url'
         ]
     
+
     def get_profile_picture(self, obj):
         """Return profile picture URL"""
         try:
@@ -97,8 +98,58 @@ class UserProfileSerializer(serializers.ModelSerializer):
         """Check if user has wolfnet password set"""
         return bool(obj.wolfnet_password)
     
+    def _should_hide_schedule(self, obj):
+        """Check if schedule fields should be hidden based on privacy settings"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            is_self_profile = request.user == obj.user
+            if not is_self_profile and not obj.allow_schedule_comparison:
+                return True
+        return False
+    
+    def _get_block(self, obj, block_name):
+        """Helper to get a block field with privacy checks"""
+        if self._should_hide_schedule(obj):
+            return None
+        
+        course = getattr(obj, f'block_{block_name}', None)
+        if course:
+            serializer = CourseSerializer(course, context=self.context)
+            return serializer.data
+        return None
+    
+    def get_block_1A(self, obj):
+        return self._get_block(obj, '1A')
+    
+    def get_block_1B(self, obj):
+        return self._get_block(obj, '1B')
+    
+    def get_block_1D(self, obj):
+        return self._get_block(obj, '1D')
+    
+    def get_block_1E(self, obj):
+        return self._get_block(obj, '1E')
+    
+    def get_block_2A(self, obj):
+        return self._get_block(obj, '2A')
+    
+    def get_block_2B(self, obj):
+        return self._get_block(obj, '2B')
+    
+    def get_block_2C(self, obj):
+        return self._get_block(obj, '2C')
+    
+    def get_block_2D(self, obj):
+        return self._get_block(obj, '2D')
+    
+    def get_block_2E(self, obj):
+        return self._get_block(obj, '2E')
+    
     def get_schedule_blocks(self, obj):
-        """Return schedule blocks with course info"""
+        """Return schedule blocks with course info, respecting privacy settings"""
+        if self._should_hide_schedule(obj):
+            return None
+        
         blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
         schedule_blocks = {}
         for block in blocks:
@@ -184,9 +235,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return False
     
     def get_initial_users(self, obj):
-        """Return initial users for comparison if applicable"""
+        """Return initial users for comparison if applicable, respecting privacy settings"""
         request = self.context.get('request')
         if request and request.user.is_authenticated and request.user != obj.user:
+            # Check if the viewed user has schedule comparison enabled
+            if not obj.allow_schedule_comparison:
+                return None
+            
             return [
                 {
                     'id': request.user.id,

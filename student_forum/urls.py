@@ -173,7 +173,8 @@ from forum.api.posts import (
     get_post_share_info_api,
     for_you_api, all_posts_api,
     vote_on_poll_api,
-    remove_poll_vote_api
+    remove_poll_vote_api,
+    search_posts_api
 )
 
 from forum.api.solutions import (
@@ -350,6 +351,7 @@ urlpatterns = [
     # Poll voting API endpoints
     path('api/posts/<int:post_id>/vote/', vote_on_poll_api, name='api_vote_on_poll'),
     path('api/posts/<int:post_id>/remove-vote/', remove_poll_vote_api, name='api_remove_poll_vote'),
+    path('api/search-posts/', search_posts_api, name='api_search_posts'),
     
     # Solution API endpoints
     path('api/posts/<int:post_id>/solutions/create/', create_solution_api, name='api_create_solution'),

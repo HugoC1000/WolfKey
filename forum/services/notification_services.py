@@ -272,7 +272,13 @@ def send_notification_service(
         logger.error(f"Failed to send push notification: {str(e)}")
 
 def all_notifications_service(user):
-    return user.notifications.all()
+    return user.notifications.select_related(
+        'sender',
+        'post',
+        'solution',
+        'comment',
+        'comment__solution',
+    ).order_by('-created_at')
 
 def mark_notification_read_service(user, notification_id):
     notification = get_object_or_404(Notification, id=notification_id, recipient=user)

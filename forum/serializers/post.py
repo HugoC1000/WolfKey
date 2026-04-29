@@ -21,6 +21,7 @@ class PostListSerializer(serializers.ModelSerializer):
     solved = serializers.SerializerMethodField()
     first_image_url = serializers.SerializerMethodField()
     poll_data = serializers.SerializerMethodField()
+    followers_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
@@ -28,7 +29,8 @@ class PostListSerializer(serializers.ModelSerializer):
             'id', 'title', 'author', 'preview_text', 'preview_html',
             'created_at', 'courses', 'reply_count', 'views', 'like_count', 
             'is_liked', 'solution_count', 'comment_count', 'solved', 'is_following',
-            'first_image_url', 'is_anonymous', 'allow_teacher', 'poll_data'
+            'first_image_url', 'is_anonymous', 'allow_teacher', 'poll_data',
+            'followers_count'
         ]
     
     def get_author(self, obj):
@@ -93,6 +95,9 @@ class PostListSerializer(serializers.ModelSerializer):
         from .poll import serialize_poll_display_data
         request = self.context.get('request')
         return serialize_poll_display_data(obj, request=request)
+
+    def get_followers_count(self, obj):
+        return obj.followers.count()
 
 
 class PostDetailSerializer(serializers.ModelSerializer):
