@@ -473,13 +473,13 @@ function acknowledgeUpdate(updateId) {
     <!-- GA4 Scroll Depth Analytics -->
     <script>
       (function() {
-        let scrollDepthsReached = new Set();
+        let maxDepthFired = 0;
         const isLoggedIn = document.body.getAttribute('data-user-authenticated') === 'true';
         
         function sendScrollDepthEvent(depth) {
-          if (scrollDepthsReached.has(depth)) return;
+          if (depth <= maxDepthFired) return;
           
-          scrollDepthsReached.add(depth);
+          maxDepthFired = depth;
           gtag('event', 'scroll_depth', {
             'depth_percentage': depth,
             'is_logged_in': isLoggedIn,
@@ -501,14 +501,17 @@ function acknowledgeUpdate(updateId) {
           
           const scrollPercent = Math.round((scrollTop / scrollableHeight) * 100);
           
-          // Fire events at 25%, 50%, 75%, 100%
-          if (scrollPercent >= 25 && scrollPercent < 50) {
-            sendScrollDepthEvent(25);
-          } else if (scrollPercent >= 50 && scrollPercent < 75) {
-            sendScrollDepthEvent(50);
-          } else if (scrollPercent >= 75 && scrollPercent < 100) {
+          // Fire events at 5%, 40%, 75%, 100% - only increases, never decreases
+          if (scrollPercent >= 5) {
+            sendScrollDepthEvent(5);
+          }
+          if (scrollPercent >= 40) {
+            sendScrollDepthEvent(40);
+          }
+          if (scrollPercent >= 75) {
             sendScrollDepthEvent(75);
-          } else if (scrollPercent >= 100) {
+          }
+          if (scrollPercent >= 100) {
             sendScrollDepthEvent(100);
           }
         }
