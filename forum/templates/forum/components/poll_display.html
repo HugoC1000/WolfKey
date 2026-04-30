@@ -278,6 +278,13 @@
             ...(body ? { body: JSON.stringify(body) } : {})
         });
 
+        if (response.status === 403) {
+            // CSRF token error - show alert and offer to reload
+            alert('Security token expired. Please reload the page to continue voting.');
+            location.reload();
+            throw new Error('CSRF token validation failed');
+        }
+
         return response.json();
     }
 
