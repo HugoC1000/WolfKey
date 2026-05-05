@@ -268,17 +268,63 @@ def update_profile_picture(request):
         return False, f'Error processing image: {str(e)}'
 
 def update_lunch_card(request):
-    profile = request.user.userprofile
+    """
+    Update user lunch card with validation.
     
-    # Delete the old lunch card if it exists
-    if profile.lunch_card:
-        try:
-            profile.lunch_card.delete(save=False)
-        except Exception as e:
-            print(f"Warning: Could not delete previous lunch card: {str(e)}")
+    - Validates file type and size
+    - Stores in lunch_cards/ directory with original format
+    - Deletes old lunch card if it exists
     
-    profile.lunch_card = request.FILES['lunch_card']
-    profile.save()
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/heic']
+    ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic']
+    MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+    
+    if 'lunch_card' not in request.FILES:
+        return False, 'No lunch card file provided'
+    
+    image_file = request.FILES['lunch_card']
+    ext = os.path.splitext(image_file.name)[1].lower()
+    mime_type = image_file.content_type
+    
+    # Validate file size
+    if image_file.size > MAX_IMAGE_SIZE:
+        return False, f'Image file too large. Maximum size is 10 MB, got {image_file.size / (1024*1024):.1f} MB'
+    
+    # Validate file type
+    if mime_type not in ALLOWED_IMAGE_TYPES or ext not in ALLOWED_EXTENSIONS:
+        return False, f'Unsupported file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
+    
+    try:
+        # Validate it's a valid image file
+        img = Image.open(image_file)
+        image_file.seek(0)  # Reset file pointer after validation
+        
+        # Generate unique filename, preserving original extension
+        import uuid
+        unique_name = f"{uuid.uuid4().hex}{ext}"
+        upload_path = os.path.join('lunch_cards', unique_name)
+        
+        profile = request.user.userprofile
+        
+        # Delete old lunch card if it exists
+        if profile.lunch_card:
+            try:
+                profile.lunch_card.delete(save=False)
+            except Exception as e:
+                print(f"Warning: Could not delete previous lunch card: {str(e)}")
+        
+        # Save original file
+        saved_path = default_storage.save(upload_path, image_file)
+        profile.lunch_card = saved_path
+        profile.save()
+        
+        return True, 'Lunch card updated successfully'
+        
+    except Exception as e:
+        return False, f'Error processing image: {str(e)}'
 
 def update_profile_courses(request):
     profile = request.user.userprofile

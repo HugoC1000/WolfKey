@@ -216,12 +216,17 @@ def upload_lunch_card_api(request):
             'user': request.user
         })()
         
-        update_lunch_card(mock_request)
+        success, msg = update_lunch_card(mock_request)
         
-        return Response({
-            'message': 'Lunch card uploaded successfully!',
-            'lunch_card_url': request.user.userprofile.lunch_card.url
-        }, status=status.HTTP_200_OK)
+        if success:
+            return Response({
+                'message': msg,
+                'lunch_card_url': request.user.userprofile.lunch_card.url
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'error': msg
+            }, status=status.HTTP_400_BAD_REQUEST)
         
     except Exception as e:
         logger.error(f"Error uploading lunch card for {request.user.username}: {str(e)}")
