@@ -1,5 +1,6 @@
 // static/forum/js/editor-manager.js
 import createEditor from './editor-config.js';
+import MentionHandler from './mention-handler.js';
 export class EditorManager {
     constructor() {
         this.editors = new Map();
@@ -50,7 +51,7 @@ export class EditorManager {
                     );
                     this.editors.set(comment.id, editor);
                 } catch (commentError) {
-                    console.error(`Error initializing solution ${solution.id}:`, commentError);
+                    console.error(`Error initializing comment ${comment.id}:`, commentError);
                 }
             });
         } catch (error) {
@@ -105,6 +106,17 @@ export class EditorManager {
         }
 
         editor.readOnly.toggle(readOnly);
+
+        if (!readOnly && !editor._mentionHandler) {
+            const mentionOptions = editor._mentionHandlerOptions || {
+                apiEndpoint: '/api/search-users/',
+                minChars: 1,
+                maxResults: 10,
+                debounceDelay: 300,
+                holderId: editorId,
+            };
+            editor._mentionHandler = new MentionHandler(editor, mentionOptions);
+        }
     }
 
     async storeOriginalContent(commentId) {

@@ -1,0 +1,196 @@
+/**
+ * Mention Styles
+ * Styles for mention dropdown and mention links
+ */
+
+/* Mention Dropdown Container */
+.mention-dropdown {
+  position: fixed;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 300px;
+  max-width: 300px;
+  overflow-y: auto;
+  animation: slideDown 0.15s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Individual mention suggestion item */
+.mention-dropdown-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: none;
+  width: 100%;
+  transition: background-color 0.15s ease;
+}
+
+.mention-dropdown-item:hover,
+.mention-dropdown-item.active {
+  background-color: #f5f5f5;
+}
+
+.mention-dropdown-item:focus {
+  outline: 2px solid #0066cc;
+  outline-offset: -2px;
+}
+
+.mention-dropdown-item:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.mention-dropdown-item:last-child {
+  border-radius: 0 0 6px 6px;
+}
+
+/* Avatar in dropdown */
+.mention-dropdown-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* User info in dropdown */
+.mention-dropdown-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mention-dropdown-name {
+  font-weight: 500;
+  font-size: 14px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mention-dropdown-username {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mention Link Styles */
+a.mention {
+  color: #0066cc;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  word-break: break-word;
+}
+
+a.mention:hover {
+  color: #004499;
+  text-decoration: underline;
+}
+
+a.mention:focus {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* Mention in editor (contenteditable) */
+.ce-paragraph [data-mention] {
+  background-color: rgba(0, 102, 204, 0.1);
+  color: #0066cc;
+  font-weight: 500;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .mention-dropdown {
+    max-width: 250px;
+  }
+
+  .mention-dropdown-item {
+    padding: 8px 10px;
+  }
+
+  .mention-dropdown-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .mention-dropdown-name {
+    font-size: 13px;
+  }
+
+  .mention-dropdown-username {
+    font-size: 11px;
+  }
+}
+
+/* Scrollbar styling for the dropdown */
+.mention-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mention-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mention-dropdown::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.mention-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* Firefox scrollbar */
+.mention-dropdown {
+  scrollbar-width: thin;
+  scrollbar-color: #ccc transparent;
+}
+
+/* Accessibility: High contrast mode support */
+@media (prefers-contrast: more) {
+  .mention-dropdown {
+    border-width: 2px;
+  }
+
+  a.mention {
+    text-decoration: underline;
+  }
+}
+
+/* Accessibility: Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .mention-dropdown {
+    animation: none;
+  }
+
+  .mention-dropdown-item {
+    transition: none;
+  }
+
+  a.mention {
+    transition: none;
+  }
+}

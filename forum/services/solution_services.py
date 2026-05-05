@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404
 from forum.models import Post, Solution, SolutionUpvote, SolutionDownvote, SavedSolution
 from forum.services.utils import detect_bad_words, extract_and_delete_files_from_content
 from forum.services.notification_services import send_solution_notification_service
+from forum.services.mention_service import update_mentions
 from django.db.models import F
 import json
 
@@ -31,6 +32,10 @@ def create_solution_service(user, post_id, data):
             author=user,
             content=content
         )
+        
+        # Update mentions in the solution content
+        update_mentions(solution, content, old_content=None)
+        
         if post.author != solution.author:
             send_solution_notification_service(solution)
 
@@ -48,6 +53,7 @@ def update_solution_service(user, solution_id, data):
     try:
         
         solution = get_object_or_404(Solution, id=solution_id, author=user)
+        old_content = solution.content
         content = data.get('content')
         
         if not content:
@@ -56,6 +62,9 @@ def update_solution_service(user, solution_id, data):
         detect_bad_words(content)
         solution.content = content
         solution.save()
+
+        # Update mentions if content was updated
+        update_mentions(solution, content, old_content=old_content)
 
         return {
             'message': 'Solution updated successfully',

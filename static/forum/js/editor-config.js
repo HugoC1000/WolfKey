@@ -1,7 +1,21 @@
 import { MathLiveBlock } from './math-block.js';
+import MentionHandler from './mention-handler.js';
+import MentionRenderer from './mention-renderer.js';
+
 const createEditor = (holder,initialData, csrfToken, isReadOnly = false, contentElementId = 'editorjs-content') => {
     console.log("Intial Data: ", initialData);
-    return new EditorJS({
+    const holderId = typeof holder === 'string' ? holder : holder?.id;
+    const mentionOptions = {
+        apiEndpoint: '/api/search-users/',
+        minChars: 1,
+        maxResults: 10,
+        debounceDelay: 300,
+        holderId,
+    };
+
+    let editorInstance;
+
+    editorInstance = new EditorJS({
         holder: holder,  // The container where Editor.js will be initialized
         data: initialData,
         readOnly: isReadOnly,
@@ -53,6 +67,8 @@ const createEditor = (holder,initialData, csrfToken, isReadOnly = false, content
         },
         onReady: () => {
             console.log('Editor.js is ready!');
+            editorInstance._mentionHandlerOptions = mentionOptions;
+
             document.querySelectorAll('math-field').forEach(mathField => {
                 const tex = mathField.value;
 
@@ -70,6 +86,19 @@ const createEditor = (holder,initialData, csrfToken, isReadOnly = false, content
                     mathField.replaceWith(mathElement);
                 }
             });
+
+            if (isReadOnly) {
+                const renderer = new MentionRenderer();
+                const editorRoot = typeof holder === 'string' ? document.getElementById(holder) : holder;
+                const renderTarget = editorRoot?.querySelector('.codex-editor__redactor') || editorRoot;
+                if (renderTarget) {
+                    renderer.renderElement(renderTarget);
+                }
+            }
+
+            if (!isReadOnly) {
+                editorInstance._mentionHandler = new MentionHandler(editorInstance, mentionOptions);
+            }
         },
         onChange: async (api) => {
             try {
@@ -98,6 +127,8 @@ const createEditor = (holder,initialData, csrfToken, isReadOnly = false, content
         },
         minHeight: 75,
     })
+
+    return editorInstance;
 }
 
 console.log('editor-config.js loaded');

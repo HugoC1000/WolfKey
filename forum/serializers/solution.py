@@ -9,12 +9,13 @@ class CommentSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
     replies = serializers.SerializerMethodField()
     depth = serializers.SerializerMethodField()
+    mentions = serializers.SerializerMethodField()
     
     class Meta:
         model = Comment
         fields = [
             'id', 'content', 'author', 'created_at', 'parent',
-            'replies', 'depth'
+            'replies', 'depth', 'mentions'
         ]
     
     def get_author(self, obj):
@@ -50,6 +51,11 @@ class CommentSerializer(serializers.ModelSerializer):
     
     def get_depth(self, obj):
         return obj.get_depth()
+
+    def get_mentions(self, obj):
+        """Get all mentions in this comment"""
+        from forum.services.mention_service import fetch_mentions_for_content
+        return fetch_mentions_for_content(obj)
 
 
 class AnonCommentSerializer(serializers.ModelSerializer):
@@ -101,12 +107,13 @@ class SolutionSerializer(serializers.ModelSerializer):
     is_accepted = serializers.SerializerMethodField()
     is_saved = serializers.SerializerMethodField()
     processed_content = serializers.SerializerMethodField()
+    mentions = serializers.SerializerMethodField()
     
     class Meta:
         model = Solution
         fields = [
             'id', 'content', 'processed_content', 'author', 'created_at', 
-            'upvotes', 'downvotes', 'comments', 'is_accepted', 'is_saved'
+            'upvotes', 'downvotes', 'comments', 'is_accepted', 'is_saved', 'mentions'
         ]
     
     def get_author(self, obj):
@@ -166,6 +173,11 @@ class SolutionSerializer(serializers.ModelSerializer):
             from forum.models import SavedSolution
             return SavedSolution.objects.filter(user=request.user, solution=obj).exists()
         return False
+
+    def get_mentions(self, obj):
+        """Get all mentions in this solution"""
+        from forum.services.mention_service import fetch_mentions_for_content
+        return fetch_mentions_for_content(obj)
 
 
 class AnonSolutionSerializer(serializers.ModelSerializer):

@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib import messages
 from forum.models import Solution, Comment
 from forum.services.notification_services import send_comment_notifications_service
+from forum.services.mention_service import update_mentions
 from forum.services.utils import process_messages_to_json, detect_bad_words
 from django.template.loader import render_to_string
 
@@ -29,6 +30,10 @@ def create_comment_service(request, solution_id, data):
             content=content,
             parent=parent_comment
         )
+        
+        # Update mentions in the comment content
+        update_mentions(comment, content, old_content=None)
+        
         send_comment_notifications_service(comment, solution, parent_comment)
         messages.success(request, 'Comment created succesfully')
         return {'status': 'success', 'id': comment.id, 'messages': process_messages_to_json(request)}
@@ -37,6 +42,7 @@ def create_comment_service(request, solution_id, data):
 
 def edit_comment_service(request, comment_id, data):
     comment = get_object_or_404(Comment, id=comment_id, author=request.user)
+    old_content = comment.content
     content = data.get('content')
     if content:
         try:
@@ -46,6 +52,10 @@ def edit_comment_service(request, comment_id, data):
             return {'status': 'error', 'messages': process_messages_to_json(request)}
         comment.content = content
         comment.save()
+        
+        # Update mentions if content was updated
+        update_mentions(comment, content, old_content=old_content)
+        
         messages.success(request, 'Solution edited succesfully')
         return {'status': 'success', 'messages': process_messages_to_json(request)}
     messages.error(request, 'Invalid comment data.')

@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.db.models import Q
-from forum.models import UserCourseExperience, UserProfile, Notification, Post, Solution
+from forum.models import UserCourseExperience, UserProfile, Notification, Post, Solution, Comment
 from forum.services.utils import process_post_preview
 import logging
 from pathlib import Path
@@ -335,3 +335,59 @@ def mark_notifications_by_post_service(user, post_id):
             'success': False,
             'error': 'Failed to mark notifications as read'
         }
+
+def send_mention_notification_service(mentioned_user, mention_author, content_object, is_anonymous):
+    """
+    Send a notification to a user who was mentioned in a post, solution, or comment.
+    
+    Args:
+        mentioned_user: User object who was mentioned
+        mention_author: User object who made the mention
+        content_object: Post, Solution, or Comment object
+        is_anonymous: Kept for compatibility; mention notifications are always generic
+    """
+    # Determine content type and URL
+    if isinstance(content_object, Post):
+        content_type = 'post'
+        url = content_object.get_absolute_url()
+        content_display = f"post '{content_object.title}'"
+    elif isinstance(content_object, Solution):
+        content_type = 'solution'
+        url = content_object.get_absolute_url()
+        content_display = f"solution for '{content_object.post.title}'"
+    elif isinstance(content_object, Comment):
+        content_type = 'comment'
+        url = content_object.get_absolute_url()
+        content_display = f"comment on a solution"
+    else:
+        return
+    
+    message = "You were mentioned"
+    email_subject = "You were mentioned"
+    email_message = _render_email(
+        'mention.txt',
+        recipient_full_name=mentioned_user.get_full_name(),
+        content_type=content_type,
+        content_display=content_display,
+        site_url=settings.SITE_URL,
+        content_url=url,
+    )
+    
+    # Send the notification
+    send_notification_service(
+        recipient=mentioned_user,
+        sender=mention_author,
+        notification_type='mention',
+        message=message,
+        url=url,
+        post=content_object if isinstance(content_object, Post) else (
+            content_object.post if isinstance(content_object, Solution) else
+            content_object.solution.post if isinstance(content_object, Comment) else None
+        ),
+        solution=content_object if isinstance(content_object, Solution) else (
+            content_object.solution if isinstance(content_object, Comment) else None
+        ),
+        comment=content_object if isinstance(content_object, Comment) else None,
+        email_subject=email_subject,
+        email_message=email_message,
+    )
