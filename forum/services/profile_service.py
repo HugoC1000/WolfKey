@@ -1,8 +1,13 @@
 import json
+import os
+from PIL import Image
+from io import BytesIO
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from forum.models import User, Course, Post, Solution, UserCourseExperience, UserCourseHelp, UserProfile
 from forum.forms import UserCourseExperienceForm, UserCourseHelpForm
 from forum.services.utils import detect_bad_words, annotate_post_card_context
@@ -204,17 +209,63 @@ def update_wolfnet_settings(request, profile_user):
         return False, f'Error updating WolfNet settings: {str(e)}'
 
 def update_profile_picture(request):
-    profile = request.user.userprofile
+    """
+    Update user profile picture with validation.
     
-    # Only delete the old picture if it's not the default one
-    if profile.profile_picture and profile.profile_picture.name != 'profile_pictures/default.png':
-        try:
-            profile.profile_picture.delete(save=False)
-        except Exception as e:
-            print(f"Warning: Could not delete previous profile picture: {str(e)}")
+    - Validates file type and size
+    - Stores in profile_pictures/ directory with original format
+    - Deletes old picture if not default
     
-    profile.profile_picture = request.FILES['profile_picture']
-    profile.save()
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/heic']
+    ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic']
+    MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+    
+    if 'profile_picture' not in request.FILES:
+        return False, 'No profile picture file provided'
+    
+    image_file = request.FILES['profile_picture']
+    ext = os.path.splitext(image_file.name)[1].lower()
+    mime_type = image_file.content_type
+    
+    # Validate file size
+    if image_file.size > MAX_IMAGE_SIZE:
+        return False, f'Image file too large. Maximum size is 10 MB, got {image_file.size / (1024*1024):.1f} MB'
+    
+    # Validate file type
+    if mime_type not in ALLOWED_IMAGE_TYPES or ext not in ALLOWED_EXTENSIONS:
+        return False, f'Unsupported file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
+    
+    try:
+        # Validate it's a valid image file
+        img = Image.open(image_file)
+        image_file.seek(0)  # Reset file pointer after validation
+        
+        # Generate unique filename, preserving original extension
+        import uuid
+        unique_name = f"{uuid.uuid4().hex}{ext}"
+        upload_path = os.path.join('profile_pictures', unique_name)
+        
+        profile = request.user.userprofile
+        
+        # Delete old picture if not default
+        if profile.profile_picture and profile.profile_picture.name != 'profile_pictures/default.png':
+            try:
+                profile.profile_picture.delete(save=False)
+            except Exception as e:
+                print(f"Warning: Could not delete previous profile picture: {str(e)}")
+        
+        # Save original file
+        saved_path = default_storage.save(upload_path, image_file)
+        profile.profile_picture = saved_path
+        profile.save()
+        
+        return True, 'Profile picture updated successfully'
+        
+    except Exception as e:
+        return False, f'Error processing image: {str(e)}'
 
 def update_lunch_card(request):
     profile = request.user.userprofile
