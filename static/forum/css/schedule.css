@@ -77,3 +77,9 @@
   color: black;
   text-align: center;
 }
+
+/* Schedule cards flex layout - only wrap when necessary */
+.col-md-8 > .d-flex.flex-wrap > .flex-fill {
+  flex: 1 1 auto;
+  min-width: 170px;
+}

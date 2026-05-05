@@ -173,12 +173,17 @@ def upload_profile_picture_api(request):
             'user': request.user
         })()
         
-        update_profile_picture(mock_request)
+        success, msg = update_profile_picture(mock_request)
         
-        return Response({
-            'message': 'Profile picture updated successfully!',
-            'profile_picture_url': request.user.userprofile.profile_picture.url
-        }, status=status.HTTP_200_OK)
+        if success:
+            return Response({
+                'message': msg,
+                'profile_picture_url': request.user.userprofile.profile_picture.url
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'error': msg
+            }, status=status.HTTP_400_BAD_REQUEST)
         
     except Exception as e:
         logger.error(f"Error uploading profile picture for {request.user.username}: {str(e)}")

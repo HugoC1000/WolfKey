@@ -13,7 +13,7 @@
 
     <!-- Schedule-->
     <div class="row" style = "margin-bottom: 3rem;">
-        <div class="col-md-8">
+        <div class="col-md-8" style = "width: 100%;">
             <div class="d-flex flex-wrap gap-4">
                 <!-- Today's Schedule -->
                 <div class="flex-fill">
@@ -36,30 +36,35 @@
                 <!-- Tomorrow's Schedule -->
                 <div class="flex-fill">
                     <div class = "card">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <h3 style = "font-size: 1.5rem;" id="schedule-title">{{ schedule_title }}</h3>
-                        <div class="d-flex align-items-center gap-2">
-                            <button id="prev-day" class="btn btn-sm btn-outline-secondary" title="Previous day">
-                                <i class="fas fa-chevron-left"></i>
-                            </button>
-                            <input type="date" id="schedule-date-picker" class="form-control form-control-sm" style="max-width: 150px;" value="{{ tomorrow_iso }}" data-tomorrow="{{ tomorrow_iso }}" data-today="{{ today_iso }}">
-                            <button id="next-day" class="btn btn-sm btn-outline-secondary" title="Next day">
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h3 style = "font-size: 1.5rem;" id="schedule-title">{{ schedule_title }}</h3>
+                            <div class="d-flex align-items-center gap-2">
+                                <button id="prev-day" class="btn btn-sm btn-outline-secondary" title="Previous day">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <input type="date" id="schedule-date-picker" class="form-control form-control-sm" style="max-width: 150px;" value="{{ tomorrow_iso }}" data-tomorrow="{{ tomorrow_iso }}" data-today="{{ today_iso }}">
+                                <button id="next-day" class="btn btn-sm btn-outline-secondary" title="Next day">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
                         </div>
+                        <div class="d-flex gap-2 mb-2 justify-content-end flex-wrap" id="schedule-badges">
+                        </div>
+                        <ul class="list-group shadow-sm rounded" id="tomorrow-schedule">
+                            <li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading schedule...</li>
+                        </ul>
                     </div>
-                    <div class="d-flex gap-2 mb-2 justify-content-end flex-wrap" id="schedule-badges">
-                    </div>
-                    <ul class="list-group shadow-sm rounded" id="tomorrow-schedule">
-                        <li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading schedule...</li>
-                    </ul>
+                </div>
+
+                <div class="flex-fill">
+                    <div class = "card">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h3 style = "font-size: 1.5rem;">Leaderboard</h3>
+                        </div>
+                        Coming Soon
                     </div>
                 </div>
             </div>
-        </div>
-        <!-- Leaderboard -->
-        <div class="col-md-4 d-none d-md-block">
-            <!-- Reserved space -->
         </div>
     </div>
 
