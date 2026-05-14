@@ -21,7 +21,7 @@ class PollAdmin(admin.ModelAdmin):
     list_display = ('title', 'author', 'created_at', 'is_public_voting', 'allow_multiple_choice')
     list_filter = ('is_public_voting', 'allow_multiple_choice', 'created_at')
     search_fields = ('title', 'author__school_email', 'author__first_name', 'author__last_name')
-    readonly_fields = ('created_at', 'last_activity_at')
+    readonly_fields = ('created_at',)
 
     fieldsets = (
         ('Post Content', {
@@ -53,7 +53,7 @@ class PostAdmin(admin.ModelAdmin):
     list_display = ('title', 'author', 'created_at', 'get_post_type')
     list_filter = ('created_at', 'is_anonymous', 'allow_teacher')
     search_fields = ('title', 'author__school_email', 'author__first_name', 'author__last_name')
-    readonly_fields = ('created_at', 'last_activity_at', 'search_vector')
+    readonly_fields = ('created_at', 'search_vector')
     
     fieldsets = (
         ('Post Content', {
