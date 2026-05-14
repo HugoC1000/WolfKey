@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404
 from forum.models import Post, Solution, SolutionUpvote, SolutionDownvote, SavedSolution
 from forum.services.utils import detect_bad_words, extract_and_delete_files_from_content
 from forum.services.notification_services import send_solution_notification_service
+from forum.services.post_services import _check_teacher_visibility
 from django.db.models import F
 import json
 
@@ -9,6 +10,8 @@ def create_solution_service(user, post_id, data):
     try:
         post = get_object_or_404(Post, id=post_id)
         
+        # Check teacher visibility
+        _check_teacher_visibility(user, post)
         if Solution.objects.filter(post=post, author=user).exists():
             return {'error': 'You have already submitted a solution'}
 
@@ -83,6 +86,9 @@ def vote_solution_service(user, solution_id, vote_type):
     try:
         solution = get_object_or_404(Solution, id=solution_id)
         
+        # Check teacher visibility on the post
+        _check_teacher_visibility(user, solution.post)
+        
         if vote_type == 'upvote':
             if SolutionDownvote.objects.filter(solution=solution, user=user).exists():
                 SolutionDownvote.objects.filter(solution=solution, user=user).delete()
@@ -134,6 +140,9 @@ def accept_solution_service(user, solution_id):
     try:
         solution = get_object_or_404(Solution, id=solution_id)
         post = solution.post
+        
+        # Check teacher visibility
+        _check_teacher_visibility(user, post)
         
         if user != post.author:
             return {

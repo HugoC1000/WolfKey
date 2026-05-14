@@ -62,7 +62,13 @@ def delete_comment_api(request, comment_id):
 @permission_classes([IsAuthenticated])
 def get_comments_api(request, solution_id):
     try:
+        from forum.services.post_services import _check_teacher_visibility
+        
         solution = get_object_or_404(Solution, id=solution_id)
+        
+        # Check teacher visibility on the post
+        _check_teacher_visibility(request.user, solution.post)
+        
         comments = solution.comments.filter(parent__isnull=True).order_by('created_at')
         serializer = CommentSerializer(comments, many=True, context={'request': request})
         return Response({
