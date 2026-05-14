@@ -26,7 +26,14 @@ def update_post_activity_on_comment(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=PollVote)
 def update_post_activity_on_poll_vote_save(sender, instance, **kwargs):
-    """Update the parent poll post's last_activity_at when a vote is created or changed."""
+    """Update the parent poll post's last_activity_at when votes reach multiples of 5.
+    
+    This prevents polls from dominating the feed on every single vote. Activity is bumped
+    only every 5 votes to balance poll visibility with text posts.
+    """
     if instance.poll:
-        instance.poll.last_activity_at = timezone.now()
-        instance.poll.save(update_fields=['last_activity_at'])
+        vote_count = instance.poll.votes.count()
+        # Only update last_activity_at every 5 votes (at vote counts 5, 10, 15, etc.)
+        if vote_count % 5 == 0:
+            instance.poll.last_activity_at = timezone.now()
+            instance.poll.save(update_fields=['last_activity_at'])
