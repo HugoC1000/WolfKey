@@ -61,6 +61,27 @@ class GeneralURLTests(TestCase):
         response = self.client.get(reverse('course_comparer'))
         self.assertEqual(response.status_code, 200)
 
+    def test_all_posts_hides_non_teacher_visible_posts_for_anonymous_users(self):
+        Post.objects.create(
+            title='Hidden From Anonymous',
+            content={'blocks': []},
+            author=self.user,
+            allow_teacher=True,
+        )
+        Post.objects.create(
+            title='Visible To Anonymous',
+            content={'blocks': []},
+            author=self.user,
+            allow_teacher=False,
+        )
+
+        self.client.logout()
+        response = self.client.get(reverse('all_posts'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Hidden From Anonymous')
+        self.assertNotContains(response, 'Visible To Anonymous')
+
 
 class SolutionFeatureTests(TestCase):
     def setUp(self):
