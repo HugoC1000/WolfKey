@@ -14,6 +14,40 @@ from forum.services.utils import detect_bad_words, annotate_post_card_context
 from forum.serializers import BlockSerializer
 
 
+def compress_image(image_file, max_width=1200, quality=85):
+    """
+    Compress an image file to reduce storage size.
+    
+    Args:
+        image_file: Django UploadedFile object
+        max_width: Maximum width in pixels (default 1200)
+        quality: JPEG quality 1-100 (default 85, good balance)
+    
+    Returns:
+        ContentFile: Compressed image file ready to save
+    """
+    img = Image.open(image_file)
+    
+    # Convert RGBA to RGB for JPEG compression
+    if img.mode in ('RGBA', 'LA', 'P'):
+        rgb_img = Image.new('RGB', img.size, (255, 255, 255))
+        rgb_img.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+        img = rgb_img
+    
+    # Resize if larger than max_width
+    if img.width > max_width:
+        ratio = max_width / img.width
+        new_height = int(img.height * ratio)
+        img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+    
+    # Compress and save to BytesIO
+    output = BytesIO()
+    img.save(output, format='JPEG', quality=quality, optimize=True)
+    output.seek(0)
+    
+    return ContentFile(output.getvalue())
+
+
 def get_profile_posts_page(viewing_user, profile_user, page=1, per_page=8):
     """Return paginated public profile posts for a target user."""
     page = int(page)
@@ -210,18 +244,20 @@ def update_wolfnet_settings(request, profile_user):
 
 def update_profile_picture(request):
     """
-    Update user profile picture with validation.
+    Update user profile picture with compression.
     
-    - Validates file type and size
-    - Stores in profile_pictures/ directory with original format
+    - Validates file type and input size (max 5 MB)
+    - Compresses to JPEG format (except for GIFs, which are kept original)
+    - Resizes to max 1200px width
+    - Stores in profile_pictures/ directory
     - Deletes old picture if not default
     
     Returns:
         tuple: (success: bool, message: str)
     """
-    ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/heic']
-    ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic']
-    MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+    ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/heic', 'image/webp']
+    ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic', '.webp']
+    MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB (input file size before compression)
     
     if 'profile_picture' not in request.FILES:
         return False, 'No profile picture file provided'
@@ -230,25 +266,33 @@ def update_profile_picture(request):
     ext = os.path.splitext(image_file.name)[1].lower()
     mime_type = image_file.content_type
     
-    # Validate file size
+    # Validate file size before compression
     if image_file.size > MAX_IMAGE_SIZE:
-        return False, f'Image file too large. Maximum size is 10 MB, got {image_file.size / (1024*1024):.1f} MB'
+        return False, f'Image file too large. Maximum size is 5 MB, got {image_file.size / (1024*1024):.1f} MB'
     
     # Validate file type
     if mime_type not in ALLOWED_IMAGE_TYPES or ext not in ALLOWED_EXTENSIONS:
         return False, f'Unsupported file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
     
     try:
-        # Validate it's a valid image file
-        img = Image.open(image_file)
-        image_file.seek(0)  # Reset file pointer after validation
-        
-        # Generate unique filename, preserving original extension
         import uuid
-        unique_name = f"{uuid.uuid4().hex}{ext}"
-        upload_path = os.path.join('profile_pictures', unique_name)
-        
         profile = request.user.userprofile
+        
+        # GIFs are kept as-is to preserve animation
+        if mime_type == 'image/gif':
+            unique_name = f"{uuid.uuid4().hex}.gif"
+            upload_path = os.path.join('profile_pictures', unique_name)
+            
+            # Save original GIF without compression
+            saved_path = default_storage.save(upload_path, image_file)
+        else:
+            # Compress other formats to JPEG for consistency and efficiency
+            compressed_file = compress_image(image_file, max_width=1200, quality=85)
+            
+            # Generate unique filename, save as JPG
+            unique_name = f"{uuid.uuid4().hex}.jpg"
+            upload_path = os.path.join('profile_pictures', unique_name)
+            saved_path = default_storage.save(upload_path, compressed_file)
         
         # Delete old picture if not default
         if profile.profile_picture and profile.profile_picture.name != 'profile_pictures/default.png':
@@ -257,8 +301,7 @@ def update_profile_picture(request):
             except Exception as e:
                 print(f"Warning: Could not delete previous profile picture: {str(e)}")
         
-        # Save original file
-        saved_path = default_storage.save(upload_path, image_file)
+        # Save updated profile
         profile.profile_picture = saved_path
         profile.save()
         
@@ -269,18 +312,19 @@ def update_profile_picture(request):
 
 def update_lunch_card(request):
     """
-    Update user lunch card with validation.
+    Update user lunch card without compression (original quality).
     
-    - Validates file type and size
-    - Stores in lunch_cards/ directory with original format
+    - Validates file type and size (max 5 MB)
+    - Stores original image without compression
+    - Stores in lunch_cards/ directory
     - Deletes old lunch card if it exists
     
     Returns:
         tuple: (success: bool, message: str)
     """
-    ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/heic']
-    ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic']
-    MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+    ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/heic', 'image/webp']
+    ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic', '.webp']
+    MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB (no compression)
     
     if 'lunch_card' not in request.FILES:
         return False, 'No lunch card file provided'
@@ -291,20 +335,20 @@ def update_lunch_card(request):
     
     # Validate file size
     if image_file.size > MAX_IMAGE_SIZE:
-        return False, f'Image file too large. Maximum size is 10 MB, got {image_file.size / (1024*1024):.1f} MB'
+        return False, f'Image file too large. Maximum size is 5 MB, got {image_file.size / (1024*1024):.1f} MB'
     
     # Validate file type
     if mime_type not in ALLOWED_IMAGE_TYPES or ext not in ALLOWED_EXTENSIONS:
         return False, f'Unsupported file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
     
     try:
-        # Validate it's a valid image file
-        img = Image.open(image_file)
-        image_file.seek(0)  # Reset file pointer after validation
+        # Keep original file without compression
+        image_file_to_save = image_file
         
-        # Generate unique filename, preserving original extension
+        # Generate unique filename, keep original extension
         import uuid
-        unique_name = f"{uuid.uuid4().hex}{ext}"
+        original_ext = os.path.splitext(image_file.name)[1].lower()
+        unique_name = f"{uuid.uuid4().hex}{original_ext}"
         upload_path = os.path.join('lunch_cards', unique_name)
         
         profile = request.user.userprofile
@@ -316,8 +360,8 @@ def update_lunch_card(request):
             except Exception as e:
                 print(f"Warning: Could not delete previous lunch card: {str(e)}")
         
-        # Save original file
-        saved_path = default_storage.save(upload_path, image_file)
+        # Save original file without compression
+        saved_path = default_storage.save(upload_path, image_file_to_save)
         profile.lunch_card = saved_path
         profile.save()
         
