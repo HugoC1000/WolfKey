@@ -19,6 +19,12 @@ def get_for_you_posts(user, page=1, per_page=8):
     Return a tuple of (annotated posts on the current page, page_obj).
     """
     page = int(page)
+    
+    # Non-authenticated users should not see personalized feed
+    if not user.is_authenticated:
+        paginator = Paginator(Post.objects.none(), per_page)
+        return paginator.get_page(1)
+    
     experienced_courses, help_needed_courses = get_user_courses(user)
     profile = user.userprofile
 
@@ -79,8 +85,9 @@ def get_all_posts(user, query='', page=1, per_page=8):
     """
     page = int(page)
     base_qs = Post.objects.all().distinct()
-    
-    if user.is_authenticated and user.is_teacher:
+
+    # Anonymous users and teachers should only see posts marked visible to teachers.
+    if not user.is_authenticated or user.is_teacher:
         base_qs = base_qs.filter(allow_teacher=True)
 
     if query:

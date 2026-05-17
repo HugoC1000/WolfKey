@@ -107,6 +107,12 @@ def create_post(request):
 def post_detail(request, post_id):
     # Get post object and increment views
     post = get_object_or_404(Post, id=post_id)
+    
+    # Check teacher visibility
+    if request.user.is_authenticated and request.user.is_teacher and not post.allow_teacher:
+        from django.http import Http404
+        raise Http404("You don't have permission to view this post.")
+    
     post.views += 1
     post.save(update_fields=['views'])
     

@@ -113,6 +113,14 @@ def all_posts_api(request):
 def post_detail_api(request, post_id):
     try:
         post = get_object_or_404(Post, id=post_id)
+        
+        # Check teacher visibility
+        if request.user.is_authenticated and request.user.is_teacher and not post.allow_teacher:
+            return Response(
+                {'error': "You don't have permission to view this post."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         serializer = PostDetailSerializer(post, context={'request': request})
         post.views += 1
         post.save()
@@ -265,8 +273,13 @@ def vote_on_poll_api(request, post_id):
     """
     try:
         from forum.models import Poll, PollVote
+        from forum.services.post_services import _check_teacher_visibility
         
         poll = Poll.objects.get(id=post_id)
+        
+        # Check teacher visibility
+        _check_teacher_visibility(request.user, poll)
+        
         selected_option_ids = request.data.get('selected_option_ids', [])
         
         if not selected_option_ids:
@@ -305,8 +318,13 @@ def remove_poll_vote_api(request, post_id):
     """
     try:
         from forum.models import Poll, PollVote
+        from forum.services.post_services import _check_teacher_visibility
         
         poll = Poll.objects.get(id=post_id)
+        
+        # Check teacher visibility
+        _check_teacher_visibility(request.user, poll)
+        
         poll_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
         
         if not poll_vote:

@@ -3,11 +3,17 @@ from django.contrib import messages
 from forum.models import Solution, Comment
 from forum.services.notification_services import send_comment_notifications_service
 from forum.services.mention_service import update_mentions
+from forum.services.post_services import _check_teacher_visibility
 from forum.services.utils import process_messages_to_json, detect_bad_words
 from django.template.loader import render_to_string
 
 def create_comment_service(request, solution_id, data):
     solution = get_object_or_404(Solution, id=solution_id)
+    
+    # Check teacher visibility on the post
+    if request.user.is_authenticated:
+        _check_teacher_visibility(request.user, solution.post)
+    
     content = data.get('content')
     parent_id = data.get('parent_id')
     try:

@@ -15,6 +15,10 @@ import httplib2
 from googleapiclient.errors import HttpError
 from gspread.exceptions import APIError
 import time
+import os
+
+# Disable file-based discovery caching to avoid oauth2client version conflicts
+os.environ['GOOGLE_API_PYTHON_CLIENT_CACHE_DIR'] = '/dev/null'
 
 
 class GoogleAPIService:
@@ -70,7 +74,8 @@ class GoogleAPIService:
             authorized_http = creds.authorize(http)
             
             # Build calendar service with authorized HTTP client
-            self._calendar_service = build('calendar', 'v3', http=authorized_http)
+            # cache_discovery=False disables file-based caching to avoid oauth2client version conflicts
+            self._calendar_service = build('calendar', 'v3', http=authorized_http, cache_discovery=False)
         return self._calendar_service
 
     def _with_backoff(self, func, *args, **kwargs):

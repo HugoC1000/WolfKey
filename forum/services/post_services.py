@@ -9,9 +9,22 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def _check_teacher_visibility(user, post):
+    """
+    Check if a teacher can view this post.
+    Raises ValueError if teacher cannot view the post.
+    """
+    if user and user.is_authenticated and user.is_teacher and not post.allow_teacher:
+        raise ValueError("You don't have permission to view this post.")
+    return True
+
 def get_post_detail_service(post_id, user=None):
     try:
         post = get_object_or_404(Post, id=post_id)
+        
+        # Check teacher visibility
+        _check_teacher_visibility(user, post)
+        
         solutions = post.solutions.annotate(
             vote_score=F('upvotes') - F('downvotes')
         ).order_by(
@@ -181,6 +194,10 @@ def like_post_service(user, post_id):
     """
     try:
         post = get_object_or_404(Post, id=post_id)
+        
+        # Check teacher visibility
+        _check_teacher_visibility(user, post)
+        
         like, created = PostLike.objects.get_or_create(user=user, post=post)
         
         return {
@@ -199,6 +216,10 @@ def unlike_post_service(user, post_id):
     """
     try:
         post = get_object_or_404(Post, id=post_id)
+        
+        # Check teacher visibility
+        _check_teacher_visibility(user, post)
+        
         deleted_count, _ = PostLike.objects.filter(user=user, post=post).delete()
         
         return {
@@ -217,6 +238,10 @@ def follow_post_service(user, post_id):
     """
     try:
         post = get_object_or_404(Post, id=post_id)
+        
+        # Check teacher visibility
+        _check_teacher_visibility(user, post)
+        
         followed, created = FollowedPost.objects.get_or_create(user=user, post=post)
         
         return {
@@ -235,6 +260,10 @@ def unfollow_post_service(user, post_id):
     """
     try:
         post = get_object_or_404(Post, id=post_id)
+        
+        # Check teacher visibility
+        _check_teacher_visibility(user, post)
+        
         deleted_count, _ = FollowedPost.objects.filter(user=user, post=post).delete()
         
         return {
@@ -253,6 +282,9 @@ def get_post_share_info_service(post_id, request):
     """
     try:
         post = get_object_or_404(Post, id=post_id)
+        
+        # Check teacher visibility
+        _check_teacher_visibility(request.user if request.user.is_authenticated else None, post)
         
         # Build absolute URL for the post
         post_url = request.build_absolute_uri(f'/post/{post_id}/')
