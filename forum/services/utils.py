@@ -156,10 +156,33 @@ def _preserve_links_in_html(html_content):
     return html_content
 
 
+def _render_mentions_in_html(html_content):
+    """
+    Convert @username patterns to clickable mention links.
+    Preserves existing HTML links and escapes other HTML content.
+    Pattern: @([\w.-]+) matches usernames with letters, numbers, dots, underscores, hyphens
+    """
+    if not html_content:
+        return ''
+    
+    # Pattern to find @username mentions (letters, numbers, underscores, dots, hyphens)
+    mention_pattern = r'@([\w.-]+)'
+    
+    # Replace all @username with profile links
+    def replace_mention(match):
+        username = match.group(1)
+        # Escape username for safety in URL and HTML
+        escaped_username = escape(username)
+        return f'<a href="/profile/{escaped_username}/" class="mention" title="View {escaped_username}\'s profile">@{escaped_username}</a>'
+    
+    html_content = re.sub(mention_pattern, replace_mention, html_content)
+    return html_content
+
+
 def _normalize_preview_text_with_links(value, preserve_newlines=True):
     """
-    Normalize Editor.js-derived text while preserving <a> tags.
-    Returns HTML-safe text with links preserved.
+    Normalize Editor.js-derived text while preserving <a> tags and rendering @mentions.
+    Returns HTML-safe text with links and mention links preserved.
     """
     if value is None:
         return ''
@@ -180,7 +203,12 @@ def _normalize_preview_text_with_links(value, preserve_newlines=True):
     else:
         text = text.replace('\n', ' ')
 
-    return text.strip()
+    text = text.strip()
+    
+    # Render @mentions as links
+    text = _render_mentions_in_html(text)
+    
+    return text
 
 
 
