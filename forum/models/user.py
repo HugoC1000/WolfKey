@@ -146,6 +146,11 @@ class User(AbstractUser):
             if numbers_only:
                 self.student_id = numbers_only
         
+        # Auto-generate username if not provided
+        if not self.username and self.first_name and self.last_name:
+            from forum.services.utils import generate_username
+            self.username = generate_username(self.first_name, self.last_name)
+        
         super().save(*args, **kwargs)
         search_vector = (
             SearchVector('first_name', weight='A') +

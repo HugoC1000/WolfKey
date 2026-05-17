@@ -30,6 +30,63 @@ PREVIEW_FALLBACK_KEYS = (
 )
 
 
+def generate_username(first_name, last_name):
+    """
+    Generate a username in the format [firstname]-[lastname]-[num].
+    
+    The function:
+    1. Converts first and last names to lowercase
+    2. Replaces spaces and underscores with hyphens
+    3. Removes all other special characters, keeping only alphanumeric and hyphens
+    4. Removes leading/trailing hyphens and collapses multiple hyphens
+    5. Appends a number to ensure uniqueness
+    6. Falls back to UUID-based username if names are empty
+    
+    Args:
+        first_name (str): User's first name
+        last_name (str): User's last name
+    
+    Returns:
+        str: Generated username in format [firstname]-[lastname]-[num]
+    """
+    from forum.models import User
+    
+    # Normalize names: lowercase, replace spaces/underscores with hyphens
+    first_clean = first_name.lower().strip() if first_name else ""
+    last_clean = last_name.lower().strip() if last_name else ""
+    
+    # Replace spaces and underscores with hyphens
+    first_clean = re.sub(r'[\s_]+', '-', first_clean)
+    last_clean = re.sub(r'[\s_]+', '-', last_clean)
+    
+    # Remove all other special characters, keep only alphanumeric and hyphens
+    first_clean = re.sub(r'[^a-z0-9-]', '', first_clean)
+    last_clean = re.sub(r'[^a-z0-9-]', '', last_clean)
+    
+    # Remove leading/trailing hyphens and collapse multiple consecutive hyphens
+    first_clean = re.sub(r'-+', '-', first_clean).strip('-')
+    last_clean = re.sub(r'-+', '-', last_clean).strip('-')
+    
+    # Fallback if names are empty after sanitization
+    if not first_clean and not last_clean:
+        # Use UUID as fallback
+        base_username = f"user-{str(uuid.uuid4())[:8]}"
+    elif not last_clean:
+        base_username = first_clean
+    elif not first_clean:
+        base_username = last_clean
+    else:
+        base_username = f"{first_clean}-{last_clean}"
+    
+    # Find the next available number for this base username
+    counter = 1
+    while True:
+        username = f"{base_username}-{counter}"
+        if not User.objects.filter(username=username).exists():
+            return username
+        counter += 1
+
+
 def _sanitize_href(href):
     """
     Validate and sanitize href attributes to prevent XSS attacks.

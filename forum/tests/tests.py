@@ -7,7 +7,7 @@ import json
 class GeneralURLTests(TestCase):
     def setUp(self):
         self.client = Client()
-        self.user = User.objects.create_user(username='testuser', password='testpassword', school_email='test@wpga.ca', first_name='John', last_name='Doe')
+        self.user = User.objects.create_user(password='testpassword', school_email='test@wpga.ca', first_name='John', last_name='Doe')
         self.course = Course.objects.create(name="Test Course")
         self.client.login(school_email='test@wpga.ca', password='testpassword')
 
@@ -54,7 +54,7 @@ class GeneralURLTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_profile_view_url(self):
-        response = self.client.get(reverse('profile', kwargs={'username': 'testuser'}))
+        response = self.client.get(reverse('profile', kwargs={'username': self.user.username}))
         self.assertEqual(response.status_code, 200)
 
     def test_compare_schedule_url(self):
@@ -86,7 +86,7 @@ class GeneralURLTests(TestCase):
 class SolutionFeatureTests(TestCase):
     def setUp(self):
         self.client = Client()
-        self.user = User.objects.create_user(username='soluser', password='solpass', school_email='sol@wpga.ca', first_name='John', last_name='Doe')
+        self.user = User.objects.create_user(password='solpass', school_email='sol@wpga.ca', first_name='John', last_name='Doe')
         self.course = Course.objects.create(name="Test Course")
         self.post = Post.objects.create(title='Test Post', content='{}', author=self.user)
         self.client.login(school_email='sol@wpga.ca', password='solpass')
@@ -143,7 +143,7 @@ class SolutionFeatureTests(TestCase):
 class CommentFeatureTests(TestCase):
     def setUp(self):
         self.client = Client()
-        self.user = User.objects.create_user(username='comuser', password='compass', school_email='com@wpga.ca', first_name='John', last_name='Doe')
+        self.user = User.objects.create_user(password='compass', school_email='com@wpga.ca', first_name='John', last_name='Doe')
         self.course = Course.objects.create(name="Test Course")
         self.post = Post.objects.create(title='Test Post', content='{}', author=self.user)
         self.solution = Solution.objects.create(post=self.post, author=self.user, content={'blocks': []})
@@ -177,7 +177,6 @@ class APIDeleteAccountTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(
-            username='testuser', 
             password='testpassword123', 
             school_email='test@wpga.ca', 
             first_name='John', 
@@ -272,14 +271,12 @@ class APIProfilePostsTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.viewer = User.objects.create_user(
-            username='vieweruser',
             password='viewerpass123',
             school_email='viewer@wpga.ca',
             first_name='View',
             last_name='Er'
         )
         self.qa_user = User.objects.create_user(
-            username='qauser',
             password='qapass123',
             school_email='qa@wpga.ca',
             first_name='QA',
@@ -287,7 +284,6 @@ class APIProfilePostsTests(TestCase):
             is_teacher=True
         )
         self.other_user = User.objects.create_user(
-            username='otheruser',
             password='otherpass123',
             school_email='other@wpga.ca',
             first_name='Other',
