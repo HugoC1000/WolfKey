@@ -22,7 +22,7 @@ export class MentionHandler {
     this.options = {
       apiEndpoint: options.apiEndpoint || '/api/search-users/',
       minChars: options.minChars || 1,
-      maxResults: options.maxResults || 10,
+      maxResults: options.maxResults || 5,
       debounceDelay: options.debounceDelay || 300,
       ...options
     };
@@ -150,6 +150,12 @@ export class MentionHandler {
 
     const queryStart = lastAtIndex + 1;
     const query = textBeforeCursor.substring(queryStart);
+
+    // Stop mention search if there's a space in the query (user has moved on)
+    if (query.includes(' ')) {
+      this.closeMentionDropdown();
+      return;
+    }
 
     // Only trigger if query has minimum characters or is just "@"
     if (query.length === 0 && text[lastAtIndex] === '@') {
