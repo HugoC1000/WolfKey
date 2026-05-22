@@ -49,7 +49,11 @@ def profile_view(request, username):
 @login_required
 def upload_profile_picture(request):
     if request.method == 'POST' and request.FILES.get('profile_picture'):
-        update_profile_picture(request)
+        success, msg = update_profile_picture(request)
+        if success:
+            messages.success(request, msg)
+        else:
+            messages.error(request, msg)
         return redirect('my_profile')
     return render(request, 'forum/upload_profile_picture.html')
 

@@ -40,7 +40,7 @@ class UserSelector {
         }
 
         try {
-            const response = await fetch(`/api/search-users/?q=${encodeURIComponent(query)}`);
+            const response = await fetch(`/api/search-users/?query=${encodeURIComponent(query)}`);
             const data = await response.json();
             
             this.dropdown.innerHTML = "";

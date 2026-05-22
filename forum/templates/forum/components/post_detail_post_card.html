@@ -38,6 +38,8 @@
             <div id="editorjs"></div>
         </div>
 
+        <!-- Poll Display (if this is a poll) -->
+        {% include 'forum/components/poll_display.html' %}
 
         <!-- Courses -->
         {% if post.courses.all %}

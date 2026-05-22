@@ -8,10 +8,16 @@ spreadsheet to retrieve volunteer hours for students.
 from typing import Optional, Dict
 from .google_api_service import google_api_service
 import gspread
+from googleapiclient.errors import HttpError
 
-# Open the spreadsheet using the common Google API service
-# The worksheet reference is cached by google_api_service
-sheet = google_api_service.get_sheet("WPGA Service Hour Tracking", worksheet_index=0)
+
+def _get_sheet_safe():
+    """Return the worksheet or raise the underlying gspread errors.
+
+    This defers fetching the sheet until runtime so import-time failures
+    (network / API errors) don't crash Django startup.
+    """
+    return google_api_service.get_sheet("WPGA Service Hour Tracking", worksheet_index=0)
 
 
 def get_volunteer_hours(student_number: str) -> Optional[float]:
@@ -29,6 +35,8 @@ def get_volunteer_hours(student_number: str) -> Optional[float]:
         gspread.WorksheetNotFound: If worksheet doesn't exist
     """
     try:
+        # Lazily get the sheet (avoids import-time network calls)
+        sheet = _get_sheet_safe()
         # Get all values at once (single API call)
         all_values = sheet.get_all_values()
         
@@ -52,8 +60,13 @@ def get_volunteer_hours(student_number: str) -> Optional[float]:
         # Student not found
         return None
         
-    except (gspread.SpreadsheetNotFound, gspread.WorksheetNotFound) as e:
+    except (gspread.SpreadsheetNotFound, gspread.WorksheetNotFound):
+        # Propagate spreadsheet/worksheet not found so callers can handle explicitly
         raise
+    except HttpError as e:
+        # Google API low-level error — log and return None
+        print(f"Error retrieving volunteer hours: {e.__dict__}")
+        return None
     except Exception as e:
         print(f"Error retrieving volunteer hours: {str(e)}")
         return None
@@ -71,6 +84,7 @@ def get_all_service_hours() -> Dict[str, float]:
         gspread.WorksheetNotFound: If worksheet doesn't exist
     """
     try:
+        sheet = _get_sheet_safe()
         # Get all values at once (single API call)
         all_values = sheet.get_all_values()
         
@@ -91,8 +105,11 @@ def get_all_service_hours() -> Dict[str, float]:
         
         return result
         
-    except (gspread.SpreadsheetNotFound, gspread.WorksheetNotFound) as e:
+    except (gspread.SpreadsheetNotFound, gspread.WorksheetNotFound):
         raise
+    except HttpError as e:
+        print(f"Error retrieving all service hours: {e.__dict__}")
+        return {}
     except Exception as e:
         print(f"Error retrieving all service hours: {str(e)}")
         return {}

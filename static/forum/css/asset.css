@@ -34,7 +34,6 @@
     color: #fff !important;
     background-color: #0d6efd !important; /* Bootstrap primary blue */
     transition: background 0.2s;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
     align-items: center;
     gap: 0.5em;
     transition: all 0.2s ease;

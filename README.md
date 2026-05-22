@@ -182,7 +182,6 @@ brew services start postgresql@15
 # Verify installation
 psql --version
 ```
-
 #### Ubuntu/Debian Linux
 
 ```bash

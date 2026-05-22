@@ -1,16 +1,98 @@
 import json
+import os
+from PIL import Image
+from io import BytesIO
+from django.core.paginator import Paginator
+from django.db.models import Count
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from forum.models import User, Course, Post, Solution, UserCourseExperience, UserCourseHelp, UserProfile
 from forum.forms import UserCourseExperienceForm, UserCourseHelpForm
-from forum.services.utils import detect_bad_words
+from forum.services.utils import detect_bad_words, annotate_post_card_context
 from forum.serializers import BlockSerializer
+
+
+def compress_image(image_file, max_width=1200, quality=85):
+    """
+    Compress an image file to reduce storage size.
+    
+    Args:
+        image_file: Django UploadedFile object
+        max_width: Maximum width in pixels (default 1200)
+        quality: JPEG quality 1-100 (default 85, good balance)
+    
+    Returns:
+        ContentFile: Compressed image file ready to save
+    """
+    img = Image.open(image_file)
+    
+    # Convert RGBA to RGB for JPEG compression
+    if img.mode in ('RGBA', 'LA', 'P'):
+        rgb_img = Image.new('RGB', img.size, (255, 255, 255))
+        rgb_img.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+        img = rgb_img
+    
+    # Resize if larger than max_width
+    if img.width > max_width:
+        ratio = max_width / img.width
+        new_height = int(img.height * ratio)
+        img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+    
+    # Compress and save to BytesIO
+    output = BytesIO()
+    img.save(output, format='JPEG', quality=quality, optimize=True)
+    output.seek(0)
+    
+    return ContentFile(output.getvalue())
+
+
+def get_profile_posts_page(viewing_user, profile_user, page=1, per_page=8):
+    """Return paginated public profile posts for a target user."""
+    page = int(page)
+    per_page = int(per_page)
+
+    base_qs = Post.objects.filter(
+        author=profile_user,
+        is_anonymous=False,
+    )
+
+    if viewing_user.is_authenticated and viewing_user.is_teacher:
+        base_qs = base_qs.filter(allow_teacher=True)
+
+    base_qs = base_qs.annotate(
+        recent_updated_at=Coalesce('last_activity_at', 'created_at')
+    ).order_by('-recent_updated_at', '-created_at')
+
+    paginator = Paginator(base_qs, per_page)
+
+    # Return an empty page if page number is out of range.
+    if page > paginator.num_pages and paginator.num_pages > 0:
+        empty_page = paginator.get_page(paginator.num_pages)
+        empty_page.object_list = []
+        return empty_page
+
+    page_obj = paginator.get_page(page)
+    post_ids = [post.id for post in page_obj.object_list]
+
+    posts_qs = Post.objects.filter(id__in=post_ids).annotate(
+        solution_count=Count('solutions', distinct=True),
+        comment_count=Count('solutions__comments', distinct=True),
+        total_response_count=Count('solutions', distinct=True) + Count('solutions__comments', distinct=True)
+    ).select_related('author').prefetch_related('courses', 'solutions__comments')
+
+    posts_dict = {post.id: post for post in posts_qs}
+    ordered_posts = [posts_dict[pid] for pid in post_ids if pid in posts_dict]
+    ordered_posts = annotate_post_card_context(ordered_posts, viewing_user)
+
+    page_obj.object_list = ordered_posts
+    return page_obj
 
 def get_profile_context(request, username):
     profile_user = get_object_or_404(User, username=username)
-    recent_posts = Post.objects.filter(
-        author=profile_user,
-        is_anonymous=False
-    ).order_by('-created_at')[:3]
+    recent_posts_page = get_profile_posts_page(request.user, profile_user, page=1, per_page=3)
+    recent_posts = recent_posts_page.object_list
     posts_count = Post.objects.filter(author=profile_user).count()
     solutions_count = Solution.objects.filter(author=profile_user).count()
 
@@ -161,30 +243,132 @@ def update_wolfnet_settings(request, profile_user):
         return False, f'Error updating WolfNet settings: {str(e)}'
 
 def update_profile_picture(request):
-    profile = request.user.userprofile
+    """
+    Update user profile picture with compression.
     
-    # Only delete the old picture if it's not the default one
-    if profile.profile_picture and profile.profile_picture.name != 'profile_pictures/default.png':
-        try:
-            profile.profile_picture.delete(save=False)
-        except Exception as e:
-            print(f"Warning: Could not delete previous profile picture: {str(e)}")
+    - Validates file type and input size (max 5 MB)
+    - Compresses to JPEG format (except for GIFs, which are kept original)
+    - Resizes to max 1200px width
+    - Stores in profile_pictures/ directory
+    - Deletes old picture if not default
     
-    profile.profile_picture = request.FILES['profile_picture']
-    profile.save()
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/heic', 'image/webp']
+    ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic', '.webp']
+    MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB (input file size before compression)
+    
+    if 'profile_picture' not in request.FILES:
+        return False, 'No profile picture file provided'
+    
+    image_file = request.FILES['profile_picture']
+    ext = os.path.splitext(image_file.name)[1].lower()
+    mime_type = image_file.content_type
+    
+    # Validate file size before compression
+    if image_file.size > MAX_IMAGE_SIZE:
+        return False, f'Image file too large. Maximum size is 5 MB, got {image_file.size / (1024*1024):.1f} MB'
+    
+    # Validate file type
+    if mime_type not in ALLOWED_IMAGE_TYPES or ext not in ALLOWED_EXTENSIONS:
+        return False, f'Unsupported file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
+    
+    try:
+        import uuid
+        profile = request.user.userprofile
+        
+        # GIFs are kept as-is to preserve animation
+        if mime_type == 'image/gif':
+            unique_name = f"{uuid.uuid4().hex}.gif"
+            upload_path = os.path.join('profile_pictures', unique_name)
+            
+            # Save original GIF without compression
+            saved_path = default_storage.save(upload_path, image_file)
+        else:
+            # Compress other formats to JPEG for consistency and efficiency
+            compressed_file = compress_image(image_file, max_width=1200, quality=85)
+            
+            # Generate unique filename, save as JPG
+            unique_name = f"{uuid.uuid4().hex}.jpg"
+            upload_path = os.path.join('profile_pictures', unique_name)
+            saved_path = default_storage.save(upload_path, compressed_file)
+        
+        # Delete old picture if not default
+        if profile.profile_picture and profile.profile_picture.name != 'profile_pictures/default.png':
+            try:
+                profile.profile_picture.delete(save=False)
+            except Exception as e:
+                print(f"Warning: Could not delete previous profile picture: {str(e)}")
+        
+        # Save updated profile
+        profile.profile_picture = saved_path
+        profile.save()
+        
+        return True, 'Profile picture updated successfully'
+        
+    except Exception as e:
+        return False, f'Error processing image: {str(e)}'
 
 def update_lunch_card(request):
-    profile = request.user.userprofile
+    """
+    Update user lunch card without compression (original quality).
     
-    # Delete the old lunch card if it exists
-    if profile.lunch_card:
-        try:
-            profile.lunch_card.delete(save=False)
-        except Exception as e:
-            print(f"Warning: Could not delete previous lunch card: {str(e)}")
+    - Validates file type and size (max 5 MB)
+    - Stores original image without compression
+    - Stores in lunch_cards/ directory
+    - Deletes old lunch card if it exists
     
-    profile.lunch_card = request.FILES['lunch_card']
-    profile.save()
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/heic', 'image/webp']
+    ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic', '.webp']
+    MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB (no compression)
+    
+    if 'lunch_card' not in request.FILES:
+        return False, 'No lunch card file provided'
+    
+    image_file = request.FILES['lunch_card']
+    ext = os.path.splitext(image_file.name)[1].lower()
+    mime_type = image_file.content_type
+    
+    # Validate file size
+    if image_file.size > MAX_IMAGE_SIZE:
+        return False, f'Image file too large. Maximum size is 5 MB, got {image_file.size / (1024*1024):.1f} MB'
+    
+    # Validate file type
+    if mime_type not in ALLOWED_IMAGE_TYPES or ext not in ALLOWED_EXTENSIONS:
+        return False, f'Unsupported file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
+    
+    try:
+        # Keep original file without compression
+        image_file_to_save = image_file
+        
+        # Generate unique filename, keep original extension
+        import uuid
+        original_ext = os.path.splitext(image_file.name)[1].lower()
+        unique_name = f"{uuid.uuid4().hex}{original_ext}"
+        upload_path = os.path.join('lunch_cards', unique_name)
+        
+        profile = request.user.userprofile
+        
+        # Delete old lunch card if it exists
+        if profile.lunch_card:
+            try:
+                profile.lunch_card.delete(save=False)
+            except Exception as e:
+                print(f"Warning: Could not delete previous lunch card: {str(e)}")
+        
+        # Save original file without compression
+        saved_path = default_storage.save(upload_path, image_file_to_save)
+        profile.lunch_card = saved_path
+        profile.save()
+        
+        return True, 'Lunch card updated successfully'
+        
+    except Exception as e:
+        return False, f'Error processing image: {str(e)}'
 
 def update_profile_courses(request):
     profile = request.user.userprofile

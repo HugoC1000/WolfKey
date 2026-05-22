@@ -232,6 +232,22 @@ else
   echo ".env already exists — leaving it alone."
 fi
 
+# Ensure `db_name` is defined to avoid 'unbound variable' when `set -u` is enabled.
+# If an `.env` already exists, try to read `DB_NAME` from it; otherwise fall back
+# to the original default `schoolforumdb`.
+if [ -z "${db_name+x}" ]; then
+  if [ -f ".env" ]; then
+    DB_NAME_FROM_ENV=$(grep -E '^DB_NAME=' .env | cut -d= -f2- || true)
+    if [ -n "$DB_NAME_FROM_ENV" ]; then
+      db_name="$DB_NAME_FROM_ENV"
+    else
+      db_name="schoolforumdb"
+    fi
+  else
+    db_name="schoolforumdb"
+  fi
+fi
+
 # Try to create local Postgres database (best-effort)
 if command -v psql >/dev/null 2>&1; then
   echo "\n--- Database Setup ---"

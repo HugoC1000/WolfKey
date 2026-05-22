@@ -1,6 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from forum.models import User, Post, Course, Solution, Comment
+from forum.services.utils import process_post_preview
 import json
 
 class GeneralURLTests(TestCase):
@@ -59,6 +60,27 @@ class GeneralURLTests(TestCase):
     def test_compare_schedule_url(self):
         response = self.client.get(reverse('course_comparer'))
         self.assertEqual(response.status_code, 200)
+
+    def test_all_posts_hides_non_teacher_visible_posts_for_anonymous_users(self):
+        Post.objects.create(
+            title='Hidden From Anonymous',
+            content={'blocks': []},
+            author=self.user,
+            allow_teacher=True,
+        )
+        Post.objects.create(
+            title='Visible To Anonymous',
+            content={'blocks': []},
+            author=self.user,
+            allow_teacher=False,
+        )
+
+        self.client.logout()
+        response = self.client.get(reverse('all_posts'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Hidden From Anonymous')
+        self.assertNotContains(response, 'Visible To Anonymous')
 
 
 class SolutionFeatureTests(TestCase):
@@ -220,7 +242,7 @@ class APIDeleteAccountTests(TestCase):
         
         # Verify user is NOT deleted
         self.assertTrue(User.objects.filter(id=self.user.id).exists())
-        
+
     def test_delete_account_no_auth(self):
         """Test account deletion without authentication"""
         url = reverse('api_delete_account')
@@ -230,7 +252,7 @@ class APIDeleteAccountTests(TestCase):
         
         # Verify user is NOT deleted
         self.assertTrue(User.objects.filter(id=self.user.id).exists())
-        
+
     def test_delete_account_invalid_token(self):
         """Test account deletion with invalid token"""
         url = reverse('api_delete_account')
@@ -244,3 +266,154 @@ class APIDeleteAccountTests(TestCase):
         
         # Verify user is NOT deleted
         self.assertTrue(User.objects.filter(id=self.user.id).exists())
+
+
+class APIProfilePostsTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.viewer = User.objects.create_user(
+            username='vieweruser',
+            password='viewerpass123',
+            school_email='viewer@wpga.ca',
+            first_name='View',
+            last_name='Er'
+        )
+        self.qa_user = User.objects.create_user(
+            username='qauser',
+            password='qapass123',
+            school_email='qa@wpga.ca',
+            first_name='QA',
+            last_name='User',
+            is_teacher=True
+        )
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            password='otherpass123',
+            school_email='other@wpga.ca',
+            first_name='Other',
+            last_name='User'
+        )
+
+        from rest_framework.authtoken.models import Token
+        self.token = Token.objects.create(user=self.viewer)
+
+        Post.objects.create(
+            title='QA Visible Old',
+            content={'blocks': []},
+            author=self.qa_user,
+            is_anonymous=False
+        )
+        Post.objects.create(
+            title='QA Visible New',
+            content={'blocks': []},
+            author=self.qa_user,
+            is_anonymous=False
+        )
+        Post.objects.create(
+            title='QA Anonymous Hidden',
+            content={'blocks': []},
+            author=self.qa_user,
+            is_anonymous=True
+        )
+        Post.objects.create(
+            title='Other User Post',
+            content={'blocks': []},
+            author=self.other_user,
+            is_anonymous=False
+        )
+
+    def test_get_profile_posts_api_returns_only_public_posts_for_requested_user(self):
+        url = reverse('api_get_profile_posts', kwargs={'username': self.qa_user.username})
+        response = self.client.get(url, HTTP_AUTHORIZATION=f'Token {self.token.key}')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertEqual(payload['username'], self.qa_user.username)
+        self.assertTrue(payload['is_qa_user'])
+
+        titles = [post['title'] for post in payload['posts']]
+        self.assertIn('QA Visible Old', titles)
+        self.assertIn('QA Visible New', titles)
+        self.assertNotIn('QA Anonymous Hidden', titles)
+        self.assertNotIn('Other User Post', titles)
+
+    def test_get_profile_posts_api_supports_pagination(self):
+        url = reverse('api_get_profile_posts', kwargs={'username': self.qa_user.username})
+        response = self.client.get(f'{url}?limit=1', HTTP_AUTHORIZATION=f'Token {self.token.key}')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertEqual(len(payload['posts']), 1)
+        self.assertEqual(payload['posts'][0]['title'], 'QA Visible New')
+        self.assertTrue(payload['has_next'])
+        self.assertEqual(payload['total_pages'], 2)
+
+
+class PostPreviewFormattingTests(TestCase):
+    def _build_post(self, content):
+        return type('PostStub', (), {'content': content})()
+
+    def test_post_preview_supports_multiple_block_types(self):
+        content = {
+            'blocks': [
+                {'type': 'header', 'data': {'text': 'Main Heading'}},
+                {'type': 'paragraph', 'data': {'text': 'Paragraph line 1<br>Paragraph line 2'}},
+                {'type': 'list', 'data': {'items': ['First bullet', 'Second bullet']}},
+                {'type': 'checklist', 'data': {'items': [{'text': 'Checked item', 'checked': True}]}},
+                {'type': 'quote', 'data': {'text': 'Quoted text', 'caption': 'Speaker'}},
+                {'type': 'code', 'data': {'code': 'x = 1'}},
+                {'type': 'table', 'data': {'content': [['A', 'B'], ['1', '2']]}},
+                {'type': 'warning', 'data': {'title': 'Heads up', 'message': 'Be careful'}},
+                {'type': 'image', 'data': {'caption': 'Figure caption'}},
+                {'type': 'math', 'data': {'math': 'x^2 + y^2'}},
+            ]
+        }
+
+        preview = process_post_preview(self._build_post(content))
+
+        self.assertIn('Main Heading', preview)
+        self.assertIn('Paragraph line 1\nParagraph line 2', preview)
+        self.assertIn('First bullet', preview)
+        self.assertIn('Checked item', preview)
+        self.assertIn('Quoted text\nSpeaker', preview)
+        self.assertIn('x = 1', preview)
+        self.assertIn('A | B', preview)
+        self.assertIn('Heads up\nBe careful', preview)
+        self.assertIn('Figure caption', preview)
+        self.assertIn('x^2 + y^2', preview)
+
+    def test_post_preview_preserves_newlines_from_inline_breaks(self):
+        content = {
+            'blocks': [
+                {'type': 'paragraph', 'data': {'text': 'Line one<br>Line two<br/>Line three'}}
+            ]
+        }
+
+        preview = process_post_preview(self._build_post(content))
+
+        self.assertEqual(preview, 'Line one\nLine two\nLine three')
+
+    def test_post_preview_parses_json_string_content(self):
+        content = json.dumps({
+            'blocks': [
+                {'type': 'paragraph', 'data': {'text': 'From JSON string'}}
+            ]
+        })
+
+        preview = process_post_preview(self._build_post(content))
+
+        self.assertEqual(preview, 'From JSON string')
+
+    def test_post_preview_returns_empty_string_when_no_text(self):
+        content = {
+            'blocks': [
+                {'type': 'delimiter', 'data': {}},
+                {'type': 'image', 'data': {'caption': ''}},
+            ]
+        }
+
+        preview = process_post_preview(self._build_post(content))
+
+        self.assertEqual(preview, '')

@@ -304,4 +304,11 @@ li {
   #loading-spinner {
     padding: 20px;
     margin-bottom: 20px;
-}
+  }
+
+  /* Hide user count on screens smaller than 992px */
+  @media (max-width: 991px) {
+    .user-count-display {
+      display: none !important;
+    }
+  }

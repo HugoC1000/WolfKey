@@ -31,6 +31,8 @@ CELERY_TIMEZONE_NAME = 'America/Vancouver'
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables early so DB and other settings can read .env
+load_dotenv()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -284,11 +286,7 @@ CSRF_USE_SESSIONS = False
 # 30 days = 2592000 seconds
 CSRF_COOKIE_AGE = 2592000  # 30 days
 SESSION_COOKIE_AGE = 2592000  # 30 days
-
-from dotenv import load_dotenv
-
-load_dotenv()
-
+ 
 
 try:
     decoded = base64.b64decode(os.getenv("GSHEET_CREDENTIALS_BASE64", "")).decode("utf-8")

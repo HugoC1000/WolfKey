@@ -6,8 +6,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const prevDayBtn = document.getElementById('prev-day');
     const nextDayBtn = document.getElementById('next-day');
     const tomorrowScheduleList = document.getElementById('tomorrow-schedule');
+    const todayScheduleList = document.getElementById('today-schedule');
     const scheduleTitle = document.getElementById('schedule-title');
     const scheduleBadges = document.getElementById('schedule-badges');
+    const todayBadges = document.getElementById('today-badges');
     
     if (!datePicker || !prevDayBtn || !nextDayBtn || !tomorrowScheduleList || !scheduleTitle || !scheduleBadges) {
         // Schedule elements not found on this page, skip initialization
@@ -15,10 +17,17 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     const tomorrowDate = datePicker.dataset.tomorrow;
+    const todayDate = datePicker.dataset.today || getTodayDateISO();
     const initialTitle = scheduleTitle.textContent; // Store the initial server-rendered title
     
     // Clear cache: reset date picker to default tomorrow date on page load
     datePicker.value = tomorrowDate;
+    
+    // Helper function to get today's date in ISO format
+    function getTodayDateISO() {
+        const today = new Date();
+        return today.toISOString().split('T')[0];
+    }
 
     function isDateInCurrentWeek(dateString) {
         const selectedDate = new Date(dateString);
@@ -60,67 +69,73 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateSchedule(dateString) {
         // Update title
         updateScheduleTitle(dateString);
-        
-        // Show loading state
-        tomorrowScheduleList.innerHTML = '<li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...</li>';
-        scheduleBadges.innerHTML = '';
-        
-        // Fetch schedule for the selected date
+        loadScheduleForDate(dateString, tomorrowScheduleList, scheduleBadges);
+    }
+
+    function loadScheduleForDate(dateString, scheduleContainer, badgesContainer) {
+        // Load schedule for a specific date and render it into the given container.
+        scheduleContainer.innerHTML = '<li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...</li>';
+        badgesContainer.innerHTML = '';
+
         fetch(`/schedules/daily/${dateString}/`)
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    tomorrowScheduleList.innerHTML = `<li class="list-group-item text-danger">${data.error}</li>`;
+                    scheduleContainer.innerHTML = `<li class="list-group-item text-danger">${data.error}</li>`;
                     return;
                 }
-                
-                // Update title with formatted date if not tomorrow and not in current week
-                if (dateString !== tomorrowDate && !isDateInCurrentWeek(dateString)) {
-                    scheduleTitle.textContent = data.date;
-                }
-                
-                // Build badges
-                let badgesHTML = '';
-                if (data.ceremonial_required) {
-                    badgesHTML += '<span class="badge rounded-pill schedule-badge-ceremonial"><i class="fas fa-user-tie me-1"></i>Ceremonial Uniform</span>';
-                }
-                if (data.early_dismissal) {
-                    badgesHTML += '<span class="badge rounded-pill schedule-badge-early"><i class="fas fa-clock me-1"></i>Early Dismissal</span>';
-                }
-                if (data.late_start) {
-                    badgesHTML += '<span class="badge rounded-pill schedule-badge-late"><i class="fas fa-coffee me-1"></i>Late Start</span>';
-                }
-                scheduleBadges.innerHTML = badgesHTML;
-                
-                // Build schedule list
-                let scheduleHTML = '';
-                
-                // Add schedule items
-                if (data.schedule && data.schedule.length > 0) {
-                    if (data.schedule[0] === "no school") {
-                        scheduleHTML += '<li class="list-group-item"><p style="margin-bottom: 0px;">No School</p></li>';
-                    } else {
-                        data.schedule.forEach(item => {
-                            scheduleHTML += `
-                                <li class="list-group-item">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <p style="margin-bottom: 0px;">${item.block}</p>
-                                        ${item.time ? `<p style="margin-bottom: 0px;">${item.time}</p>` : ''}
-                                    </div>
-                                </li>
-                            `;
-                        });
-                    }
-                } else {
-                    scheduleHTML += '<li class="list-group-item"><p style="margin-bottom: 0px;">Schedule unavailable</p></li>';
-                }
-                
-                tomorrowScheduleList.innerHTML = scheduleHTML;
+                renderScheduleData(data, scheduleContainer, badgesContainer, dateString);
             })
             .catch(error => {
                 console.error('Error fetching schedule:', error);
-                tomorrowScheduleList.innerHTML = '<li class="list-group-item text-danger">Error loading schedule</li>';
+                scheduleContainer.innerHTML = '<li class="list-group-item text-danger">Error loading schedule</li>';
             });
+    }
+
+    function renderScheduleData(data, scheduleContainer, badgesContainer, dateString) {
+        // Render schedule data into the given containers.
+        // Update title with formatted date if not tomorrow and not in current week
+        if (dateString !== tomorrowDate && !isDateInCurrentWeek(dateString)) {
+            scheduleTitle.textContent = data.date;
+        }
+
+        // Build badges
+        let badgesHTML = '';
+        if (data.ceremonial_required) {
+            badgesHTML += '<span class="badge rounded-pill schedule-badge-ceremonial"><i class="fas fa-user-tie me-1"></i>Ceremonial Uniform</span>';
+        }
+        if (data.early_dismissal) {
+            badgesHTML += '<span class="badge rounded-pill schedule-badge-early"><i class="fas fa-clock me-1"></i>Early Dismissal</span>';
+        }
+        if (data.late_start) {
+            badgesHTML += '<span class="badge rounded-pill schedule-badge-late"><i class="fas fa-coffee me-1"></i>Late Start</span>';
+        }
+        badgesContainer.innerHTML = badgesHTML;
+        
+        // Build schedule list
+        let scheduleHTML = '';
+        
+        // Add schedule items
+        if (data.schedule && data.schedule.length > 0) {
+            if (data.schedule[0] === "no school") {
+                scheduleHTML += '<li class="list-group-item"><p style="margin-bottom: 0px;">No School</p></li>';
+            } else {
+                data.schedule.forEach(item => {
+                    scheduleHTML += `
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <p style="margin-bottom: 0px;">${item.block}</p>
+                                ${item.time ? `<p style="margin-bottom: 0px;">${item.time}</p>` : ''}
+                            </div>
+                        </li>
+                    `;
+                });
+            }
+        } else {
+            scheduleHTML += '<li class="list-group-item"><p style="margin-bottom: 0px;">Schedule unavailable</p></li>';
+        }
+        
+        scheduleContainer.innerHTML = scheduleHTML;
     }
 
     // Date picker change event
@@ -145,4 +160,8 @@ document.addEventListener('DOMContentLoaded', function () {
         datePicker.value = newDate;
         updateSchedule(newDate);
     });
+
+    // Load schedules asynchronously on page initialization
+    loadScheduleForDate(todayDate, todayScheduleList, todayBadges);
+    loadScheduleForDate(tomorrowDate, tomorrowScheduleList, scheduleBadges);
 });

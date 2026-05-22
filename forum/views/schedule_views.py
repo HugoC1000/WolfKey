@@ -29,6 +29,10 @@ def daily_schedule_view(request, target_date):
     """
     try:
         schedule = get_block_order_for_day(target_date)
+        
+        if schedule is None:
+            return JsonResponse({'error': 'Failed to get schedule'}, status=500)
+        
         date_obj = _parse_iso_date(target_date)
         formatted_date = _convert_to_sheet_date_format(date_obj)
 

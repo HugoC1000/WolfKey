@@ -33,20 +33,16 @@ export class SolutionInteractions {
                 });
             }
 
-            // Don't throw error for 409 status
-            if (!response.ok && response.status !== 409) {
-                throw new Error(data.message || 'Failed to upvote solution');
-            }
-
             // Only update UI for successful votes
-            if (response.ok) {
+            if (response.ok && data.success) {
                 this.updateVoteUI(solutionId, data);
             }
+            
             return data;
         } catch (error) {
             console.error('Upvote error:', error);
             showMessage('Failed to upvote solution', 'error');
-            throw error;
+            // Don't rethrow - error is handled
         }
     }
 
@@ -69,20 +65,16 @@ export class SolutionInteractions {
                 });
             }
 
-            // Don't throw error for 409 status
-            if (!response.ok && response.status !== 409) {
-                throw new Error(data.message || 'Failed to downvote solution');
-            }
-
             // Only update UI for successful votes
-            if (response.ok) {
+            if (response.ok && data.success) {
                 this.updateVoteUI(solutionId, data);
             }
+            
             return data;
         } catch (error) {
             console.error('Downvote error:', error);
             showMessage('Failed to downvote solution', 'error');
-            throw error;
+            // Don't rethrow - error is handled
         }
     }
 
@@ -107,16 +99,15 @@ export class SolutionInteractions {
                 });
             }
 
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to toggle solution acceptance');
+            if (response.ok) {
+                this.updateAcceptanceUI(solutionId, data);
             }
-
-            this.updateAcceptanceUI(solutionId, data);
+            
             return data;
         } catch (error) {
             console.error('Accept solution error:', error);
             showMessage('Failed to toggle solution acceptance', 'error');
-            throw error;
+            // Don't rethrow - error is handled
         }
     }
 
@@ -187,16 +178,15 @@ export class SolutionInteractions {
                 });
             }
 
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to save solution');
+            if (response.ok) {
+                this.updateSaveUI(solutionId, data);
             }
-
-            this.updateSaveUI(solutionId, data);
+            
             return data;
         } catch (error) {
             console.error('Save solution error:', error);
             showMessage('Failed to save solution', 'error');
-            throw error;
+            // Don't rethrow - error is handled
         }
     }
 

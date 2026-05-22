@@ -119,7 +119,7 @@ def api_register(request):
 def search_users_api(request):
     """Search for users API endpoint"""
     try:
-        query = request.GET.get('q', '').strip()
+        query = request.GET.get('query', '').strip()
         users = search_users(request.user, query)[:10]
 
         serializer = UserSerializer(users, many=True, context={'request': request})

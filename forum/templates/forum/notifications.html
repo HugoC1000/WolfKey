@@ -28,6 +28,21 @@
                 </div>
             {% endfor %}
         </div>
+        {% if page_obj and page_obj.paginator.num_pages > 1 %}
+            <nav aria-label="Notification pages" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                        <a class="page-link" href="{% if page_obj.has_previous %}?page={{ page_obj.previous_page_number }}{% if request.GET.limit %}&limit={{ request.GET.limit }}{% endif %}{% else %}#{% endif %}">Previous</a>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="{% if page_obj.has_next %}?page={{ page_obj.next_page_number }}{% if request.GET.limit %}&limit={{ request.GET.limit }}{% endif %}{% else %}#{% endif %}">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        {% endif %}
     {% else %}
         <p>No notifications</p>
     {% endif %}

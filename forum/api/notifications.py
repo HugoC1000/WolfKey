@@ -3,6 +3,7 @@ API endpoints for mobile notifications
 """
 import logging
 from django.http import JsonResponse
+from django.core.paginator import Paginator
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -26,11 +27,28 @@ def notifications_api(request):
     """
     try:
         from forum.services.deep_link_service import create_notification_deep_link
+        from forum.serializers import AnonUserSerializer, UserSerializer
         
         notifications = all_notifications_service(request.user)
+        page = int(request.GET.get('page', 1))
+        per_page = int(request.GET.get('limit', 8))
+        paginator = Paginator(notifications, per_page)
+        page_obj = paginator.get_page(page)
         
         notification_data = []
-        for notification in notifications:
+        for notification in page_obj.object_list:
+            # Determine if sender should be anonymous
+            post = notification.post
+            if not post:
+                if notification.solution:
+                    post = notification.solution.post
+                elif notification.comment:
+                    post = notification.comment.solution.post if notification.comment.solution else None
+            
+            # Use anonymous data if post is anonymous and sender is post author
+            should_be_anon = (post and post.is_anonymous and 
+                             notification.sender_id == post.author_id)
+            
             # deep link data 
             deep_link_data = create_notification_deep_link(
                 notification_type=notification.notification_type,
@@ -41,17 +59,19 @@ def notifications_api(request):
                 user=notification.sender
             )
             
+            # Serialize sender appropriately
+            if should_be_anon:
+                sender_data = AnonUserSerializer(notification.sender, context={'request': request}).data
+            else:
+                sender_data = UserSerializer(notification.sender, context={'request': request}).data
+            
             data = {
                 'id': notification.id,
                 'notification_type': notification.notification_type,
                 'message': notification.message,
                 'is_read': notification.is_read,
                 'created_at': notification.created_at.isoformat(),
-                'sender': {
-                    'id': notification.sender.id,
-                    'full_name': notification.sender.get_full_name(),
-                    'username': notification.sender.username
-                } if notification.sender else None,
+                'sender': sender_data if notification.sender else None,
                 'post': {
                     'id': notification.post.id,
                     'title': notification.post.title
@@ -67,6 +87,9 @@ def notifications_api(request):
             'success': True,
             'data': {
                 'notifications': notification_data,
+                'has_next': page_obj.has_next(),
+                'page': page_obj.number,
+                'total_pages': page_obj.paginator.num_pages,
                 'unread_count': notifications.filter(is_read=False).count()
             }
         }, status=status.HTTP_200_OK)

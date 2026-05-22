@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from forum.models import Post, SavedPost, FollowedPost, Solution, SavedSolution
 from forum.services.utils import process_post_preview, add_course_context, annotate_post_card_context
 from forum.services.solution_services import save_solution_service
-from forum.serializers import PostListSerializer, SolutionSerializer
+from forum.serializers import PostListSerializer, SolutionSerializer, attach_poll_data_to_posts
 import json
 
 @login_required
@@ -15,11 +15,12 @@ def followed_posts(request):
         posts_queryset = posts_queryset.filter(allow_teacher=True)
     
     posts_queryset = annotate_post_card_context(posts_queryset, request.user)
-    
-    posts_data = PostListSerializer(posts_queryset, many=True, context={'request': request}).data
+    posts = list(posts_queryset)
+    posts_data = PostListSerializer(posts, many=True, context={'request': request}).data
+    attach_poll_data_to_posts(posts, posts_data)
 
     return render(request, 'forum/followed_posts.html', {
-        'posts': posts_queryset,
+        'posts': posts,
         'posts_data': posts_data
     })
 
@@ -50,15 +51,20 @@ def save_solution(request, solution_id):
 @login_required
 def saved_solutions(request):
     solutions_queryset = Solution.objects.filter(saves__user=request.user).select_related('author', 'post')
+    solutions = list(solutions_queryset)
+
+    posts_for_cards = [solution.post for solution in solutions]
+    posts_data = PostListSerializer(posts_for_cards, many=True, context={'request': request}).data
+    attach_poll_data_to_posts(posts_for_cards, posts_data)
     
     # Serialize solutions for consistent structure with API
     solutions_data = []
-    for solution in solutions_queryset:
+    for solution in solutions:
         # Add post to context for proper serialization
         serializer = SolutionSerializer(solution, context={'request': request, 'post': solution.post})
         solutions_data.append(serializer.data)
 
     return render(request, 'forum/saved_solutions.html', {
-        'solutions': solutions_queryset,  # Keep for template compatibility
+        'solutions': solutions,  # Keep for template compatibility
         'solutions_data': solutions_data   # Serialized data
     })
