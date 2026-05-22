@@ -66,6 +66,32 @@
                 </div>
             </div>
         </div>
+        <!-- Countdown -->
+        <div class="col-md-4 d-none d-md-block">
+            <div class="card text-center" id="school-countdown-card">
+                <h3 style="font-size: 1.5rem; margin-bottom: 0.25rem;">School Ends In</h3>
+                <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">June 11, 2026</p>
+                <div class="d-flex justify-content-center gap-3" id="countdown-display">
+                    <div class="countdown-unit">
+                        <span class="countdown-number" id="cd-days">--</span>
+                        <span class="countdown-label">Days</span>
+                    </div>
+                    <div class="countdown-unit">
+                        <span class="countdown-number" id="cd-hours">--</span>
+                        <span class="countdown-label">Hours</span>
+                    </div>
+                    <div class="countdown-unit">
+                        <span class="countdown-number" id="cd-minutes">--</span>
+                        <span class="countdown-label">Mins</span>
+                    </div>
+                    <div class="countdown-unit">
+                        <span class="countdown-number" id="cd-seconds">--</span>
+                        <span class="countdown-label">Secs</span>
+                    </div>
+                </div>
+                <p id="cd-done-msg" style="display:none; font-size: 1.1rem; font-weight: 600; color: #2ecc71;">School's out! 🎉</p>
+            </div>
+        </div>
     </div>
 
     <!-- Display the posts -->
@@ -262,6 +288,55 @@
         
 
         setTimeout(scrollToPostIfNeeded, 100);
+    });
+</script>
+
+<style>
+    .countdown-unit {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .countdown-number {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    .countdown-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #6c757d;
+        letter-spacing: 0.05em;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const endDate = new Date('2026-06-11T00:00:00');
+
+        function updateCountdown() {
+            const now = new Date();
+            const diff = endDate - now;
+
+            if (diff <= 0) {
+                document.getElementById('countdown-display').style.display = 'none';
+                document.getElementById('cd-done-msg').style.display = 'block';
+                return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            document.getElementById('cd-days').textContent = String(days).padStart(2, '0');
+            document.getElementById('cd-hours').textContent = String(hours).padStart(2, '0');
+            document.getElementById('cd-minutes').textContent = String(minutes).padStart(2, '0');
+            document.getElementById('cd-seconds').textContent = String(seconds).padStart(2, '0');
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
     });
 </script>
 {% endblock %}
