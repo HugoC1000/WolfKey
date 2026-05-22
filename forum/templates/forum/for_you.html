@@ -374,7 +374,7 @@
 </style>
 
 <script>
-    (function() {
+    document.addEventListener('DOMContentLoaded', function() {
         const endDate = new Date('2026-06-11T00:00:00');
 
         function updateCountdown() {
@@ -400,6 +400,6 @@
 
         updateCountdown();
         setInterval(updateCountdown, 1000);
-    })();
+    });
 </script>
 {% endblock %}
