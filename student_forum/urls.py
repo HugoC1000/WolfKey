@@ -119,6 +119,11 @@ from forum.api.auth import(
     api_logout,
     api_delete_account
 )
+
+from forum.api.mentions import (
+    mentions_autocomplete_api,
+)
+from forum.views.mention_views import mention_search
 from forum.views.auth_views import register, login_view, logout_view
 
 
@@ -284,6 +289,8 @@ urlpatterns = [
     path('match/', course_comparer, name='course_comparer'),
     path('atlas/', timetable_assigner, name='timetable_assigner'),
     path('api/search-users/', search_users_api, name='search_users_api'),
+    path('mentions/search/', mention_search, name='mention_search'),
+    path('api/mentions/autocomplete/', mentions_autocomplete_api, name='api_mentions_autocomplete'),
 
     # Saved posts URLs
     path('followed-posts/', followed_posts, name='followed_posts'),

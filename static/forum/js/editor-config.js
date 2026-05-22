@@ -6,7 +6,7 @@ const createEditor = (holder,initialData, csrfToken, isReadOnly = false, content
     console.log("Intial Data: ", initialData);
     const holderId = typeof holder === 'string' ? holder : holder?.id;
     const mentionOptions = {
-        apiEndpoint: '/api/search-users/',
+        apiEndpoint: '/mentions/search/',
         minChars: 1,
         maxResults: 10,
         debounceDelay: 300,

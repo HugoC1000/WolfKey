@@ -92,6 +92,55 @@
   text-overflow: ellipsis;
 }
 
+/* Course mention item styles */
+.mention-dropdown-course-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mention-dropdown-course-category {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Everyone mention item styles */
+.mention-dropdown-everyone-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mention-dropdown-everyone-note {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Message state styles */
+.mention-dropdown-message {
+  padding: 12px 12px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  cursor: default;
+}
+
+.mention-dropdown-message:hover {
+  background-color: transparent;
+}
+
 /* Mention Link Styles */
 a.mention {
   color: #0066cc;

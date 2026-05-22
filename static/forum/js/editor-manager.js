@@ -109,7 +109,7 @@ export class EditorManager {
 
         if (!readOnly && !editor._mentionHandler) {
             const mentionOptions = editor._mentionHandlerOptions || {
-                apiEndpoint: '/api/search-users/',
+                apiEndpoint: '/mentions/search/',
                 minChars: 1,
                 maxResults: 10,
                 debounceDelay: 300,

@@ -1,6 +1,7 @@
 /**
  * MentionDropdown
  * Handles rendering and managing the mention suggestion dropdown
+ * Supports users, courses, and everyone mentions
  */
 class MentionDropdown {
   constructor() {
@@ -9,13 +10,13 @@ class MentionDropdown {
   }
 
   /**
-   * Show the dropdown with matching users
-   * @param {Array} users - List of user objects with { id, username, full_name, profile_picture_url }
+   * Show the dropdown with matching mentions
+   * @param {Array} mentions - List of mention objects (users, courses, or everyone)
    * @param {HTMLElement} editorElement - The editor element to position dropdown relative to
    * @param {DOMRect|ClientRect|Object} cursorRect - Bounding rect of the cursor for dropdown placement
    */
-  show(users, editorElement, cursorRect) {
-    if (!users || users.length === 0) {
+  show(mentions, editorElement, cursorRect) {
+    if (!mentions || mentions.length === 0) {
       this.hide();
       return;
     }
@@ -29,31 +30,88 @@ class MentionDropdown {
     this.dropdownElement.setAttribute('role', 'listbox');
     this.dropdownElement.setAttribute('aria-label', 'Mention suggestions');
     
-    // Build user items
+    // Build mention items
     let itemsHtml = '';
-    users.forEach((user) => {
-      if (user.__message) {
+    
+    mentions.forEach((mention, idx) => {
+      
+      // Handle messages (empty state, no results, errors)
+      if (mention.__message) {
         itemsHtml += `
           <div class="mention-dropdown-item mention-dropdown-message" role="status" aria-live="polite">
             <div class="mention-dropdown-info">
-              <div class="mention-dropdown-name">${this.escape(user.__message)}</div>
+              <div class="mention-dropdown-name">${this.escape(mention.__message)}</div>
             </div>
           </div>
         `;
         return;
       }
 
-      const profilePicUrl = user.profile_picture_url || '/static/images/default-avatar.png';
-      itemsHtml += `
-        <div class="mention-dropdown-item" role="option" aria-selected="false" tabindex="0" data-username="${this.escape(user.username)}" data-user-id="${user.id}">
-          <img src="${this.escape(profilePicUrl)}" alt="" class="mention-dropdown-avatar" data-fallback-src="/static/images/default-avatar.png">
+      // Default to user type if not specified (backward compatibility)
+      const mentionType = mention.type || 'user';
+
+      // Handle user mentions
+      if (mentionType === 'user') {
+        const profilePicUrl = (mention.profile_picture_url && mention.profile_picture_url !== 'null') 
+          ? mention.profile_picture_url 
+          : '/static/images/default-avatar.png';
+        const fullName = mention.full_name || mention.username || 'Unknown';
+        const username = mention.username || '';
+        
+        itemsHtml += `
+          <div class="mention-dropdown-item mention-dropdown-user" role="option" aria-selected="false" tabindex="0" data-mention-type="user" data-username="${this.escape(username)}" data-user-id="${mention.id}">
+            <img src="${this.escape(profilePicUrl)}" alt="" class="mention-dropdown-avatar" data-fallback-src="/static/images/default-avatar.png" onerror="this.src='/static/images/default-avatar.png'">
+            <div class="mention-dropdown-info">
+              <div class="mention-dropdown-name">${this.escape(fullName)}</div>
+              <div class="mention-dropdown-username">@${this.escape(username)}</div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Handle course mentions
+      if (mentionType === 'course') {        
+        itemsHtml += `
+          <div class="mention-dropdown-item mention-dropdown-course" role="option" aria-selected="false" tabindex="0" data-mention-type="course" data-course-name="${this.escape(mention.name)}" data-course-id="${mention.id}">
+            <div class="mention-dropdown-course-icon">📚</div>
+            <div class="mention-dropdown-info">
+              <div class="mention-dropdown-name">${this.escape(mention.name)}</div>
+              <div class="mention-dropdown-course-category">${this.escape(mention.category || 'Course')}</div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Handle "everyone" mention (admin only)
+      if (mentionType === 'everyone') {        
+        itemsHtml += `
+          <div class="mention-dropdown-item mention-dropdown-everyone" role="option" aria-selected="false" tabindex="0" data-mention-type="everyone" data-everyone-name="${this.escape(mention.name)}">
+            <div class="mention-dropdown-everyone-icon">👥</div>
+            <div class="mention-dropdown-info">
+              <div class="mention-dropdown-name">${this.escape(mention.name)}</div>
+              <div class="mention-dropdown-everyone-note">Notify all users</div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+      
+      console.warn(`[MentionDropdown] Unknown mention type: ${mentionType}`, mention);
+    });
+    
+    // If no items were rendered, something went wrong
+    if (!itemsHtml || itemsHtml.trim().length === 0) {
+      // Render error message
+      itemsHtml = `
+        <div class="mention-dropdown-item mention-dropdown-message" role="status" aria-live="polite">
           <div class="mention-dropdown-info">
-            <div class="mention-dropdown-name">${this.escape(user.full_name)}</div>
-            <div class="mention-dropdown-username">@${this.escape(user.username)}</div>
+            <div class="mention-dropdown-name">Error rendering mentions</div>
           </div>
         </div>
       `;
-    });
+    }
     
     this.dropdownElement.innerHTML = itemsHtml;
 
@@ -88,6 +146,7 @@ class MentionDropdown {
 
     this.isVisible = true;
 
+    // Handle image fallbacks for user avatars
     this.dropdownElement.querySelectorAll('.mention-dropdown-avatar').forEach((img) => {
       img.addEventListener('error', () => {
         const fallback = img.dataset.fallbackSrc;
@@ -98,26 +157,52 @@ class MentionDropdown {
     });
 
     // Add click handlers to items
-    this.dropdownElement.querySelectorAll('.mention-dropdown-item').forEach(item => {
+    this.dropdownElement.querySelectorAll('.mention-dropdown-item:not(.mention-dropdown-message)').forEach(item => {
       item.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const username = item.dataset.username;
-        const event = new CustomEvent('mention-selected', {
-          detail: { username }
-        });
-        editorElement.dispatchEvent(event);
+        this.dispatchMentionSelection(item, editorElement);
       });
 
       item.addEventListener('click', (e) => {
         e.stopPropagation();
-        const username = item.dataset.username;
-        const event = new CustomEvent('mention-selected', { 
-          detail: { username } 
-        });
-        editorElement.dispatchEvent(event);
+        this.dispatchMentionSelection(item, editorElement);
       });
     });
+    console.log('[MentionDropdown] Show method completed successfully');
+  }
+
+  /**
+   * Dispatch mention selection event with appropriate data
+   */
+  dispatchMentionSelection(item, editorElement) {
+    const mentionType = item.dataset.mentionType;
+    let detail = { type: mentionType };
+
+    if (mentionType === 'user') {
+      detail = {
+        type: 'user',
+        username: item.dataset.username,
+        userId: item.dataset.userId,
+        full_name: item.querySelector('.mention-dropdown-name')?.textContent || '',
+        profile_picture_url: item.querySelector('img')?.src || ''
+      };
+    } else if (mentionType === 'course') {
+      detail = {
+        type: 'course',
+        name: item.dataset.courseName,
+        id: item.dataset.courseId,
+        category: item.querySelector('.mention-dropdown-course-category')?.textContent || ''
+      };
+    } else if (mentionType === 'everyone') {
+      detail = {
+        type: 'everyone',
+        name: item.dataset.everyoneName
+      };
+    }
+
+    const event = new CustomEvent('mention-selected', { detail });
+    editorElement.dispatchEvent(event);
   }
 
   /**
@@ -153,7 +238,7 @@ class MentionDropdown {
   selectNextItem() {
     if (!this.dropdownElement) return;
     
-    const items = this.dropdownElement.querySelectorAll('.mention-dropdown-item');
+    const items = this.dropdownElement.querySelectorAll('.mention-dropdown-item:not(.mention-dropdown-message)');
     const activeItem = this.dropdownElement.querySelector('.mention-dropdown-item.active');
     
     let nextIndex = 0;
@@ -175,7 +260,7 @@ class MentionDropdown {
   selectPrevItem() {
     if (!this.dropdownElement) return;
     
-    const items = this.dropdownElement.querySelectorAll('.mention-dropdown-item');
+    const items = this.dropdownElement.querySelectorAll('.mention-dropdown-item:not(.mention-dropdown-message)');
     const activeItem = this.dropdownElement.querySelector('.mention-dropdown-item.active');
     
     let prevIndex = items.length - 1;
@@ -199,10 +284,26 @@ class MentionDropdown {
     
     const activeItem = this.dropdownElement.querySelector('.mention-dropdown-item.active');
     if (activeItem) {
-      return {
-        username: activeItem.dataset.username,
-        userId: activeItem.dataset.userId
-      };
+      const mentionType = activeItem.dataset.mentionType;
+      
+      if (mentionType === 'user') {
+        return {
+          type: 'user',
+          username: activeItem.dataset.username,
+          userId: activeItem.dataset.userId
+        };
+      } else if (mentionType === 'course') {
+        return {
+          type: 'course',
+          name: activeItem.dataset.courseName,
+          id: activeItem.dataset.courseId
+        };
+      } else if (mentionType === 'everyone') {
+        return {
+          type: 'everyone',
+          name: activeItem.dataset.everyoneName
+        };
+      }
     }
     return null;
   }

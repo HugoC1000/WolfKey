@@ -1,6 +1,7 @@
 /**
  * Mention Handler for Editor.js
- * Handles @mentions with autocomplete dropdown
+ * Handles @mentions and #course mentions with autocomplete dropdown
+ * Also supports @everyone for admins
  */
 
 import MentionDropdown from './mention-dropdown.js';
@@ -11,8 +12,9 @@ export class MentionHandler {
     this.editorElement = null;
     this.dropdownComponent = new MentionDropdown();
     this.currentQuery = '';
+    this.currentTrigger = null; // '@' for users, '#' for courses, '@' for everyone
     this.selectedIndex = -1;
-    this.users = [];
+    this.results = []; // Stores all results (users, courses, everyone)
     this.mentionStartPos = null;
     this.isActive = false;
     this.observer = null;
@@ -20,7 +22,7 @@ export class MentionHandler {
     
     // Configuration options
     this.options = {
-      apiEndpoint: options.apiEndpoint || '/api/search-users/',
+      apiEndpoint: options.apiEndpoint || '/mentions/search/',
       minChars: options.minChars || 1,
       maxResults: options.maxResults || 5,
       debounceDelay: options.debounceDelay || 300,
@@ -40,9 +42,9 @@ export class MentionHandler {
     }
 
     this.editorElement.addEventListener('mention-selected', (e) => {
-      const username = e?.detail?.username;
-      if (username) {
-        this.selectUserByUsername(username);
+      const mention = e?.detail;
+      if (mention) {
+        this.selectMention(mention);
       }
     });
 
@@ -133,22 +135,36 @@ export class MentionHandler {
     this.activeElement = element;
     this.activeCursorPos = cursorPos;
     
-    // Check if we're after an @ symbol
+    // Check if we're after an @ or # symbol
     const textBeforeCursor = text.substring(0, cursorPos);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    const lastHashIndex = textBeforeCursor.lastIndexOf('#');
     
-    if (lastAtIndex === -1) {
+    // Determine which trigger (@  or #) we're working with
+    let triggerIndex = -1;
+    let trigger = null;
+    
+    if (lastAtIndex > lastHashIndex) {
+      triggerIndex = lastAtIndex;
+      trigger = '@';
+    } else if (lastHashIndex >= 0) {
+      triggerIndex = lastHashIndex;
+      trigger = '#';
+    }
+    
+    if (triggerIndex === -1) {
       this.closeMentionDropdown();
       return;
     }
 
-    // Check if @ is at the beginning of a word (after space or at start)
-    if (lastAtIndex > 0 && !/\s/.test(text[lastAtIndex - 1])) {
+    // Check if trigger is at the beginning of a word (after space or at start)
+    if (triggerIndex > 0 && !/\s/.test(text[triggerIndex - 1])) {
       this.closeMentionDropdown();
       return;
     }
 
-    const queryStart = lastAtIndex + 1;
+    // Only trigger if query has minimum characters or is just the trigger symbol
+    const queryStart = triggerIndex + 1;
     const query = textBeforeCursor.substring(queryStart);
 
     // Stop mention search if there's a space in the query (user has moved on)
@@ -157,22 +173,23 @@ export class MentionHandler {
       return;
     }
 
-    // Only trigger if query has minimum characters or is just "@"
-    if (query.length === 0 && text[lastAtIndex] === '@') {
+    if (query.length === 0 && text[triggerIndex] === trigger) {
       // Show dropdown even with empty query
       this.currentQuery = '';
-      this.mentionStartPos = lastAtIndex;
-      this.showEmptyState();
+      this.currentTrigger = trigger;
+      this.mentionStartPos = triggerIndex;
+      this.showEmptyState(trigger);
       return;
     }
 
     this.currentQuery = query;
-    this.mentionStartPos = lastAtIndex;
+    this.currentTrigger = trigger;
+    this.mentionStartPos = triggerIndex;
     
     // Debounce the search
     clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => {
-      this.searchUsers(query);
+      this.searchMentions(query, trigger);
     }, this.options.debounceDelay);
   }
 
@@ -196,9 +213,9 @@ export class MentionHandler {
       case 'Enter':
         {
           const active = this.dropdownComponent.selectActiveItem();
-          if (active && active.username) {
+          if (active) {
             e.preventDefault();
-            this.selectUserByUsername(active.username);
+            this.selectMention(active);
           }
         }
         break;
@@ -210,58 +227,70 @@ export class MentionHandler {
   }
 
   /**
-   * Show empty state when user types @ but no results yet
+   * Show empty state when user types @ or # but no results yet
    */
-  showEmptyState() {
+  showEmptyState(trigger) {
     const rect = this.getEditorCursorRect();
     this.dropdownComponent.show([
-      { __message: 'Start typing to search...' }
+      { __message: `Start typing to search ${trigger === '@' ? 'users' : 'courses'}...` }
     ], this.editorElement, rect);
     this.isActive = true;
   }
 
   /**
-   * Search for users by query
+   * Search for mentions (users, courses, everyone)
    */
-  async searchUsers(query) {
+  async searchMentions(query, trigger) {
     if (!query) {
-      this.showEmptyState();
+      this.showEmptyState(trigger);
       return;
     }
 
     try {
-      const response = await fetch(
-        `${this.options.apiEndpoint}?query=${encodeURIComponent(query)}&limit=${this.options.maxResults}`,
-        {
-          headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          }
+      const url = `${this.options.apiEndpoint}?query=${encodeURIComponent(query)}&trigger=${encodeURIComponent(trigger)}&limit=${this.options.maxResults}`;
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         }
-      );
+      });
 
       if (!response.ok) {
-        console.error('User search failed:', response.statusText);
+        console.error(`[MentionHandler] Mention search failed: ${response.statusText}`);
         this.closeMentionDropdown();
         return;
       }
 
       const data = await response.json();
-      this.users = data.users || [];
+      
+      // Filter results based on current trigger
+      let filteredResults = [];
+      
+      if (trigger === '@') {
+        // For @ trigger, show users and everyone
+        filteredResults = [...(data.users || []), ...(data.everyone || [])];
+      } else if (trigger === '#') {
+        // For # trigger, show courses
+        filteredResults = data.courses || [];
+      }
+      
+      this.results = filteredResults;
 
       const rect = this.getEditorCursorRect();
 
-      if (this.users.length === 0) {
+      if (filteredResults.length === 0) {
         this.dropdownComponent.show([
-          { __message: 'No users found' }
+          { __message: `No ${trigger === '@' ? 'users' : 'courses'} found` }
         ], this.editorElement, rect);
         return;
       }
 
       this.selectedIndex = 0;
-      this.dropdownComponent.show(this.users, this.editorElement, rect);
+      this.dropdownComponent.show(filteredResults, this.editorElement, rect);
       this.isActive = true;
     } catch (error) {
+      console.error(`[MentionHandler] Search error:`, error);
       this.dropdownComponent.show([
         { __message: 'Search error' }
       ], this.editorElement, this.getEditorCursorRect());
@@ -276,7 +305,7 @@ export class MentionHandler {
   }
 
   /**
-   * Update dropdown items based on current users
+   * Update dropdown items based on current results
    */
   updateDropdownItems() {
     // Handled by dropdown component
@@ -289,20 +318,21 @@ export class MentionHandler {
     this.dropdownComponent.hide();
     this.isActive = false;
     this.selectedIndex = -1;
-    this.users = [];
+    this.results = [];
     this.currentQuery = '';
+    this.currentTrigger = null;
     this.mentionStartPos = null;
   }
 
   /**
-   * Select the next user in dropdown
+   * Select the next item in dropdown
    */
   selectNext() {
     this.dropdownComponent.selectNextItem();
   }
 
   /**
-   * Select the previous user in dropdown
+   * Select the previous item in dropdown
    */
   selectPrevious() {
     this.dropdownComponent.selectPrevItem();
@@ -310,13 +340,15 @@ export class MentionHandler {
 
   /**
    * Insert mention into editor
+   * Handles users, courses, and everyone mentions
    */
-  selectUser(user) {
+  selectMention(mention) {
     const element = this.activeElement;
     const cursorPos = this.activeCursorPos;
     const mentionStartPos = this.mentionStartPos;
+    const trigger = this.currentTrigger;
 
-    if (!element || typeof cursorPos !== 'number' || typeof mentionStartPos !== 'number') {
+    if (!element || typeof cursorPos !== 'number' || typeof mentionStartPos !== 'number' || !trigger) {
       this.closeMentionDropdown();
       return;
     }
@@ -327,8 +359,18 @@ export class MentionHandler {
     const beforeMention = text.substring(0, mentionStartPos);
     const afterQuery = text.substring(cursorPos);
     
-    // Create the mention text with space after
-    const mentionText = `@${user.username} `;
+    // Create the mention text with space after, based on mention type
+    let mentionText = '';
+    if (mention.type === 'user') {
+      mentionText = `@${mention.username} `;
+    } else if (mention.type === 'course') {
+      // Use course ID with name to handle courses with spaces
+      // Format: #course_id-coursename (ID is preserved for backend, name for display)
+      mentionText = `#course_${mention.id}-${mention.name} `;
+    } else if (mention.type === 'everyone') {
+      mentionText = `@${mention.name} `;
+    }
+    
     const newText = beforeMention + mentionText + afterQuery;
 
     // Update the element's text
@@ -352,10 +394,11 @@ export class MentionHandler {
 
   /**
    * Select user by username (used when dropdown dispatches selection)
+   * Legacy method - now uses selectMention
    */
   selectUserByUsername(username) {
-    const user = this.users.find(u => u.username === username) || { username };
-    this.selectUser(user);
+    const user = this.results.find(u => u.username === username) || { username, type: 'user' };
+    this.selectMention(user);
   }
 
   /**

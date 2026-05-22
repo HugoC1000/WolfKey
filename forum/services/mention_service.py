@@ -51,6 +51,66 @@ def parse_editorjs_text_mentions(content: dict) -> List[Dict]:
     return mentions
 
 
+def parse_editorjs_course_mentions(content: dict) -> List[Dict]:
+    """
+    Extract #course mentions from EditorJS text blocks.
+    
+    Searches through all text blocks and finds patterns like:
+    - #course_id-name (new format with ID)
+    - #coursename (old format for backwards compatibility)
+    
+    Returns list of dicts with: {course_id, course_name, block_idx, start_pos, length}
+    
+    Args:
+        content (dict): EditorJS content with 'blocks' key
+    
+    Returns:
+        list[dict]: List of course mentions found
+    """
+    if not isinstance(content, dict) or 'blocks' not in content:
+        return []
+    
+    mentions = []
+    # Match both new format #course_id-name and old format #name
+    course_pattern = re.compile(r'#(course_(\d+)-[^#\s]+|[\w\s.-]+?)(?=\s|$|[^a-zA-Z0-9\s._-])')
+    
+    for block_idx, block in enumerate(content.get('blocks', [])):
+        if not isinstance(block, dict):
+            continue
+        
+        # Course mentions are in paragraph blocks
+        if block.get('type') not in ('paragraph', 'heading'):
+            continue
+        
+        data = block.get('data', {})
+        text = data.get('text', '')
+        
+        if not text:
+            continue
+        
+        # Find all #course mentions
+        for match in course_pattern.finditer(text):
+            course_identifier = match.group(1).strip()
+            course_id = None
+            course_name = course_identifier
+            
+            # Check if it's the new format: course_id-name
+            id_match = re.match(r'^course_(\d+)-(.+)$', course_identifier)
+            if id_match:
+                course_id = int(id_match.group(1))
+                course_name = id_match.group(2)
+            
+            mentions.append({
+                'course_id': course_id,
+                'course_name': course_name,
+                'block_idx': block_idx,
+                'start_pos': match.start(),
+                'length': len(match.group(0))
+            })
+    
+    return mentions
+
+
 def parse_editorjs_mark_mentions(content: dict) -> List[Dict]:
     """
     Extract mentions that are already stored as EditorJS marks.
@@ -342,6 +402,82 @@ def fetch_mentions_for_content(content_obj) -> List[Dict]:
         }
         for mention in mentions
     ]
+
+
+def search_mentions(user, query: str, limit: int = 5, trigger: str = '') -> Dict:
+    """
+    Search for mentions across users, courses, and "everyone" (admin-only).
+    
+    Args:
+        user: The requesting user object
+        query (str): Search query string
+        limit (int): Maximum results per category
+        trigger (str): '@' for users/everyone, '#' for courses, '' to search all
+    
+    Returns:
+        dict with keys: 'users', 'courses', 'everyone'
+    """
+    from forum.services.search_services import search_users
+    from forum.services.course_services import search_courses
+    
+    results = {
+        'users': [],
+        'courses': [],
+        'everyone': []
+    }
+    
+    query = query.strip()
+    if not query:
+        return results
+    
+    # Search for users (when trigger is '@' or not specified)
+    if trigger in ('@', ''):
+        try:
+            searched_users = search_users(user, query)[:limit]
+            results['users'] = [
+                {
+                    'id': u.id,
+                    'username': u.username,
+                    'first_name': u.first_name,
+                    'last_name': u.last_name,
+                    'full_name': u.get_full_name() or u.username,
+                    'profile_picture_url': u.userprofile.profile_picture.url if (hasattr(u, 'userprofile') and u.userprofile and u.userprofile.profile_picture) else None,
+                    'type': 'user'
+                }
+                for u in searched_users
+            ]
+        except Exception as e:
+            pass
+    
+    # Search for courses (when trigger is '#' or not specified)
+    if trigger in ('#', ''):
+        try:
+            courses = search_courses(query, limit)
+            
+            results['courses'] = [
+                {
+                    'id': c.id,
+                    'name': c.name,
+                    'category': getattr(c, 'category', 'Course'),
+                    'type': 'course'
+                }
+                for c in courses
+            ]
+        except Exception as e:
+            pass
+    
+    # Add "everyone" option if user is admin (when trigger is '@' or not specified)
+    if trigger in ('@', ''):
+        if user.is_authenticated and (user.is_staff or user.is_superuser):
+            results['everyone'] = [
+                {
+                    'id': None,
+                    'name': 'everyone',
+                    'type': 'everyone'
+                }
+            ]
+    
+    return results
 
 
 # Backwards-compatible wrappers (old names kept for callers). Prefer the new names above.
