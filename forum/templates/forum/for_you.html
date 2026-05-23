@@ -1,27 +1,27 @@
 {% extends 'forum/base.html' %}
 
 {% block head %}
-{%load static %}
+{% load static %}
     <link rel="stylesheet" href="{% static 'forum/css/schedule.css' %}"> 
     <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
     <script src="{% static 'forum/js/schedule.js' %}" defer></script>
 {% endblock %}
 {% block content %}
     <div class="d-flex justify-content-center align-items-center mb-2">
-        <h1 class="fade-text" id="animated-text" style = "display: none;">{{ greeting }}</h1>
+        <h1 class="fade-text" id="animated-text" style="display: none;">{{ greeting }}</h1>
     </div>
 
     <!-- Schedule-->
-    <div class="row" style = "margin-bottom: 3rem;">
-        <div class="col-md-8" style = "width: 100%;">
-            <div class="d-flex flex-wrap gap-4">
+    <div class="row" style="margin-bottom: 3rem;">
+        <div class="col-12">
+            <div class="d-flex flex-wrap gap-4 align-items-start">
                 <!-- Today's Schedule -->
                 <div class="flex-fill">
-                    <div class = "card">
+                    <div class="card">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <h3 style = "font-size: 1.5rem;">Today's Schedule</h3>
+                            <h3 style="font-size: 1.5rem;">Today's Schedule</h3>
                             <span class="text-muted" id="current-date">
-                                {{ current_date}}
+                                {{ current_date }}
                             </span>
                         </div>
                         <div class="d-flex gap-2 mb-2 justify-content-end flex-wrap" id="today-badges">
@@ -30,14 +30,13 @@
                             <li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading schedule...</li>
                         </ul>
                     </div>
-
                 </div>
-    
+
                 <!-- Tomorrow's Schedule -->
                 <div class="flex-fill">
-                    <div class = "card">
+                    <div class="card">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <h3 style = "font-size: 1.5rem;" id="schedule-title">{{ schedule_title }}</h3>
+                            <h3 style="font-size: 1.5rem;" id="schedule-title">{{ schedule_title }}</h3>
                             <div class="d-flex align-items-center gap-2">
                                 <button id="prev-day" class="btn btn-sm btn-outline-secondary" title="Previous day">
                                     <i class="fas fa-chevron-left"></i>
@@ -55,32 +54,33 @@
                         </ul>
                     </div>
                 </div>
-            </div>
-        </div>
-        <!-- Countdown -->
-        <div class="col-md-4 d-none d-md-block">
-            <div class="card text-center" id="school-countdown-card">
-                <h3 style="font-size: 1.5rem; margin-bottom: 0.25rem;">School Ends In</h3>
-                <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">June 11, 2026</p>
-                <div class="d-flex justify-content-center gap-3" id="countdown-display">
-                    <div class="countdown-unit">
-                        <span class="countdown-number" id="cd-days">--</span>
-                        <span class="countdown-label">Days</span>
-                    </div>
-                    <div class="countdown-unit">
-                        <span class="countdown-number" id="cd-hours">--</span>
-                        <span class="countdown-label">Hours</span>
-                    </div>
-                    <div class="countdown-unit">
-                        <span class="countdown-number" id="cd-minutes">--</span>
-                        <span class="countdown-label">Mins</span>
-                    </div>
-                    <div class="countdown-unit">
-                        <span class="countdown-number" id="cd-seconds">--</span>
-                        <span class="countdown-label">Secs</span>
+
+                <!-- Countdown-->
+                <div class="flex-fill d-none d-md-block" style="max-width: 340px;">
+                    <div class="card text-center" id="school-countdown-card">
+                        <h3 style="font-size: 1.5rem; margin-bottom: 0.25rem;">School Ends In</h3>
+                        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">June 11, 2026</p>
+                        <div class="d-flex justify-content-center gap-3" id="countdown-display">
+                            <div class="countdown-unit">
+                                <span class="countdown-number" id="cd-days">--</span>
+                                <span class="countdown-label">Days</span>
+                            </div>
+                            <div class="countdown-unit">
+                                <span class="countdown-number" id="cd-hours">--</span>
+                                <span class="countdown-label">Hours</span>
+                            </div>
+                            <div class="countdown-unit">
+                                <span class="countdown-number" id="cd-minutes">--</span>
+                                <span class="countdown-label">Mins</span>
+                            </div>
+                            <div class="countdown-unit">
+                                <span class="countdown-number" id="cd-seconds">--</span>
+                                <span class="countdown-label">Secs</span>
+                            </div>
+                        </div>
+                        <p id="cd-done-msg" style="display:none; font-size: 1.1rem; font-weight: 600; color: #2ecc71;">School's out! 🎉</p>
                     </div>
                 </div>
-                <p id="cd-done-msg" style="display:none; font-size: 1.1rem; font-weight: 600; color: #2ecc71;">School's out! 🎉</p>
             </div>
         </div>
     </div>
@@ -97,7 +97,7 @@
     </div>
 
     <div class="text-center mt-4">
-        <div class = "card" style ="margin: auto; max-width: 776px;">
+        <div class="card" style="margin: auto; max-width: 776px;">
             <p> You've reached the end. </p>
             <a href="{% url 'all_posts' %}" class="btn btn-primary">
                 <i class="fas fa-search me-2"></i> Explore
