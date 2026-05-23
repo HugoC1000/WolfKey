@@ -156,18 +156,21 @@ def edit_post(request, post_id):
             if content:
                 content = json.loads(content)
             detect_bad_words(content)  # This will raise ValueError if bad words are detected
-            # Update post
-            post.content = content
-            
-            # Handle courses
-            course_ids = request.POST.getlist('courses')
-            if course_ids:
-                post.courses.set(course_ids)
-            
-            post.title = request.POST.get('title', post.title)
-            post.is_anonymous = True if request.POST.get("is_anonymous") == 'on' else False
-            post.allow_teacher = True if request.user.is_teacher else (True if request.POST.get("allow_teacher") == 'on' else False)
-            post.save()
+
+            # Use service so mention diffing + mention notifications run on edits.
+            update_data = {
+                'content': content,
+                'title': request.POST.get('title', post.title),
+                'is_anonymous': True if request.POST.get("is_anonymous") == 'on' else False,
+                'allow_teacher': True if request.user.is_teacher else (True if request.POST.get("allow_teacher") == 'on' else False),
+                'courses': request.POST.getlist('courses')
+            }
+            result = update_post_service(request.user, post_id, update_data)
+
+            if 'error' in result:
+                messages.error(request, result['error'])
+                return redirect('edit_post', post_id=post.id)
+
             messages.success(request, 'Post updated successfully!')
             return redirect('post_detail', post_id=post.id)
         except ValueError as e:

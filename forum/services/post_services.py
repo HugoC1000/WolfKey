@@ -116,7 +116,6 @@ def create_post_service(user, data):
         )
         post.save()
 
-        # Update mentions in the post content
         update_mentions(post, content, old_content=None)
 
         course_ids = data.get('courses', [])

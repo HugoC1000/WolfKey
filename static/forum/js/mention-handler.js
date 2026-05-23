@@ -117,6 +117,11 @@ export class MentionHandler {
    * Handle input in editor blocks
    */
   handleInput(e) {
+    if (this.suppressNextInput) {
+      this.suppressNextInput = false;
+      return;
+    }
+
     const element = e.target;
     const text = element.textContent || '';
     const selection = window.getSelection();
@@ -168,7 +173,9 @@ export class MentionHandler {
     const query = textBeforeCursor.substring(queryStart);
 
     // Stop mention search if there's a space in the query (user has moved on)
-    if (query.includes(' ')) {
+    // For '@' trigger we treat a space as the user moving on; for '#' (courses)
+    // allow spaces so multi-word course names can be searched/selected.
+    if (trigger === '@' && query.includes(' ')) {
       this.closeMentionDropdown();
       return;
     }
@@ -315,6 +322,7 @@ export class MentionHandler {
    * Close the mention dropdown
    */
   closeMentionDropdown() {
+    clearTimeout(this.debounceTimer);
     this.dropdownComponent.hide();
     this.isActive = false;
     this.selectedIndex = -1;
@@ -384,12 +392,12 @@ export class MentionHandler {
     const newCursorPos = beforeMention.length + mentionText.length;
     this.setCursorInElement(element, newCursorPos);
 
-    // Trigger input event to update Editor.js
-    element.dispatchEvent(new Event('input', { bubbles: true }));
+    // Close dropdown and reset handler state before triggering input
+    this.closeMentionDropdown();
 
-    this.dropdownComponent.hide();
-    this.activeElement = null;
-    this.activeCursorPos = null;
+    // Trigger input event to update Editor.js
+    this.suppressNextInput = true;
+    element.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   /**

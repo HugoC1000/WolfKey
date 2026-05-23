@@ -169,7 +169,6 @@ class MentionDropdown {
         this.dispatchMentionSelection(item, editorElement);
       });
     });
-    console.log('[MentionDropdown] Show method completed successfully');
   }
 
   /**
@@ -203,6 +202,7 @@ class MentionDropdown {
 
     const event = new CustomEvent('mention-selected', { detail });
     editorElement.dispatchEvent(event);
+    this.hide();
   }
 
   /**

@@ -1,0 +1,12 @@
+Hello {recipient_full_name},
+
+Your course was mentioned in a post: {post_title}
+
+Mentioned courses: {courses}
+Mentioned by: {mention_author}
+
+You can view it here:
+{site_url}{content_url}
+
+Best regards,
+WolfKey Team

@@ -23,7 +23,7 @@ def parse_editorjs_text_mentions(content: dict) -> List[Dict]:
         return []
     
     mentions = []
-    mention_pattern = re.compile(r'@(\w+)')
+    mention_pattern = re.compile(r'@([\w.-]+)')
     
     for block_idx, block in enumerate(content.get('blocks', [])):
         if not isinstance(block, dict):
@@ -47,7 +47,6 @@ def parse_editorjs_text_mentions(content: dict) -> List[Dict]:
                 'start_pos': match.start(),
                 'length': len(match.group(0))  # Length of "@username"
             })
-    
     return mentions
 
 
@@ -148,24 +147,6 @@ def parse_editorjs_mark_mentions(content: dict) -> List[Dict]:
     return mentions
 
 
-def get_user_by_username(username: str) -> Optional[object]:
-    """
-    Check if a mentioned user exists.
-    
-    Args:
-        username (str): Username to validate
-    
-    Returns:
-        User | None: User object if found, None otherwise
-    """
-    try:
-        # Try to find by username first
-        user = User.objects.get(username=username)
-        return user
-    except User.DoesNotExist:
-        return None
-
-
 def resolve_mentioned_users_from_content(content: dict) -> List[object]:
     """
     Extract valid User objects for all mentions in content.
@@ -179,23 +160,33 @@ def resolve_mentioned_users_from_content(content: dict) -> List[object]:
     Returns:
         list[User]: List of valid User objects who are mentioned
     """
-    # Prefer the structured parser name; wrappers keep older names available.
+    # Prefer structured mention marks when available, then fall back to text parsing.
+    mark_mentions = parse_editorjs_mark_mentions(content)
     text_mentions = parse_editorjs_text_mentions(content)
 
     valid_users = []
-    seen_usernames = set()
+    seen_user_ids = set()
 
+    # First pass: resolve from mark user IDs.
+    for mention in mark_mentions:
+        user = User.objects.filter(id=mention.get('user_id')).first()
+        if not user:
+            continue
+        if user.id in seen_user_ids:
+            continue
+        valid_users.append(user)
+        seen_user_ids.add(user.id)
+
+    # Second pass: fallback text parsing for legacy/plain @username mentions.
     for mention in text_mentions:
         username = mention['username']
 
-        # Skip duplicates
-        if username in seen_usernames:
-            continue
-
-        user = get_user_by_username(username)
+        user = User.objects.filter(username__iexact=username).first()
         if user:
+            if user.id in seen_user_ids:
+                continue
             valid_users.append(user)
-            seen_usernames.add(username)
+            seen_user_ids.add(user.id)
 
     return valid_users
 
@@ -223,7 +214,7 @@ def add_editorjs_mention_marks(content: dict, mentions: List[object]) -> Dict:
     # Build a map of username -> user_id for quick lookups
     mention_map = {user.username: user.id for user in mentions}
     
-    mention_pattern = re.compile(r'@(\w+)')
+    mention_pattern = re.compile(r'@([\w.-]+)')
     
     for block in content.get('blocks', []):
         if not isinstance(block, dict):
@@ -292,8 +283,13 @@ def update_mentions(content_obj, new_content: dict, old_content: Optional[dict] 
         new_content (dict): New EditorJS content with mentions
         old_content (dict | None): Previous EditorJS content (for edits)
     """
-    from forum.services.notification_services import send_mention_notification_service
-    
+    from forum.services.notification_services import (
+        send_mention_notification_service,
+        send_channel_notification_service,
+        send_everyone_notification_service
+    )
+    from forum.models import Course
+
     # Determine content type and ID
     if isinstance(content_obj, Post):
         content_type = 'post'
@@ -304,6 +300,7 @@ def update_mentions(content_obj, new_content: dict, old_content: Optional[dict] 
     else:
         return
     
+    # ===== HANDLE USER MENTIONS =====
     # Get mentioned users from new content
     new_mentions = resolve_mentioned_users_from_content(new_content)
     new_mention_ids = {user.id for user in new_mentions}
@@ -356,6 +353,69 @@ def update_mentions(content_obj, new_content: dict, old_content: Optional[dict] 
                 mention_author=content_obj.author,
                 content_object=content_obj,
                 is_anonymous=getattr(content_obj, 'is_anonymous', False)
+            )
+    
+    # ===== HANDLE CHANNEL (COURSE) MENTIONS =====
+    new_course_mentions = parse_editorjs_course_mentions(new_content)
+    old_course_mentions = []
+    if old_content:
+        old_course_mentions = parse_editorjs_course_mentions(old_content)
+    
+    # Extract course objects from new mentions
+    new_mentioned_courses = []
+    new_course_ids = set()
+    for mention in new_course_mentions:
+        try:
+            if mention.get('course_id'):
+                # New format with course ID
+                course = Course.objects.get(id=mention['course_id'])
+            else:
+                # Old format with course name - search by name
+                course = Course.objects.get(name__iexact=mention['course_name'])
+            
+            if course.id not in new_course_ids:
+                new_mentioned_courses.append(course)
+                new_course_ids.add(course.id)
+        except Course.DoesNotExist:
+            pass
+    
+    # Extract course objects from old mentions (for comparison)
+    old_course_ids = set()
+    if old_content:
+        for mention in old_course_mentions:
+            try:
+                if mention.get('course_id'):
+                    course = Course.objects.get(id=mention['course_id'])
+                else:
+                    course = Course.objects.get(name__iexact=mention['course_name'])
+                old_course_ids.add(course.id)
+            except Course.DoesNotExist:
+                pass
+    # Send channel notifications only for newly mentioned courses
+    newly_mentioned_course_ids = new_course_ids - old_course_ids
+    if newly_mentioned_course_ids:
+        newly_mentioned_courses = [c for c in new_mentioned_courses if c.id in newly_mentioned_course_ids]
+        if newly_mentioned_courses:
+            send_channel_notification_service(
+                content_object=content_obj,
+                mention_author=content_obj.author,
+                courses=newly_mentioned_courses
+            )
+    
+    # ===== HANDLE EVERYONE MENTIONS =====
+    # Check if @everyone is mentioned in new content
+    new_everyone_mentioned = '@everyone' in str(new_content)
+    old_everyone_mentioned = False
+    if old_content:
+        old_everyone_mentioned = '@everyone' in str(old_content)
+    
+    # Send everyone notification only if newly mentioned (not in old_content)
+    if new_everyone_mentioned and not old_everyone_mentioned:
+        # Only send if user is admin/staff
+        if content_obj.author and (content_obj.author.is_staff or content_obj.author.is_superuser):
+            send_everyone_notification_service(
+                content_object=content_obj,
+                mention_author=content_obj.author
             )
 
 
