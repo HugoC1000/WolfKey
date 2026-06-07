@@ -119,6 +119,7 @@ from forum.api.auth import(
     api_logout,
     api_delete_account
 )
+from forum.api.mentions import mentions_autocomplete_api
 from forum.views.auth_views import register, login_view, logout_view
 
 
@@ -325,6 +326,7 @@ urlpatterns = [
     path('api/auth/verify-token/', api_verify_token, name='api_verify_token'),
     path('api/auth/delete-account/', api_delete_account, name='api_delete_account'),
     path('api/upload-image/', api_upload_image, name='api_upload_image'),
+    path('api/mentions/autocomplete/', mentions_autocomplete_api, name='mentions_autocomplete_api'),
     
     path('schedules/daily/<str:target_date>/', daily_schedule_view, name='daily_schedule_view'),
     path('user-blocks/<int:user_id>/', user_blocks_view, name='user_schedule_view'),
