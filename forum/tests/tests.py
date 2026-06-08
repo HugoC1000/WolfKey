@@ -288,22 +288,30 @@ class MentionAutocompleteAPITests(TestCase):
         )
         self.course = Course.objects.create(name='Biology', category='Science')
 
-    def test_mentions_autocomplete_returns_users_and_courses(self):
+    def test_mentions_users_autocomplete_returns_users(self):
         self.client.login(school_email='mention@wpga.ca', password='mentionpass')
 
-        response = self.client.get(reverse('mentions_autocomplete_api') + '?query=mi&limit=5')
+        response = self.client.get(reverse('mentions_users_autocomplete_api') + '?query=mi&limit=5')
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertIn('users', payload)
-        self.assertIn('courses', payload)
-        self.assertIn('everyone', payload)
         self.assertTrue(any(user['username'] == 'mentionuser' for user in payload['users']))
+
+    def test_mentions_courses_autocomplete_returns_courses(self):
+        self.client.login(school_email='mention@wpga.ca', password='mentionpass')
+
+        response = self.client.get(reverse('mentions_courses_autocomplete_api') + '?query=bio&limit=5')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn('courses', payload)
+        self.assertTrue(any(course['name'] == 'Biology' for course in payload['courses']))
 
     def test_mentions_autocomplete_includes_everyone_for_teacher(self):
         self.client.login(school_email='teach@wpga.ca', password='teachpass')
 
-        response = self.client.get(reverse('mentions_autocomplete_api') + '?query=eve')
+        response = self.client.get(reverse('mentions_users_autocomplete_api') + '?query=eve')
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
@@ -312,7 +320,7 @@ class MentionAutocompleteAPITests(TestCase):
     def test_mentions_autocomplete_hides_everyone_for_non_teacher(self):
         self.client.login(school_email='mention@wpga.ca', password='mentionpass')
 
-        response = self.client.get(reverse('mentions_autocomplete_api') + '?query=eve')
+        response = self.client.get(reverse('mentions_users_autocomplete_api') + '?query=eve')
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()

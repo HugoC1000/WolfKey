@@ -30,22 +30,52 @@ def _search_courses(query, limit):
     )
 
 
-@api_view(['GET'])
-def mentions_autocomplete_api(request):
-    query = request.GET.get('query', '').strip()
-
+def _parse_limit(request, default=5):
     try:
-        limit = int(request.GET.get('limit', 5))
+        limit = int(request.GET.get('limit', default))
     except (TypeError, ValueError):
-        limit = 5
+        limit = default
 
-    limit = max(1, min(limit, 10))
+    return max(1, min(limit, 10))
+
+
+def _everyone_results(request, query):
+    everyone_results = []
+    normalized_query = query.lower().lstrip('@')
+
+    if request.user.is_authenticated and getattr(request.user, 'is_teacher', False):
+        if 'everyone'.startswith(normalized_query):
+            everyone_results.append({
+                'id': None,
+                'name': 'everyone',
+                'type': 'everyone',
+            })
+
+    return everyone_results
+
+
+def _mentions_users_payload(request):
+    query = request.GET.get('query', '').strip()
+    limit = _parse_limit(request)
 
     if not query:
-        return Response({'users': [], 'courses': [], 'everyone': []})
+        return Response({'users': [], 'everyone': []})
 
     users = search_users(request.user, query)[:limit]
     user_serializer = UserSerializer(users, many=True, context={'request': request})
+
+    return Response({
+        'users': user_serializer.data,
+        'everyone': _everyone_results(request, query),
+    })
+
+
+def _mentions_courses_payload(request):
+    query = request.GET.get('query', '').strip()
+    limit = _parse_limit(request)
+
+    if not query:
+        return Response({'courses': []})
 
     courses = _search_courses(query, limit)
     course_results = [
@@ -58,18 +88,31 @@ def mentions_autocomplete_api(request):
         for course in courses
     ]
 
-    everyone_results = []
-    normalized_query = query.lower().lstrip('@')
-    if request.user.is_authenticated and getattr(request.user, 'is_teacher', False):
-        if 'everyone'.startswith(normalized_query):
-            everyone_results.append({
-                'id': None,
-                'name': 'everyone',
-                'type': 'everyone',
-            })
+    return Response({'courses': course_results})
+
+
+@api_view(['GET'])
+def mentions_users_autocomplete_api(request):
+    return _mentions_users_payload(request)
+
+
+@api_view(['GET'])
+def mentions_courses_autocomplete_api(request):
+    return _mentions_courses_payload(request)
+
+
+@api_view(['GET'])
+def mentions_autocomplete_api(request):
+    query = request.GET.get('query', '').strip()
+
+    if not query:
+        return Response({'users': [], 'courses': [], 'everyone': []})
+
+    users_response = _mentions_users_payload(request).data
+    courses_response = _mentions_courses_payload(request).data
 
     return Response({
-        'users': user_serializer.data,
-        'courses': course_results,
-        'everyone': everyone_results,
+        'users': users_response.get('users', []),
+        'courses': courses_response.get('courses', []),
+        'everyone': users_response.get('everyone', []),
     })
