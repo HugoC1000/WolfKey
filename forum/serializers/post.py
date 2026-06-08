@@ -22,6 +22,7 @@ class PostListSerializer(serializers.ModelSerializer):
     first_image_url = serializers.SerializerMethodField()
     poll_data = serializers.SerializerMethodField()
     followers_count = serializers.SerializerMethodField()
+    mentions = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
@@ -30,7 +31,7 @@ class PostListSerializer(serializers.ModelSerializer):
             'created_at', 'courses', 'reply_count', 'views', 'like_count', 
             'is_liked', 'solution_count', 'comment_count', 'solved', 'is_following',
             'first_image_url', 'is_anonymous', 'allow_teacher', 'poll_data',
-            'followers_count'
+            'followers_count', 'mentions'
         ]
     
     def get_author(self, obj):
@@ -99,6 +100,11 @@ class PostListSerializer(serializers.ModelSerializer):
     def get_followers_count(self, obj):
         return obj.followers.count()
 
+    def get_mentions(self, obj):
+        """Get all mentions in this post"""
+        from forum.services.mention_service import fetch_mentions_for_content
+        return fetch_mentions_for_content(obj)
+
 
 class PostDetailSerializer(serializers.ModelSerializer):
     """Serializer for individual post views"""
@@ -115,6 +121,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
     poll_options = serializers.SerializerMethodField()
     poll_info = serializers.SerializerMethodField()
     user_vote = serializers.SerializerMethodField()
+    mentions = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
@@ -122,7 +129,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
             'id', 'title', 'content', 'author', 'courses', 'created_at',
             'solved', 'views', 'is_anonymous', 'allow_teacher', 'like_count', 'is_liked',
             'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
-            'is_following', 'poll_options', 'poll_info', 'user_vote'
+            'is_following', 'poll_options', 'poll_info', 'user_vote', 'mentions'
         ]
     
     def get_author(self, obj):
@@ -236,6 +243,11 @@ class PostDetailSerializer(serializers.ModelSerializer):
         """Get the current user's vote on this poll if applicable"""
         poll_data = self._get_poll_data(obj)
         return poll_data.get('user_vote') if poll_data else None
+
+    def get_mentions(self, obj):
+        """Get all mentions in this post"""
+        from forum.services.mention_service import fetch_mentions_for_content
+        return fetch_mentions_for_content(obj)
 
 
 class AnonPostDetailSerializer(serializers.ModelSerializer):

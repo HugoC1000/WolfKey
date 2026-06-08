@@ -119,6 +119,12 @@ from forum.api.auth import(
     api_logout,
     api_delete_account
 )
+from forum.api.mentions import (
+    mentions_autocomplete_api,
+    mentions_courses_autocomplete_api,
+    mentions_users_autocomplete_api,
+)
+from forum.views.mention_views import mention_search
 from forum.views.auth_views import register, login_view, logout_view
 
 
@@ -284,6 +290,8 @@ urlpatterns = [
     path('match/', course_comparer, name='course_comparer'),
     path('atlas/', timetable_assigner, name='timetable_assigner'),
     path('api/search-users/', search_users_api, name='search_users_api'),
+    path('mentions/search/', mention_search, name='mention_search'),
+    path('api/mentions/autocomplete/', mentions_autocomplete_api, name='api_mentions_autocomplete'),
 
     # Saved posts URLs
     path('followed-posts/', followed_posts, name='followed_posts'),
@@ -325,6 +333,9 @@ urlpatterns = [
     path('api/auth/verify-token/', api_verify_token, name='api_verify_token'),
     path('api/auth/delete-account/', api_delete_account, name='api_delete_account'),
     path('api/upload-image/', api_upload_image, name='api_upload_image'),
+    path('api/mentions/autocomplete/', mentions_autocomplete_api, name='mentions_autocomplete_api'),
+    path('api/mentions/users/', mentions_users_autocomplete_api, name='mentions_users_autocomplete_api'),
+    path('api/mentions/courses/', mentions_courses_autocomplete_api, name='mentions_courses_autocomplete_api'),
     
     path('schedules/daily/<str:target_date>/', daily_schedule_view, name='daily_schedule_view'),
     path('user-blocks/<int:user_id>/', user_blocks_view, name='user_schedule_view'),

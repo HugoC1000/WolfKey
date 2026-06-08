@@ -26,60 +26,81 @@ def get_user_courses(user):
     
     return experienced_courses, help_needed_courses
 
-def course_search(request):
-    query = request.GET.get('q', '').strip().lower()
+
+def search_courses(query, limit=10):
+    """
+    Search for courses by name and aliases using trigram similarity.
+    
+    Args:
+        query (str): Search query
+        limit (int): Maximum number of results
+    
+    Returns:
+        list[Course]: List of Course objects matching the query
+    """
+    query = query.strip().lower()
     
     if not query:
-        courses = Course.objects.all().distinct()[:10]
-    else:
-        tokens = query.split()
+        return list(Course.objects.all().distinct()[:limit])
+    
+    tokens = query.split()
 
-        # Construct similarity annotation (weighted aliases)
-        similarity_score = None
-        for token in tokens:
-            sim = TrigramSimilarity('name', token) + TrigramSimilarity('aliases__name', token) * 1.25
-            similarity_score = sim if similarity_score is None else similarity_score + sim
+    # Construct similarity annotation (weighted aliases)
+    similarity_score = None
+    for token in tokens:
+        sim = TrigramSimilarity('name', token) + TrigramSimilarity('aliases__name', token) * 1.25
+        similarity_score = sim if similarity_score is None else similarity_score + sim
 
-        # Build prefix (istartswith) Q object
-        starts_with_q = reduce(
+    # Build prefix (istartswith) Q object
+    starts_with_q = reduce(
+        or_,
+        [Q(name__istartswith=token) | Q(aliases__name__istartswith=token) for token in tokens]
+    )
+
+    # Build starts_with_score boost: exact prefix match on full query string
+    starts_with_score = Case(
+        When(name__istartswith=query, then=Value(2)),
+        When(aliases__name__istartswith=query, then=Value(3)),
+        default=Value(0),
+        output_field=IntegerField()
+    )
+
+    # First pass: fetch matching IDs with deduplication
+    course_ids = Course.objects.annotate(
+        similarity=similarity_score,
+        starts_with_score=starts_with_score
+    ).filter(
+        starts_with_q | Q(similarity__gt=0)
+    ).order_by(
+        '-starts_with_score', '-similarity'
+    ).values_list('id', flat=True).distinct()[:limit]
+
+    # Fetch full course objects (deduplicated and ordered)
+    courses = Course.objects.filter(id__in=course_ids)
+    course_id_list = list(course_ids)  # preserve order
+    courses = sorted(courses, key=lambda c: course_id_list.index(c.id))
+
+    # Fallback if nothing matched
+    if not courses:
+        fallback_filter = reduce(
             or_,
-            [Q(name__istartswith=token) | Q(aliases__name__istartswith=token) for token in tokens]
+            [Q(name__icontains=token) | Q(aliases__name__icontains=token) for token in tokens]
         )
-
-        # Build starts_with_score boost: exact prefix match on full query string
-        starts_with_score = Case(
-            When(name__istartswith=query, then=Value(2)),
-            When(aliases__name__istartswith=query, then=Value(3)),
-            default=Value(0),
-            output_field=IntegerField()
-        )
-
-        # First pass: fetch matching IDs with deduplication
-        course_ids = Course.objects.annotate(
-            similarity=similarity_score,
-            starts_with_score=starts_with_score
-        ).filter(
-            starts_with_q | Q(similarity__gt=0)
-        ).order_by(
-            '-starts_with_score', '-similarity'
-        ).values_list('id', flat=True).distinct()[:10]
-
-        # Fetch full course objects (deduplicated and ordered)
-        courses = Course.objects.filter(id__in=course_ids)
-        course_id_list = list(course_ids)  # preserve order
+        fallback_ids = Course.objects.filter(fallback_filter).values_list('id', flat=True).distinct()[:limit]
+        courses = Course.objects.filter(id__in=fallback_ids)
+        course_id_list = list(fallback_ids)
         courses = sorted(courses, key=lambda c: course_id_list.index(c.id))
+    
+    return courses
 
-        # Fallback if nothing matched
-        if not courses:
-            fallback_filter = reduce(
-                or_,
-                [Q(name__icontains=token) | Q(aliases__name__icontains=token) for token in tokens]
-            )
-            fallback_ids = Course.objects.filter(fallback_filter).values_list('id', flat=True).distinct()[:10]
-            courses = Course.objects.filter(id__in=fallback_ids)
-            course_id_list = list(fallback_ids)
-            courses = sorted(courses, key=lambda c: course_id_list.index(c.id))
 
+def course_search(request):
+    """API endpoint for course search"""
+    query = request.GET.get('q', '').strip()
+    limit = int(request.GET.get('limit', 10))
+    
+    courses = search_courses(query, limit)
+    
     data = [{
         "id": course.id,
         "name": course.name,

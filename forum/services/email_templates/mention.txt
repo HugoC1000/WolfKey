@@ -1,0 +1,11 @@
+Hello {recipient_full_name},
+
+You were mentioned in a {content_type}:
+
+{content_display}
+
+You can view it here:
+{site_url}{content_url}
+
+Best regards,
+WolfKey Team

@@ -3,6 +3,7 @@ from django.db.models import F, Case, When, IntegerField
 from forum.models import Post, Course, PostLike, FollowedPost, Poll, PollOption
 from forum.services.utils import detect_bad_words, selective_quote_replace
 from forum.services.notification_services import send_course_notifications_service
+from forum.services.mention_service import update_mentions
 import json
 import logging
 
@@ -115,6 +116,8 @@ def create_post_service(user, data):
         )
         post.save()
 
+        update_mentions(post, content, old_content=None)
+
         course_ids = data.get('courses', [])
         if course_ids:
             courses = Course.objects.filter(id__in=course_ids)
@@ -138,6 +141,9 @@ def update_post_service(user, post_id, data):
         if post.author != user:
             return {'error': 'Permission denied'}
 
+        # Store old content for mention comparison
+        old_content = post.content if 'content' in data else None
+
         if 'content' in data:
             content = data['content']
             detect_bad_words(content)
@@ -158,6 +164,11 @@ def update_post_service(user, post_id, data):
             post.courses.set(courses)
 
         post.save()
+
+        # Update mentions if content was updated
+        if 'content' in data:
+            update_mentions(post, data['content'], old_content=old_content)
+
         return {'message': 'Post updated successfully'}
     except ValueError as e:
         return {'error': f"{str(e)}"}

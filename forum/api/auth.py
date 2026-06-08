@@ -120,7 +120,8 @@ def search_users_api(request):
     """Search for users API endpoint"""
     try:
         query = request.GET.get('query', '').strip()
-        users = search_users(request.user, query)[:10]
+        limit = int(request.GET.get('limit', 5))
+        users = search_users(request.user, query)[:limit]
 
         serializer = UserSerializer(users, many=True, context={'request': request})
         

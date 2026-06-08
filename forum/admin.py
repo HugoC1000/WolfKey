@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
+from django.utils.html import format_html
 from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, SavedPost, Solution, Course, CourseAlias, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, SavedSolution, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource
 
 
@@ -99,11 +100,11 @@ class UserProfileInline(admin.StackedInline):
     can_delete = False
     verbose_name_plural = 'Profile'
     fk_name = 'user'
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('lunch_card_url', 'created_at', 'updated_at')
     
     fieldsets = (
         (None, {
-            'fields': ('bio', 'profile_picture', 'background_hue', 'points', 'is_moderator', 'wolfnet_password', 'expo_push_token', 'grade_level')
+            'fields': ('bio', 'profile_picture', 'lunch_card_url', 'background_hue', 'points', 'is_moderator', 'wolfnet_password', 'expo_push_token', 'grade_level')
         }),
         ('Course Blocks', {
             'fields': (
@@ -117,6 +118,13 @@ class UserProfileInline(admin.StackedInline):
             'classes': ('collapse',),
         }),
     )
+
+    def lunch_card_url(self, obj):
+        if obj and obj.lunch_card:
+            return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">{}</a>', obj.lunch_card.url, obj.lunch_card.url)
+        return '-'
+
+    lunch_card_url.short_description = 'Lunch card URL'
 
 class UserAdmin(admin.ModelAdmin):
     inlines = [UserProfileInline]

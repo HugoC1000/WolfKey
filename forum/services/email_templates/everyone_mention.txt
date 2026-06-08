@@ -1,0 +1,11 @@
+Hello {recipient_full_name},
+
+An important announcement was posted: {post_title}
+
+Announcement from: {announcement_author}
+
+You can view it here:
+{site_url}{content_url}
+
+Best regards,
+WolfKey Team

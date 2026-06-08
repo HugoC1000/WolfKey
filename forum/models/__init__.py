@@ -6,6 +6,7 @@ from .poll import Poll, PollOption, PollVote
 from .solution import Solution, SavedSolution, Comment, SolutionUpvote, SolutionDownvote, CommentUpvote
 from .schedule import GradebookSnapshot, DailySchedule
 from .notification import Notification, UpdateAnnouncement, UserUpdateView
+from .mention import Mention
 from .volunteer import VolunteerPinMilestone, VolunteerResource
 from .file import File
 
@@ -47,6 +48,8 @@ __all__ = [
     'Notification',
     'UpdateAnnouncement',
     'UserUpdateView',
+    # Mention models
+    'Mention',
     # Volunteer models
     'VolunteerPinMilestone',
     'VolunteerResource',

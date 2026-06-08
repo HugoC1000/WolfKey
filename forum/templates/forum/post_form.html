@@ -1,12 +1,11 @@
 {% extends 'forum/base.html' %}
 
 {% block head %}
-    <link href="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.22.0/dist/editor.css" rel="stylesheet"></link>
-    <link rel="stylesheet" href="https://unpkg.com/mathlive/dist/mathlive-static.css" />
     {% load static %}
     <link rel="stylesheet" href="{% static 'forum/css/editorjs.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/course-selector.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/post-detail.css' %}">
+    <link rel="stylesheet" href="{% static 'forum/css/mention-styles.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -82,9 +81,6 @@
 <script defer src="https://unpkg.com/mathlive"></script>
 
 {% load static %}
-<script defer src="{% static 'forum/js/math-block.js' %}"></script>
-<script defer src="{% static 'forum/js/editor-config.js' %}"></script>
-<script defer src="{% static 'forum/js/course-selector.js' %}"></script>
 
 <script type="module">
     import createEditor from '{% static "forum/js/editor-config.js" %}';
@@ -286,6 +282,8 @@
             {% if post_content %}{{ post_content|safe }}{% else %}{}{% endif %},
             document.querySelector('[name="csrfmiddlewaretoken"]').value
         );
+
+        await editor.isReady;
 
         // Initialize course selector
         const courseSelector = new CourseSelector({
