@@ -289,6 +289,8 @@ urlpatterns = [
     path('match/', course_comparer, name='course_comparer'),
     path('atlas/', timetable_assigner, name='timetable_assigner'),
     path('api/search-users/', search_users_api, name='search_users_api'),
+    path('mentions/search/', mention_search, name='mention_search'),
+    path('api/mentions/autocomplete/', mentions_autocomplete_api, name='api_mentions_autocomplete'),
 
     # Saved posts URLs
     path('followed-posts/', followed_posts, name='followed_posts'),

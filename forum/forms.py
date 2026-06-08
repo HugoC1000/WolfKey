@@ -312,8 +312,10 @@ class CustomUserCreationForm(UserCreationForm):
         return user_type
     
     def save(self, commit=True):
+        from forum.services.utils import generate_username
+        
         user = super().save(commit=False)
-        user.username = str(uuid.uuid4())[:30]
+        user.username = generate_username(user.first_name, user.last_name)
         
         # Set is_teacher based on user_type selection
         user_type = self.cleaned_data.get('user_type')

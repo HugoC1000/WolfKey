@@ -10,6 +10,9 @@ class Notification(models.Model):
         ('reply', 'New Reply'),
         ('grade_update', 'Grade Update'),
         ('edit', 'Post Edit'),
+        ('mention', 'Mention'),
+        ('channel', 'Channel Mention'),
+        ('everyone', 'Everyone Mention'),
     )
     
     recipient = models.ForeignKey('forum.User', on_delete=models.CASCADE, related_name='notifications')
