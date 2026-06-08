@@ -124,6 +124,7 @@ from forum.api.mentions import (
     mentions_courses_autocomplete_api,
     mentions_users_autocomplete_api,
 )
+from forum.views.mention_views import mention_search
 from forum.views.auth_views import register, login_view, logout_view
 
 
