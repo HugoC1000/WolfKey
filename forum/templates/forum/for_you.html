@@ -1,27 +1,27 @@
 {% extends 'forum/base.html' %}
 
 {% block head %}
-{%load static %}
+{% load static %}
     <link rel="stylesheet" href="{% static 'forum/css/schedule.css' %}"> 
     <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
     <script src="{% static 'forum/js/schedule.js' %}" defer></script>
 {% endblock %}
 {% block content %}
     <div class="d-flex justify-content-center align-items-center mb-2">
-        <h1 class="fade-text" id="animated-text" style = "display: none;">{{ greeting }}</h1>
+        <h1 class="fade-text" id="animated-text" style="display: none;">{{ greeting }}</h1>
     </div>
 
     <!-- Schedule-->
-    <div class="row" style = "margin-bottom: 3rem;">
-        <div class="col-md-8" style = "width: 100%;">
-            <div class="d-flex flex-wrap gap-4">
+    <div class="row" style="margin-bottom: 3rem;">
+        <div class="col-12">
+            <div class="d-flex flex-wrap gap-4 align-items-start">
                 <!-- Today's Schedule -->
                 <div class="flex-fill">
-                    <div class = "card">
+                    <div class="card">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <h3 style = "font-size: 1.5rem;">Today's Schedule</h3>
+                            <h3 style="font-size: 1.5rem;">Today's Schedule</h3>
                             <span class="text-muted" id="current-date">
-                                {{ current_date}}
+                                {{ current_date }}
                             </span>
                         </div>
                         <div class="d-flex gap-2 mb-2 justify-content-end flex-wrap" id="today-badges">
@@ -30,14 +30,13 @@
                             <li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading schedule...</li>
                         </ul>
                     </div>
-
                 </div>
-    
+
                 <!-- Tomorrow's Schedule -->
                 <div class="flex-fill">
-                    <div class = "card">
+                    <div class="card">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <h3 style = "font-size: 1.5rem;" id="schedule-title">{{ schedule_title }}</h3>
+                            <h3 style="font-size: 1.5rem;" id="schedule-title">{{ schedule_title }}</h3>
                             <div class="d-flex align-items-center gap-2">
                                 <button id="prev-day" class="btn btn-sm btn-outline-secondary" title="Previous day">
                                     <i class="fas fa-chevron-left"></i>
@@ -56,12 +55,30 @@
                     </div>
                 </div>
 
-                <div class="flex-fill">
-                    <div class = "card">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <h3 style = "font-size: 1.5rem;">Leaderboard</h3>
+                <!-- Countdown-->
+                <div class="flex-fill d-none d-md-block" style="max-width: 340px;">
+                    <div class="card text-center" id="school-countdown-card">
+                        <h3 style="font-size: 1.5rem; margin-bottom: 0.25rem;">School Ends In</h3>
+                        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">June 11, 2026</p>
+                        <div class="d-flex justify-content-center gap-3" id="countdown-display">
+                            <div class="countdown-unit">
+                                <span class="countdown-number" id="cd-days">--</span>
+                                <span class="countdown-label">Days</span>
+                            </div>
+                            <div class="countdown-unit">
+                                <span class="countdown-number" id="cd-hours">--</span>
+                                <span class="countdown-label">Hours</span>
+                            </div>
+                            <div class="countdown-unit">
+                                <span class="countdown-number" id="cd-minutes">--</span>
+                                <span class="countdown-label">Mins</span>
+                            </div>
+                            <div class="countdown-unit">
+                                <span class="countdown-number" id="cd-seconds">--</span>
+                                <span class="countdown-label">Secs</span>
+                            </div>
                         </div>
-                        Coming Soon
+                        <p id="cd-done-msg" style="display:none; font-size: 1.1rem; font-weight: 600; color: #2ecc71;">School's out! 🎉</p>
                     </div>
                 </div>
             </div>
@@ -80,7 +97,7 @@
     </div>
 
     <div class="text-center mt-4">
-        <div class = "card" style ="margin: auto; max-width: 776px;">
+        <div class="card" style="margin: auto; max-width: 776px;">
             <p> You've reached the end. </p>
             <a href="{% url 'all_posts' %}" class="btn btn-primary">
                 <i class="fas fa-search me-2"></i> Explore
@@ -262,6 +279,54 @@
         
 
         setTimeout(scrollToPostIfNeeded, 100);
+    });
+</script>
+<style>
+    .countdown-unit {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .countdown-number {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    .countdown-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #6c757d;
+        letter-spacing: 0.05em;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const endDate = new Date('2026-06-11T00:00:00');
+
+        function updateCountdown() {
+            const now = new Date();
+            const diff = endDate - now;
+
+            if (diff <= 0) {
+                document.getElementById('countdown-display').style.display = 'none';
+                document.getElementById('cd-done-msg').style.display = 'block';
+                return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            document.getElementById('cd-days').textContent = String(days).padStart(2, '0');
+            document.getElementById('cd-hours').textContent = String(hours).padStart(2, '0');
+            document.getElementById('cd-minutes').textContent = String(minutes).padStart(2, '0');
+            document.getElementById('cd-seconds').textContent = String(seconds).padStart(2, '0');
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
     });
 </script>
 {% endblock %}

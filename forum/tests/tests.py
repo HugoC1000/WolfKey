@@ -267,6 +267,65 @@ class APIDeleteAccountTests(TestCase):
         self.assertTrue(User.objects.filter(id=self.user.id).exists())
 
 
+class MentionAutocompleteAPITests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.student = User.objects.create_user(
+            username='mentionuser',
+            password='mentionpass',
+            school_email='mention@wpga.ca',
+            first_name='Mia',
+            last_name='Jones'
+        )
+        self.teacher = User.objects.create_user(
+            username='teachuser',
+            password='teachpass',
+            school_email='teach@wpga.ca',
+            first_name='Tara',
+            last_name='Smith',
+            is_teacher=True
+        )
+        self.course = Course.objects.create(name='Biology', category='Science')
+
+    def test_mentions_users_autocomplete_returns_users(self):
+        self.client.login(school_email='mention@wpga.ca', password='mentionpass')
+
+        response = self.client.get(reverse('mentions_users_autocomplete_api') + '?query=mi&limit=5')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn('users', payload)
+        self.assertTrue(any(user['username'] == 'mentionuser' for user in payload['users']))
+
+    def test_mentions_courses_autocomplete_returns_courses(self):
+        self.client.login(school_email='mention@wpga.ca', password='mentionpass')
+
+        response = self.client.get(reverse('mentions_courses_autocomplete_api') + '?query=bio&limit=5')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn('courses', payload)
+        self.assertTrue(any(course['name'] == 'Biology' for course in payload['courses']))
+
+    def test_mentions_autocomplete_includes_everyone_for_teacher(self):
+        self.client.login(school_email='teach@wpga.ca', password='teachpass')
+
+        response = self.client.get(reverse('mentions_users_autocomplete_api') + '?query=eve')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['everyone'][0]['name'], 'everyone')
+
+    def test_mentions_autocomplete_hides_everyone_for_non_teacher(self):
+        self.client.login(school_email='mention@wpga.ca', password='mentionpass')
+
+        response = self.client.get(reverse('mentions_users_autocomplete_api') + '?query=eve')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['everyone'], [])
+
+
 class APIProfilePostsTests(TestCase):
     def setUp(self):
         self.client = Client()
