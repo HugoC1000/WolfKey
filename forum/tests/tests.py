@@ -406,6 +406,62 @@ class APIProfilePostsTests(TestCase):
         self.assertEqual(payload['total_pages'], 2)
 
 
+class APIProfilePrivacyTests(TestCase):
+    def setUp(self):
+        from rest_framework.authtoken.models import Token
+
+        self.client = Client()
+        self.viewer = User.objects.create_user(
+            password='viewerpass123', school_email='viewer@wpga.ca',
+            personal_email='viewer@example.com', first_name='View', last_name='Er'
+        )
+        self.other = User.objects.create_user(
+            password='otherpass123', school_email='other@wpga.ca',
+            personal_email='other@example.com', phone_number='555-0100',
+            student_id='123456', first_name='Other', last_name='User'
+        )
+        self.other.userprofile.wolfnet_password = 'secret'
+        self.other.userprofile.lunch_card = 'lunch_cards/private.png'
+        self.other.userprofile.display_email = False
+        self.other.userprofile.allow_schedule_comparison = False
+        self.other.userprofile.save()
+        self.token = Token.objects.create(user=self.viewer)
+
+    def _get_profile(self, user):
+        return self.client.get(
+            reverse('api_get_profile', kwargs={'username': user.username}),
+            HTTP_AUTHORIZATION=f'Token {self.token.key}'
+        )
+
+    def test_other_users_profile_only_returns_public_fields(self):
+        response = self._get_profile(self.other)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertNotIn('personal_email', payload)
+        self.assertNotIn('phone_number', payload)
+        self.assertNotIn('student_id', payload)
+        self.assertIsNone(payload['school_email'])
+        self.assertNotIn('lunch_card', payload['userprofile'])
+        self.assertNotIn('has_wolfnet_password', payload['userprofile'])
+        self.assertNotIn('display_email', payload['userprofile'])
+        self.assertEqual(payload['userprofile']['courses']['schedule_courses'], {})
+        self.assertFalse(payload['userprofile']['can_compare'])
+
+    def test_own_profile_returns_owner_only_fields(self):
+        response = self._get_profile(self.viewer)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['school_email'], self.viewer.school_email)
+        self.assertIn('personal_email', payload)
+        self.assertIn('phone_number', payload)
+        self.assertIn('student_id', payload)
+        self.assertIn('lunch_card', payload['userprofile'])
+        self.assertIn('has_wolfnet_password', payload['userprofile'])
+        self.assertIn('display_email', payload['userprofile'])
+
+
 class PostPreviewFormattingTests(TestCase):
     def _build_post(self, content):
         return type('PostStub', (), {'content': content})()

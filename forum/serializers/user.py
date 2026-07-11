@@ -38,6 +38,7 @@ class CourseSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    """Public profile data safe to embed when exposing another user."""
     block_1A = serializers.SerializerMethodField()
     block_1B = serializers.SerializerMethodField()
     block_1D = serializers.SerializerMethodField()
@@ -50,8 +51,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     grade_level = serializers.IntegerField(read_only=True)
     allow_schedule_comparison = serializers.BooleanField(read_only=True)
     profile_picture = serializers.SerializerMethodField()
-    lunch_card = serializers.SerializerMethodField()
-    has_wolfnet_password = serializers.SerializerMethodField()
     stats = serializers.SerializerMethodField()
     courses = serializers.SerializerMethodField()
     recent_posts = serializers.SerializerMethodField()
@@ -66,11 +65,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = [
             'id', 'bio', 'points', 'is_moderator', 'created_at', 'updated_at',
-            'background_hue', 'profile_picture', 'lunch_card',
+            'background_hue', 'profile_picture',
             'block_1A', 'block_1B', 'block_1D', 'block_1E',
             'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
-            'grade_level', 'allow_schedule_comparison', 'display_email',
-            'has_wolfnet_password', 'stats', 'courses', 'recent_posts',
+            'grade_level', 'allow_schedule_comparison',
+            'stats', 'courses', 'recent_posts',
             'can_compare', 'initial_users', 'schedule_blocks',
             'instagram_url', 'snapchat_url', 'linkedin_url'
         ]
@@ -84,19 +83,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
             return None
         except (AttributeError, FileNotFoundError, ValueError):
             return None
-    
-    def get_lunch_card(self, obj):
-        """Return lunch card URL"""
-        try:
-            if obj.lunch_card:
-                return obj.lunch_card.url
-            return None
-        except (AttributeError, FileNotFoundError, ValueError):
-            return None
-    
-    def get_has_wolfnet_password(self, obj):
-        """Check if user has wolfnet password set"""
-        return bool(obj.wolfnet_password)
     
     def _should_hide_schedule(self, obj):
         """Check if schedule fields should be hidden based on privacy settings"""
@@ -183,7 +169,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
         
         # Get schedule courses using BlockSerializer
         serializer = BlockSerializer(obj)
-        schedule_courses = serializer.data.get('schedule', {}) if serializer and serializer.data else {}
+        schedule_courses = (
+            {} if self._should_hide_schedule(obj)
+            else serializer.data.get('schedule', {}) if serializer and serializer.data else {}
+        )
         
         return {
             'experienced_courses': [
@@ -231,7 +220,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         """Check if the requesting user can compare schedules"""
         request = self.context.get('request')
         if request and request.user.is_authenticated and request.user != obj.user:
-            return True
+            return obj.allow_schedule_comparison
         return False
     
     def get_initial_users(self, obj):
@@ -247,14 +236,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
                     'id': request.user.id,
                     'username': request.user.username,
                     'full_name': request.user.get_full_name(),
-                    'school_email': request.user.school_email,
                     'profile_picture_url': request.user.userprofile.profile_picture.url if request.user.userprofile.profile_picture else None,
                 },
                 {
                     'id': obj.user.id,
                     'username': obj.user.username,
                     'full_name': obj.user.get_full_name(),
-                    'school_email': obj.user.school_email,
                     'profile_picture_url': obj.profile_picture.url if obj.profile_picture else None,
                 }
             ]
@@ -308,21 +295,28 @@ class AnonUserProfileSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    """Public user identity. Safe for feeds, search, mentions, and profiles."""
     userprofile = UserProfileSerializer(read_only=True)
     full_name = serializers.SerializerMethodField()
     profile_picture_url = serializers.SerializerMethodField()
     grade_level = serializers.SerializerMethodField()
     
+    school_email = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
             'id', 'username', 'first_name', 'last_name', 'full_name',
-            'school_email', 'personal_email', 'phone_number', 'student_id',
+            'school_email',
             'date_joined', 'userprofile', 'profile_picture_url', 'grade_level', 'is_teacher'
         ]
     
     def get_full_name(self, obj):
         return obj.get_full_name()
+
+    def get_school_email(self, obj):
+        profile = getattr(obj, 'userprofile', None)
+        return obj.school_email if profile and profile.display_email else None
     
     def get_profile_picture_url(self, obj):
         """Return profile picture URL"""
@@ -338,6 +332,38 @@ class UserSerializer(serializers.ModelSerializer):
             return obj.userprofile.grade_level if hasattr(obj, 'userprofile') else None
         except Exception:
             return None
+
+
+class PrivateUserProfileSerializer(UserProfileSerializer):
+    """Owner-only profile settings and assets."""
+    lunch_card = serializers.SerializerMethodField()
+    has_wolfnet_password = serializers.SerializerMethodField()
+    display_email = serializers.BooleanField(read_only=True)
+
+    class Meta(UserProfileSerializer.Meta):
+        fields = UserProfileSerializer.Meta.fields + [
+            'lunch_card', 'has_wolfnet_password', 'display_email'
+        ]
+
+    def get_lunch_card(self, obj):
+        try:
+            return obj.lunch_card.url if obj.lunch_card else None
+        except (AttributeError, FileNotFoundError, ValueError):
+            return None
+
+    def get_has_wolfnet_password(self, obj):
+        return bool(obj.wolfnet_password)
+
+
+class PrivateUserSerializer(UserSerializer):
+    """Authenticated user's own account data. Never use for another user."""
+    userprofile = PrivateUserProfileSerializer(read_only=True)
+    school_email = serializers.EmailField(read_only=True)
+
+    class Meta(UserSerializer.Meta):
+        fields = UserSerializer.Meta.fields + [
+            'personal_email', 'phone_number', 'student_id'
+        ]
 
 
 class AnonUserSerializer(serializers.ModelSerializer):

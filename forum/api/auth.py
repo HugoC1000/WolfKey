@@ -16,7 +16,7 @@ from rest_framework import status
 from forum.forms import CustomUserCreationForm
 from forum.services.utils import upload_image
 from forum.services.search_services import search_users
-from forum.serializers import UserSerializer
+from forum.serializers import PrivateUserSerializer, UserSerializer
 import json
 from django.utils import timezone
 from datetime import timedelta
@@ -42,7 +42,7 @@ def api_login(request):
 
         token, _ = Token.objects.get_or_create(user=user)
         
-        user_serializer = UserSerializer(user)
+        user_serializer = PrivateUserSerializer(user)
 
         return JsonResponse({
             'token': token.key,
@@ -92,7 +92,7 @@ def api_register(request):
 
         token, _ = Token.objects.get_or_create(user=user)
 
-        user_serializer = UserSerializer(user)
+        user_serializer = PrivateUserSerializer(user)
 
         logger.info(f"Registration successful for user: {user.school_email}")
         return JsonResponse({
@@ -148,7 +148,8 @@ def get_user_profile_api(request, user_id=None):
         else:
             user = request.user
             
-        serializer = UserSerializer(user, context={'request': request})
+        serializer_class = PrivateUserSerializer if user == request.user else UserSerializer
+        serializer = serializer_class(user, context={'request': request})
         return Response(serializer.data)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

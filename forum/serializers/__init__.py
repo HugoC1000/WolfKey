@@ -4,6 +4,8 @@ from .user import (
     UserProfileSerializer,
     AnonUserProfileSerializer,
     UserSerializer,
+    PrivateUserSerializer,
+    PrivateUserProfileSerializer,
     AnonUserSerializer,
     BlockSerializer,
 )
@@ -36,6 +38,8 @@ __all__ = [
     'UserProfileSerializer',
     'AnonUserProfileSerializer',
     'UserSerializer',
+    'PrivateUserSerializer',
+    'PrivateUserProfileSerializer',
     'AnonUserSerializer',
     'BlockSerializer',
     # Post serializers
