@@ -75,7 +75,7 @@ def user_blocks_view(request, user_id):
     """
     from django.shortcuts import get_object_or_404
     from forum.models import User, UserProfile
-    from forum.serializers import BlockSerializer
+    from forum.serializers import UserScheduleSerializer
 
     try:
         user = get_object_or_404(User, id=user_id)
@@ -87,7 +87,7 @@ def user_blocks_view(request, user_id):
                 'error': 'This user has disabled schedule comparison'
             }, status=403)
 
-        serializer = BlockSerializer(user_profile)
+        serializer = UserScheduleSerializer(user_profile)
         return JsonResponse(serializer.data)
 
     except Exception as e:

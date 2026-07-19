@@ -70,7 +70,7 @@ def register(request):
         help_courses = CourseSerializer(help_courses_queryset, many=True).data
         experience_courses = CourseSerializer(experience_courses_queryset, many=True).data
         
-        # Build schedule data in BlockSerializer format for form re-rendering
+        # Build schedule data in UserScheduleSerializer format for form re-rendering
         schedule_data = {}
         blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
         for block in blocks:

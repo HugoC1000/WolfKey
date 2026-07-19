@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from forum.models import Comment, Solution
 from django.utils.timezone import localtime
-from .user import AnonUserSerializer, UserSerializer
+from .user import AnonymousAuthorSerializer, FeedUserSerializer
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -20,34 +20,22 @@ class CommentSerializer(serializers.ModelSerializer):
     
     def get_author(self, obj):
         """Return author data, using anonymous serializer if appropriate"""
-        post = self.context.get('post')
-        # Check if this comment should be anonymous
-        should_be_anon = (post and post.is_anonymous and 
-                         obj.author_id == post.author_id)
+        post = obj.solution.post
+        should_be_anon = post.is_anonymous and obj.author_id == post.author_id
         
         if should_be_anon:
-            return AnonUserSerializer(obj.author, context=self.context).data
+            return AnonymousAuthorSerializer(obj.author, context=self.context).data
         else:
-            return UserSerializer(obj.author, context=self.context).data
+            return FeedUserSerializer(obj.author, context=self.context).data
     
     def get_created_at(self, obj):
         return localtime(obj.created_at).isoformat()
     
     def get_replies(self, obj):
-        if hasattr(obj, 'replies'):
-            post = self.context.get('post')
-            replies_data = []
-            for reply in obj.replies.all():
-                # Check if reply should be anonymous
-                should_be_anon = (post and post.is_anonymous and 
-                                 reply.author_id == post.author_id)
-                if should_be_anon:
-                    serializer = AnonCommentSerializer(reply, context=self.context)
-                else:
-                    serializer = CommentSerializer(reply, context=self.context)
-                replies_data.append(serializer.data)
-            return replies_data
-        return []
+        replies = obj.replies.select_related(
+            'author', 'author__userprofile', 'solution__post'
+        )
+        return CommentSerializer(replies, many=True, context=self.context).data
     
     def get_depth(self, obj):
         return obj.get_depth()
@@ -56,48 +44,6 @@ class CommentSerializer(serializers.ModelSerializer):
         """Get all mentions in this comment"""
         from forum.services.mention_service import fetch_mentions_for_content
         return fetch_mentions_for_content(obj)
-
-
-class AnonCommentSerializer(serializers.ModelSerializer):
-    """Serializer for anonymous comments - when comment author is post author and post is anonymous"""
-    author = serializers.SerializerMethodField()
-    created_at = serializers.SerializerMethodField()
-    replies = serializers.SerializerMethodField()
-    depth = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Comment
-        fields = [
-            'id', 'content', 'author', 'created_at', 'parent',
-            'replies', 'depth'
-        ]
-    
-    def get_author(self, obj):
-        """Return anonymous author data"""
-        return AnonUserSerializer(obj.author, context=self.context).data
-    
-    def get_created_at(self, obj):
-        return localtime(obj.created_at).isoformat()
-    
-    def get_replies(self, obj):
-        """Recursively serialize replies, using anon serializer when appropriate"""
-        if hasattr(obj, 'replies'):
-            post = self.context.get('post')
-            replies_data = []
-            for reply in obj.replies.all():
-                # Check if reply should be anonymous
-                should_be_anon = (post and post.is_anonymous and 
-                                 reply.author_id == post.author_id)
-                if should_be_anon:
-                    serializer = AnonCommentSerializer(reply, context=self.context)
-                else:
-                    serializer = CommentSerializer(reply, context=self.context)
-                replies_data.append(serializer.data)
-            return replies_data
-        return []
-    
-    def get_depth(self, obj):
-        return obj.get_depth()
 
 
 class SolutionSerializer(serializers.ModelSerializer):
@@ -118,15 +64,13 @@ class SolutionSerializer(serializers.ModelSerializer):
     
     def get_author(self, obj):
         """Return author data, using anonymous serializer if appropriate"""
-        post = self.context.get('post')
-        # Check if this solution should be anonymous
-        should_be_anon = (post and post.is_anonymous and 
-                         obj.author_id == post.author_id)
+        post = obj.post
+        should_be_anon = post.is_anonymous and obj.author_id == post.author_id
         
         if should_be_anon:
-            return AnonUserSerializer(obj.author, context=self.context).data
+            return AnonymousAuthorSerializer(obj.author, context=self.context).data
         else:
-            return UserSerializer(obj.author, context=self.context).data
+            return FeedUserSerializer(obj.author, context=self.context).data
     
     def get_created_at(self, obj):
         return localtime(obj.created_at).isoformat()
@@ -147,21 +91,10 @@ class SolutionSerializer(serializers.ModelSerializer):
     
     def get_comments(self, obj):
         """Get formatted comments for this solution, using anon serializer when appropriate"""
-        comments = obj.comments.select_related('author').order_by('created_at')
-        post = self.context.get('post')
-        comments_data = []
-        
-        for comment in comments:
-            # Check if comment should be anonymous
-            should_be_anon = (post and post.is_anonymous and 
-                             comment.author_id == post.author_id)
-            if should_be_anon:
-                serializer = AnonCommentSerializer(comment, context=self.context)
-            else:
-                serializer = CommentSerializer(comment, context=self.context)
-            comments_data.append(serializer.data)
-        
-        return comments_data
+        comments = obj.comments.filter(parent__isnull=True).select_related(
+            'author', 'author__userprofile', 'solution__post'
+        ).order_by('created_at')
+        return CommentSerializer(comments, many=True, context=self.context).data
     
     def get_is_accepted(self, obj):
         return hasattr(obj, 'accepted_for') and obj.accepted_for is not None
@@ -178,70 +111,3 @@ class SolutionSerializer(serializers.ModelSerializer):
         """Get all mentions in this solution"""
         from forum.services.mention_service import fetch_mentions_for_content
         return fetch_mentions_for_content(obj)
-
-
-class AnonSolutionSerializer(serializers.ModelSerializer):
-    """Serializer for anonymous solutions - when solution author is post author and post is anonymous"""
-    author = serializers.SerializerMethodField()
-    created_at = serializers.SerializerMethodField()
-    comments = serializers.SerializerMethodField()
-    is_accepted = serializers.SerializerMethodField()
-    is_saved = serializers.SerializerMethodField()
-    processed_content = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Solution
-        fields = [
-            'id', 'content', 'processed_content', 'author', 'created_at', 
-            'upvotes', 'downvotes', 'comments', 'is_accepted', 'is_saved'
-        ]
-    
-    def get_author(self, obj):
-        """Return anonymous author data"""
-        return AnonUserSerializer(obj.author, context=self.context).data
-    
-    def get_created_at(self, obj):
-        return localtime(obj.created_at).isoformat()
-    
-    def get_processed_content(self, obj):
-        """Process solution content - handle string JSON and quote replacement"""
-        from forum.services.utils import selective_quote_replace
-        import json
-        
-        try:
-            solution_content = obj.content
-            if isinstance(solution_content, str):
-                solution_content = selective_quote_replace(solution_content)
-                solution_content = json.loads(solution_content)
-            return solution_content
-        except Exception as e:
-            return obj.content
-    
-    def get_comments(self, obj):
-        """Get formatted comments for this solution, using anon serializer when appropriate"""
-        comments = obj.comments.select_related('author').order_by('created_at')
-        post = self.context.get('post')
-        comments_data = []
-        
-        for comment in comments:
-            # Check if comment should be anonymous
-            should_be_anon = (post and post.is_anonymous and 
-                             comment.author_id == post.author_id)
-            if should_be_anon:
-                serializer = AnonCommentSerializer(comment, context=self.context)
-            else:
-                serializer = CommentSerializer(comment, context=self.context)
-            comments_data.append(serializer.data)
-        
-        return comments_data
-    
-    def get_is_accepted(self, obj):
-        return hasattr(obj, 'accepted_for') and obj.accepted_for is not None
-    
-    def get_is_saved(self, obj):
-        """Check if the current user has saved this solution"""
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            from forum.models import SavedSolution
-            return SavedSolution.objects.filter(user=request.user, solution=obj).exists()
-        return False

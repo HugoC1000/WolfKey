@@ -1,10 +1,11 @@
 from django.db.models import Q
 from django.contrib.postgres.search import TrigramSimilarity
-from rest_framework.decorators import api_view
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
+from rest_framework.decorators import api_view, authentication_classes
 from rest_framework.response import Response
 
 from forum.models import Course
-from forum.serializers import UserSerializer
+from forum.serializers import UserSummarySerializer
 from forum.services.search_services import search_users
 
 
@@ -62,7 +63,7 @@ def _mentions_users_payload(request):
         return Response({'users': [], 'everyone': []})
 
     users = search_users(request.user, query)[:limit]
-    user_serializer = UserSerializer(users, many=True, context={'request': request})
+    user_serializer = UserSummarySerializer(users, many=True, context={'request': request})
 
     return Response({
         'users': user_serializer.data,
@@ -92,16 +93,19 @@ def _mentions_courses_payload(request):
 
 
 @api_view(['GET'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
 def mentions_users_autocomplete_api(request):
     return _mentions_users_payload(request)
 
 
 @api_view(['GET'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
 def mentions_courses_autocomplete_api(request):
     return _mentions_courses_payload(request)
 
 
 @api_view(['GET'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
 def mentions_autocomplete_api(request):
     query = request.GET.get('query', '').strip()
 

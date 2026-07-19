@@ -6,6 +6,7 @@ from forum.services.mention_service import update_mentions
 from forum.services.post_services import _check_teacher_visibility
 from forum.services.utils import process_messages_to_json, detect_bad_words
 from django.template.loader import render_to_string
+from forum.serializers import AnonymousAuthorSerializer, FeedUserSerializer
 
 def create_comment_service(request, solution_id, data):
     solution = get_object_or_404(Solution, id=solution_id)
@@ -78,13 +79,20 @@ def get_comments_service(request, solution_id):
     comments = Comment.objects.filter(solution=solution).order_by('created_at')
 
     def process_comment(comment):
+        should_be_anonymous = (
+            solution.post.is_anonymous
+            and comment.author_id == solution.post.author_id
+        )
+        author_serializer = (
+            AnonymousAuthorSerializer if should_be_anonymous else FeedUserSerializer
+        )
         return {
             'id': comment.id,
             'content': comment.content,
-            'author': {
-                'name': comment.author.get_full_name(),
-                'id': comment.author.id
-            },
+            'author': author_serializer(
+                comment.author,
+                context={'request': request},
+            ).data,
             'created_at': comment.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             'replies': [process_comment(reply) for reply in comment.replies.all()]
         }
@@ -92,7 +100,8 @@ def get_comments_service(request, solution_id):
 
     html = render_to_string('forum/components/comments_list.html', {
         'comments': comments,
-        'solution': solution
+        'solution': solution,
+        'post': solution.post,
     }, request=request)
     return {
         'comments_data': comments_data,

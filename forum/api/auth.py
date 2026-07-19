@@ -16,7 +16,7 @@ from rest_framework import status
 from forum.forms import CustomUserCreationForm
 from forum.services.utils import upload_image
 from forum.services.search_services import search_users
-from forum.serializers import PrivateUserSerializer, UserSerializer
+from forum.serializers import PrivateUserSerializer, UserSerializer, UserSummarySerializer
 import json
 from django.utils import timezone
 from datetime import timedelta
@@ -123,7 +123,7 @@ def search_users_api(request):
         limit = int(request.GET.get('limit', 5))
         users = search_users(request.user, query)[:limit]
 
-        serializer = UserSerializer(users, many=True, context={'request': request})
+        serializer = UserSummarySerializer(users, many=True, context={'request': request})
         
         return Response({'users': serializer.data})
     except Exception as e:

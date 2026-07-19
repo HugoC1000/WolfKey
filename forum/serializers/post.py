@@ -2,7 +2,7 @@ from rest_framework import serializers
 from forum.models import Post
 from django.utils.timezone import localtime
 from forum.services.utils import process_post_preview, process_post_preview_html
-from .user import AnonUserSerializer, UserSerializer
+from .user import AnonymousAuthorSerializer, FeedUserSerializer
 
 
 class PostListSerializer(serializers.ModelSerializer):
@@ -36,20 +36,15 @@ class PostListSerializer(serializers.ModelSerializer):
     
     def get_author(self, obj):
         """Return author data with anonymous serializer if post is anonymous"""
-        author_info = obj.get_author()
-        
-        # Use anonymous serializer if post is anonymous
-        if author_info['is_anonymous']:
-            return AnonUserSerializer(author_info['user'], context=self.context).data
-        else:
-            return UserSerializer(author_info['user'], context=self.context).data
+        if obj.is_anonymous:
+            return AnonymousAuthorSerializer(obj.author, context=self.context).data
+        return FeedUserSerializer(obj.author, context=self.context).data
     
     def get_preview_text(self, obj):
-        # Return HTML-preserving preview for API consumers that expect preview_text
-        return process_post_preview_html(obj)
+        return getattr(obj, 'preview_text', None) or process_post_preview(obj)
     
     def get_preview_html(self, obj):
-        return process_post_preview_html(obj)
+        return getattr(obj, 'preview_html', None) or process_post_preview_html(obj)
 
     def get_created_at(self, obj):
         return localtime(obj.created_at).isoformat()
@@ -64,6 +59,8 @@ class PostListSerializer(serializers.ModelSerializer):
     def get_is_liked(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
+            if hasattr(obj, 'is_liked_by_user'):
+                return obj.is_liked_by_user
             return obj.is_liked_by(request.user)
         return False
     
@@ -71,6 +68,8 @@ class PostListSerializer(serializers.ModelSerializer):
         """Check if the current user is following this post"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
+            if hasattr(obj, 'is_following'):
+                return obj.is_following
             from forum.models import FollowedPost
             return FollowedPost.objects.filter(user=request.user, post=obj).exists()
         return False
@@ -79,7 +78,9 @@ class PostListSerializer(serializers.ModelSerializer):
         return obj.like_count()
     
     def get_solution_count(self, obj):
-        return getattr(obj, 'solution_count', obj.solutions.count())
+        if hasattr(obj, 'solution_count'):
+            return obj.solution_count
+        return obj.solutions.count()
     
     def get_comment_count(self, obj):
         return getattr(obj, 'comment_count', 0)
@@ -104,7 +105,6 @@ class PostListSerializer(serializers.ModelSerializer):
         """Get all mentions in this post"""
         from forum.services.mention_service import fetch_mentions_for_content
         return fetch_mentions_for_content(obj)
-
 
 class PostDetailSerializer(serializers.ModelSerializer):
     """Serializer for individual post views"""
@@ -134,13 +134,9 @@ class PostDetailSerializer(serializers.ModelSerializer):
     
     def get_author(self, obj):
         """Return author data with anonymous serializer if post is anonymous"""
-        author_info = obj.get_author()
-        
-        # Use anonymous serializer if post is anonymous
-        if author_info['is_anonymous']:
-            return AnonUserSerializer(author_info['user'], context=self.context).data
-        else:
-            return UserSerializer(author_info['user'], context=self.context).data
+        if obj.is_anonymous:
+            return AnonymousAuthorSerializer(obj.author, context=self.context).data
+        return FeedUserSerializer(obj.author, context=self.context).data
     
     def get_courses(self, obj):
         from .user import CourseSerializer
@@ -159,7 +155,9 @@ class PostDetailSerializer(serializers.ModelSerializer):
         return False
     
     def get_solution_count(self, obj):
-        return getattr(obj, 'solution_count', obj.solutions.count())
+        if hasattr(obj, 'solution_count'):
+            return obj.solution_count
+        return obj.solutions.count()
     
     def get_comment_count(self, obj):
         return getattr(obj, 'comment_count', 0)
@@ -167,9 +165,9 @@ class PostDetailSerializer(serializers.ModelSerializer):
     def get_solutions(self, obj):
         """Return solutions using appropriate serializer based on anonymity"""
         from django.db.models import F, Case, When, IntegerField
-        from .solution import AnonSolutionSerializer, SolutionSerializer
+        from .solution import SolutionSerializer
         
-        solutions = obj.solutions.select_related('author').annotate(
+        solutions = obj.solutions.select_related('author', 'post').annotate(
             vote_score=F('upvotes') - F('downvotes')
         ).order_by(
             Case(
@@ -181,22 +179,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
             '-created_at'
         )
         
-        # Add post to context for checking anonymity
-        context = dict(self.context)
-        context['post'] = obj
-        
-        # Serialize each solution with appropriate serializer
-        solutions_data = []
-        for solution in solutions:
-            # Use anonymous serializer if post is anonymous and solution author is post author
-            should_be_anon = obj.is_anonymous and solution.author_id == obj.author_id
-            if should_be_anon:
-                serializer = AnonSolutionSerializer(solution, context=context)
-            else:
-                serializer = SolutionSerializer(solution, context=context)
-            solutions_data.append(serializer.data)
-        
-        return solutions_data
+        return SolutionSerializer(solutions, many=True, context=self.context).data
     
     def get_has_solution_from_user(self, obj):
         """Check if the current user has submitted a solution"""
@@ -248,102 +231,3 @@ class PostDetailSerializer(serializers.ModelSerializer):
         """Get all mentions in this post"""
         from forum.services.mention_service import fetch_mentions_for_content
         return fetch_mentions_for_content(obj)
-
-
-class AnonPostDetailSerializer(serializers.ModelSerializer):
-    """Serializer for anonymous post detail views - when post.is_anonymous is True"""
-    author = serializers.SerializerMethodField()
-    courses = serializers.SerializerMethodField()
-    created_at = serializers.SerializerMethodField()
-    like_count = serializers.SerializerMethodField()
-    is_liked = serializers.SerializerMethodField()
-    solution_count = serializers.SerializerMethodField()
-    comment_count = serializers.SerializerMethodField()
-    solutions = serializers.SerializerMethodField()
-    has_solution_from_user = serializers.SerializerMethodField()
-    is_following = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Post
-        fields = [
-            'id', 'title', 'content', 'author', 'courses', 'created_at',
-            'solved', 'views', 'is_anonymous', 'like_count', 'is_liked',
-            'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
-            'is_following'
-        ]
-    
-    def get_author(self, obj):
-        """Always return anonymous author data"""
-        author_info = obj.get_author()
-        return AnonUserSerializer(author_info['user'], context=self.context).data
-    
-    def get_courses(self, obj):
-        from .user import CourseSerializer
-        return CourseSerializer(obj.courses.all(), many=True, context=self.context).data
-    
-    def get_created_at(self, obj):
-        return localtime(obj.created_at).isoformat()
-    
-    def get_like_count(self, obj):
-        return obj.like_count()
-    
-    def get_is_liked(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return obj.is_liked_by(request.user)
-        return False
-    
-    def get_solution_count(self, obj):
-        return getattr(obj, 'solution_count', obj.solutions.count())
-    
-    def get_comment_count(self, obj):
-        return getattr(obj, 'comment_count', 0)
-    
-    def get_solutions(self, obj):
-        """Return solutions, using anonymous serializer for post author's solutions"""
-        from django.db.models import F, Case, When, IntegerField
-        from .solution import AnonSolutionSerializer, SolutionSerializer
-        
-        solutions = obj.solutions.select_related('author').annotate(
-            vote_score=F('upvotes') - F('downvotes')
-        ).order_by(
-            Case(
-                When(id=obj.accepted_solution_id, then=0),
-                default=1,
-                output_field=IntegerField(),
-            ),
-            '-vote_score',
-            '-created_at'
-        )
-        
-        # Add post to context for checking anonymity
-        context = dict(self.context)
-        context['post'] = obj
-        
-        # Serialize each solution with appropriate serializer
-        solutions_data = []
-        for solution in solutions:
-            # Use anonymous serializer if solution author is post author
-            should_be_anon = solution.author_id == obj.author_id
-            if should_be_anon:
-                serializer = AnonSolutionSerializer(solution, context=context)
-            else:
-                serializer = SolutionSerializer(solution, context=context)
-            solutions_data.append(serializer.data)
-        
-        return solutions_data
-    
-    def get_has_solution_from_user(self, obj):
-        """Check if the current user has submitted a solution"""
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return obj.solutions.filter(author=request.user).exists()
-        return False
-    
-    def get_is_following(self, obj):
-        """Check if the current user is following this post"""
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            from forum.models import FollowedPost
-            return FollowedPost.objects.filter(user=request.user, post=obj).exists()
-        return False

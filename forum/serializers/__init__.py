@@ -2,26 +2,26 @@
 from .user import (
     CourseSerializer,
     UserProfileSerializer,
-    AnonUserProfileSerializer,
+    UserSummarySerializer,
     UserSerializer,
     PrivateUserSerializer,
     PrivateUserProfileSerializer,
-    AnonUserSerializer,
-    BlockSerializer,
+    AnonymousAuthorSerializer,
+    FeedUserSerializer,
+    FeedUserProfileSerializer,
+    UserScheduleSerializer,
 )
 from .post import (
     PostListSerializer,
     PostDetailSerializer,
-    AnonPostDetailSerializer,
 )
 from .solution import (
     CommentSerializer,
-    AnonCommentSerializer,
     SolutionSerializer,
-    AnonSolutionSerializer,
 )
 from .poll import (
     PollOptionSerializer,
+    PollVoterSerializer,
     PollSerializer,
     serialize_poll_display_data,
     attach_poll_data_to_posts,
@@ -36,23 +36,23 @@ __all__ = [
     # User serializers
     'CourseSerializer',
     'UserProfileSerializer',
-    'AnonUserProfileSerializer',
+    'UserSummarySerializer',
     'UserSerializer',
     'PrivateUserSerializer',
     'PrivateUserProfileSerializer',
-    'AnonUserSerializer',
-    'BlockSerializer',
+    'AnonymousAuthorSerializer',
+    'FeedUserSerializer',
+    'FeedUserProfileSerializer',
+    'UserScheduleSerializer',
     # Post serializers
     'PostListSerializer',
     'PostDetailSerializer',
-    'AnonPostDetailSerializer',
     # Solution serializers
     'CommentSerializer',
-    'AnonCommentSerializer',
     'SolutionSerializer',
-    'AnonSolutionSerializer',
     # Poll serializers
     'PollOptionSerializer',
+    'PollVoterSerializer',
     'PollSerializer',
     'serialize_poll_display_data',
     'attach_poll_data_to_posts',

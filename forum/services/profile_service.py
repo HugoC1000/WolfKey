@@ -11,7 +11,7 @@ from django.core.files.storage import default_storage
 from forum.models import User, Course, Post, Solution, UserCourseExperience, UserCourseHelp, UserProfile
 from forum.forms import UserCourseExperienceForm, UserCourseHelpForm
 from forum.services.utils import detect_bad_words, annotate_post_card_context
-from forum.serializers import BlockSerializer
+from forum.serializers import UserScheduleSerializer
 
 
 def compress_image(image_file, max_width=1200, quality=85):
@@ -96,8 +96,8 @@ def get_profile_context(request, username):
     posts_count = Post.objects.filter(author=profile_user).count()
     solutions_count = Solution.objects.filter(author=profile_user).count()
 
-    # Use the BlockSerializer as the canonical source for schedule data
-    serializer = BlockSerializer(profile_user.userprofile)
+    # Use UserScheduleSerializer as the canonical source for profile schedule data.
+    serializer = UserScheduleSerializer(profile_user.userprofile)
     initial_courses = serializer.data.get('schedule', {}) if serializer and serializer.data else {}
     
     initial_courses_json = json.dumps(initial_courses)

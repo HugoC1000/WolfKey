@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from forum.models import Notification, VolunteerPinMilestone, VolunteerResource
 from django.utils.timezone import localtime
-from .user import AnonUserSerializer, UserSerializer
+from .user import AnonymousAuthorSerializer, FeedUserSerializer
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -34,9 +34,9 @@ class NotificationSerializer(serializers.ModelSerializer):
                          obj.sender_id == post.author_id)
         
         if should_be_anon:
-            return AnonUserSerializer(obj.sender, context=self.context).data
+            return AnonymousAuthorSerializer(obj.sender, context=self.context).data
         else:
-            return UserSerializer(obj.sender, context=self.context).data
+            return FeedUserSerializer(obj.sender, context=self.context).data
     
     def get_post_title(self, obj):
         """Get the related post title if available"""

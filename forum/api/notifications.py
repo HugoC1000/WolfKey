@@ -27,28 +27,17 @@ def notifications_api(request):
     """
     try:
         from forum.services.deep_link_service import create_notification_deep_link
-        from forum.serializers import AnonUserSerializer, UserSerializer
+        from forum.serializers import NotificationSerializer
         
         notifications = all_notifications_service(request.user)
         page = int(request.GET.get('page', 1))
         per_page = int(request.GET.get('limit', 8))
         paginator = Paginator(notifications, per_page)
         page_obj = paginator.get_page(page)
+        notification_serializer = NotificationSerializer(context={'request': request})
         
         notification_data = []
         for notification in page_obj.object_list:
-            # Determine if sender should be anonymous
-            post = notification.post
-            if not post:
-                if notification.solution:
-                    post = notification.solution.post
-                elif notification.comment:
-                    post = notification.comment.solution.post if notification.comment.solution else None
-            
-            # Use anonymous data if post is anonymous and sender is post author
-            should_be_anon = (post and post.is_anonymous and 
-                             notification.sender_id == post.author_id)
-            
             # deep link data 
             deep_link_data = create_notification_deep_link(
                 notification_type=notification.notification_type,
@@ -59,11 +48,7 @@ def notifications_api(request):
                 user=notification.sender
             )
             
-            # Serialize sender appropriately
-            if should_be_anon:
-                sender_data = AnonUserSerializer(notification.sender, context={'request': request}).data
-            else:
-                sender_data = UserSerializer(notification.sender, context={'request': request}).data
+            sender_data = notification_serializer.get_sender(notification)
             
             data = {
                 'id': notification.id,

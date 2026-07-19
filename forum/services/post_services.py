@@ -9,6 +9,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+def _author_display_name(user, post):
+    """Return an author name without exposing an anonymous post's author."""
+    if post.is_anonymous and user.id == post.author_id:
+        from forum.serializers import AnonymousAuthorSerializer
+        return AnonymousAuthorSerializer(user).data['full_name']
+    return user.get_full_name()
+
+
 def _check_teacher_visibility(user, post):
     """
     Check if a teacher can view this post.
@@ -49,7 +58,7 @@ def get_post_detail_service(post_id, user=None):
                 processed_comments = [{
                     'id': comment.id,
                     'content': comment.content,
-                    'author': comment.author.get_full_name(),
+                    'author': _author_display_name(comment.author, post),
                     'created_at': comment.created_at.isoformat(),
                     'parent_id': comment.parent_id,
                     'depth': comment.get_depth(),
@@ -58,7 +67,7 @@ def get_post_detail_service(post_id, user=None):
                 processed_solutions.append({
                     'id': solution.id,
                     'content': solution_content,
-                    'author': solution.author.get_full_name(),
+                    'author': _author_display_name(solution.author, post),
                     'created_at': solution.created_at.isoformat(),
                     'upvotes': solution.upvotes,
                     'downvotes': solution.downvotes,
@@ -76,7 +85,7 @@ def get_post_detail_service(post_id, user=None):
             'title': post.title,
             'solutions_object' : solutions,
             'content': post.content,
-            'author': post.author.get_full_name(),
+            'author': _author_display_name(post.author, post),
             'created_at': post.created_at.isoformat(),
             'solutions': processed_solutions,
             'courses': [{'id': c.id, 'name': c.name} for c in post.courses.all()],
