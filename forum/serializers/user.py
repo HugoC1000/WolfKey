@@ -7,6 +7,14 @@ ANONYMOUS_PROFILE_PICTURE = f"{settings.MEDIA_URL}profile_pictures/default.png"
 USER_SCHEDULE_BLOCKS = ('1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E')
 
 
+def safe_file_url(file_field, fallback=None):
+    """Return a storage-backed file URL without leaking storage exceptions."""
+    try:
+        return file_field.url if file_field else fallback
+    except (AttributeError, FileNotFoundError, ValueError):
+        return fallback
+
+
 class CourseSerializer(serializers.ModelSerializer):
     is_experienced = serializers.SerializerMethodField()
     needs_help = serializers.SerializerMethodField()
@@ -41,15 +49,6 @@ class CourseSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     """Public profile data safe to embed when exposing another user."""
-    block_1A = serializers.SerializerMethodField()
-    block_1B = serializers.SerializerMethodField()
-    block_1D = serializers.SerializerMethodField()
-    block_1E = serializers.SerializerMethodField()
-    block_2A = serializers.SerializerMethodField()
-    block_2B = serializers.SerializerMethodField()
-    block_2C = serializers.SerializerMethodField()
-    block_2D = serializers.SerializerMethodField()
-    block_2E = serializers.SerializerMethodField()
     grade_level = serializers.IntegerField(read_only=True)
     allow_schedule_comparison = serializers.BooleanField(read_only=True)
     profile_picture = serializers.SerializerMethodField()
@@ -58,7 +57,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     recent_posts = serializers.SerializerMethodField()
     can_compare = serializers.SerializerMethodField()
     initial_users = serializers.SerializerMethodField()
-    schedule_blocks = serializers.SerializerMethodField()
+    schedule = serializers.SerializerMethodField()
     instagram_url = serializers.SerializerMethodField()
     snapchat_url = serializers.SerializerMethodField()
     linkedin_url = serializers.SerializerMethodField()
@@ -68,23 +67,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'bio', 'points', 'is_moderator', 'created_at', 'updated_at',
             'background_hue', 'profile_picture',
-            'block_1A', 'block_1B', 'block_1D', 'block_1E',
-            'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
             'grade_level', 'allow_schedule_comparison',
             'stats', 'courses', 'recent_posts',
-            'can_compare', 'initial_users', 'schedule_blocks',
+            'can_compare', 'initial_users', 'schedule',
             'instagram_url', 'snapchat_url', 'linkedin_url'
         ]
     
 
     def get_profile_picture(self, obj):
         """Return profile picture URL"""
-        try:
-            if obj.profile_picture:
-                return obj.profile_picture.url
-            return None
-        except (AttributeError, FileNotFoundError, ValueError):
-            return None
+        return safe_file_url(obj.profile_picture)
     
     def _should_hide_schedule(self, obj):
         """Check if schedule fields should be hidden based on privacy settings"""
@@ -95,61 +87,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
             return False
         return not obj.allow_schedule_comparison
     
-    def _get_block(self, obj, block_name):
-        """Helper to get a block field with privacy checks"""
+    def get_schedule(self, obj):
+        """Return the canonical schedule shape while enforcing profile privacy."""
         if self._should_hide_schedule(obj):
             return None
-        
-        course = getattr(obj, f'block_{block_name}', None)
-        if course:
-            serializer = CourseSerializer(course, context=self.context)
-            return serializer.data
-        return None
-    
-    def get_block_1A(self, obj):
-        return self._get_block(obj, '1A')
-    
-    def get_block_1B(self, obj):
-        return self._get_block(obj, '1B')
-    
-    def get_block_1D(self, obj):
-        return self._get_block(obj, '1D')
-    
-    def get_block_1E(self, obj):
-        return self._get_block(obj, '1E')
-    
-    def get_block_2A(self, obj):
-        return self._get_block(obj, '2A')
-    
-    def get_block_2B(self, obj):
-        return self._get_block(obj, '2B')
-    
-    def get_block_2C(self, obj):
-        return self._get_block(obj, '2C')
-    
-    def get_block_2D(self, obj):
-        return self._get_block(obj, '2D')
-    
-    def get_block_2E(self, obj):
-        return self._get_block(obj, '2E')
-    
-    def get_schedule_blocks(self, obj):
-        """Return schedule blocks with course info, respecting privacy settings"""
-        if self._should_hide_schedule(obj):
-            return None
-        
-        schedule_blocks = {}
-        for block in USER_SCHEDULE_BLOCKS:
-            course = getattr(obj, f'block_{block}', None)
-            if course:
-                schedule_blocks[f'block_{block}'] = {
-                    'id': course.id,
-                    'name': course.name,
-                    'category': course.category,
-                }
-            else:
-                schedule_blocks[f'block_{block}'] = None
-        return schedule_blocks
+        return UserScheduleSerializer(obj, context=self.context).data['schedule']
     
     def get_stats(self, obj):
         """Return user stats"""
@@ -162,7 +104,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         }
     
     def get_courses(self, obj):
-        """Return user courses (experienced, help needed, schedule)"""
+        """Return the user's experienced and help-needed courses."""
         from forum.models import UserCourseExperience, UserCourseHelp
         
         experienced_courses = UserCourseExperience.objects.filter(
@@ -172,13 +114,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
             user=obj.user,
             active=True,
         ).select_related('course')
-        
-        # Get schedule courses using the canonical user schedule serializer.
-        serializer = UserScheduleSerializer(obj, context=self.context)
-        schedule_courses = (
-            {} if self._should_hide_schedule(obj)
-            else serializer.data.get('schedule', {}) if serializer and serializer.data else {}
-        )
         
         return {
             'experienced_courses': [
@@ -201,7 +136,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
                     }
                 } for help_req in help_needed_courses
             ],
-            'schedule_courses': schedule_courses
         }
     
     def get_recent_posts(self, obj):
@@ -245,13 +179,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
                     'id': request.user.id,
                     'username': request.user.username,
                     'full_name': request.user.get_full_name(),
-                    'profile_picture_url': request.user.userprofile.profile_picture.url if request.user.userprofile.profile_picture else None,
+                    'profile_picture_url': safe_file_url(request.user.userprofile.profile_picture),
                 },
                 {
                     'id': obj.user.id,
                     'username': obj.user.username,
                     'full_name': obj.user.get_full_name(),
-                    'profile_picture_url': obj.profile_picture.url if obj.profile_picture else None,
+                    'profile_picture_url': safe_file_url(obj.profile_picture),
                 }
             ]
         return None
@@ -292,12 +226,8 @@ class UserSummarySerializer(serializers.ModelSerializer):
     
     def get_profile_picture_url(self, obj):
         """Return profile picture URL"""
-        try:
-            if obj.userprofile and obj.userprofile.profile_picture:
-                return obj.userprofile.profile_picture.url
-            return None
-        except (AttributeError, FileNotFoundError, ValueError):
-            return None
+        profile = getattr(obj, 'userprofile', None)
+        return safe_file_url(profile.profile_picture if profile else None)
 
     def get_grade_level(self, obj):
         try:
@@ -323,10 +253,7 @@ class FeedUserProfileSerializer(serializers.ModelSerializer):
         fields = ['profile_picture']
 
     def get_profile_picture(self, obj):
-        try:
-            return obj.profile_picture.url if obj.profile_picture else None
-        except (AttributeError, FileNotFoundError, ValueError):
-            return None
+        return safe_file_url(obj.profile_picture)
 
 
 class FeedUserSerializer(UserSummarySerializer):
@@ -344,11 +271,8 @@ class FeedUserSerializer(UserSummarySerializer):
         return obj.get_full_name()
 
     def get_profile_picture_url(self, obj):
-        try:
-            profile = obj.userprofile
-            return profile.profile_picture.url if profile.profile_picture else None
-        except (AttributeError, FileNotFoundError, ValueError):
-            return None
+        profile = getattr(obj, 'userprofile', None)
+        return safe_file_url(profile.profile_picture if profile else None)
 
 
 class PrivateUserProfileSerializer(UserProfileSerializer):
@@ -366,10 +290,7 @@ class PrivateUserProfileSerializer(UserProfileSerializer):
         return False
 
     def get_lunch_card(self, obj):
-        try:
-            return obj.lunch_card.url if obj.lunch_card else None
-        except (AttributeError, FileNotFoundError, ValueError):
-            return None
+        return safe_file_url(obj.lunch_card)
 
     def get_has_wolfnet_password(self, obj):
         return bool(obj.wolfnet_password)
@@ -447,12 +368,7 @@ class UserScheduleSerializer(serializers.ModelSerializer):
         return obj.user.get_full_name()
     
     def get_profile_picture_url(self, obj):
-        try:
-            if obj.profile_picture:
-                return obj.profile_picture.url
-            return None
-        except (AttributeError, FileNotFoundError, ValueError):
-            return None
+        return safe_file_url(obj.profile_picture)
     
     def get_schedule(self, obj):
         schedule = {}

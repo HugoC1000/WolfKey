@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.db.models import Count, Prefetch
 from forum.models import Poll, PollOption, PollVote, User
-from .user import ANONYMOUS_PROFILE_PICTURE
+from .user import ANONYMOUS_PROFILE_PICTURE, safe_file_url
 
 
 class PollVoterSerializer(serializers.ModelSerializer):
@@ -17,11 +17,11 @@ class PollVoterSerializer(serializers.ModelSerializer):
         return obj.get_full_name() or obj.username
 
     def get_profile_picture_url(self, obj):
-        try:
-            profile = obj.userprofile
-            return profile.profile_picture.url if profile.profile_picture else ANONYMOUS_PROFILE_PICTURE
-        except (AttributeError, FileNotFoundError, ValueError):
-            return ANONYMOUS_PROFILE_PICTURE
+        profile = getattr(obj, 'userprofile', None)
+        return safe_file_url(
+            profile.profile_picture if profile else None,
+            ANONYMOUS_PROFILE_PICTURE,
+        )
 
     def get_profile_url(self, obj):
         return obj.get_absolute_url()
@@ -167,16 +167,3 @@ def serialize_poll_display_data(post_or_poll, request=None):
 
     context = {'request': request} if request is not None else {}
     return PollSerializer(poll, context=context).data
-
-
-def attach_poll_data_to_posts(posts, serialized_posts):
-    """Attach serializer-provided poll payload onto post objects for template rendering."""
-    poll_data_by_post_id = {
-        serialized_post.get('id'): serialized_post.get('poll_data')
-        for serialized_post in serialized_posts
-    }
-
-    for post in posts:
-        post.poll_data = poll_data_by_post_id.get(post.id)
-
-    return posts

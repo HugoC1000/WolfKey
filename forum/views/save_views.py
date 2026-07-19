@@ -4,7 +4,8 @@ from django.http import JsonResponse
 from forum.models import Post, SavedPost, FollowedPost, Solution, SavedSolution
 from forum.services.utils import process_post_preview, add_course_context, annotate_post_card_context
 from forum.services.solution_services import save_solution_service
-from forum.serializers import PostListSerializer, SolutionSerializer, attach_poll_data_to_posts
+from forum.serializers import PostListSerializer, SolutionSerializer
+from forum.services.poll_display_service import attach_poll_data_to_posts
 import json
 
 @login_required

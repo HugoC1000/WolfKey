@@ -24,13 +24,13 @@ from .poll import (
     PollVoterSerializer,
     PollSerializer,
     serialize_poll_display_data,
-    attach_poll_data_to_posts,
 )
-from .notification import (
-    NotificationSerializer,
+from .notification import NotificationSerializer
+from .volunteer import (
     VolunteerPinMilestoneSerializer,
     VolunteerResourceSerializer,
 )
+from forum.services.poll_display_service import attach_poll_data_to_posts
 
 __all__ = [
     # User serializers

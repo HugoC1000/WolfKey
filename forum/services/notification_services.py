@@ -280,10 +280,13 @@ def send_notification_service(
 def all_notifications_service(user):
     return user.notifications.select_related(
         'sender',
+        'sender__userprofile',
         'post',
         'solution',
+        'solution__post',
         'comment',
         'comment__solution',
+        'comment__solution__post',
     ).order_by('-created_at')
 
 def mark_notification_read_service(user, notification_id):

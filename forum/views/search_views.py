@@ -1,7 +1,8 @@
 import json
 from django.shortcuts import render, redirect
 from forum.services.search_services import search_posts, search_users
-from forum.serializers import PostListSerializer, UserSummarySerializer, attach_poll_data_to_posts
+from forum.serializers import PostListSerializer, UserSummarySerializer
+from forum.services.poll_display_service import attach_poll_data_to_posts
 
 def search_results_new_page(request):
     query = request.GET.get('q', '')

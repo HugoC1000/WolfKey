@@ -9,6 +9,7 @@ from forum.models import (
     FollowedPost, Poll, PollOption, PollVote, PostLike,
 )
 from forum.services.utils import process_post_preview
+from forum.services.notification_services import all_notifications_service
 from forum.serializers import (
     AnonymousAuthorSerializer,
     CommentSerializer,
@@ -299,6 +300,24 @@ class AnonymousSerializationTests(TestCase):
         api_sender = response.json()['data']['notifications'][0]['sender']
         self.assertAnonymousAuthor(api_sender)
 
+    def test_notification_resolves_post_through_solution_without_extra_queries(self):
+        notification = Notification.objects.create(
+            recipient=self.other,
+            sender=self.author,
+            notification_type='solution',
+            solution=self.author_solution,
+            message='Anonymous answered.',
+        )
+        notifications = list(all_notifications_service(self.other))
+
+        with CaptureQueriesContext(connection) as queries:
+            data = NotificationSerializer(notifications, many=True).data
+
+        self.assertEqual(len(queries), 0)
+        self.assertEqual(data[0]['id'], notification.id)
+        self.assertEqual(data[0]['post_title'], self.post.title)
+        self.assertAnonymousAuthor(data[0]['sender'])
+
     def test_legacy_sorted_solutions_endpoint_uses_safe_author_projection(self):
         response = self.client.get(
             reverse('get_sorted_solutions', kwargs={'post_id': self.post.id})
@@ -359,15 +378,16 @@ class SerializerRefactorTests(TestCase):
             context={'request': request},
         ).data
 
-        self.assertIsNone(data['block_1A'])
-        self.assertIsNone(data['schedule_blocks'])
-        self.assertEqual(data['courses']['schedule_courses'], {})
+        self.assertIsNone(data['schedule'])
+        self.assertNotIn('block_1A', data)
+        self.assertNotIn('schedule_blocks', data)
+        self.assertNotIn('schedule_courses', data['courses'])
 
     def test_private_profile_can_include_owner_schedule_without_request_context(self):
         data = PrivateUserSerializer(self.owner).data
 
         self.assertEqual(
-            data['userprofile']['block_1A']['id'],
+            data['userprofile']['schedule']['1A']['course_id'],
             self.course.id,
         )
 
@@ -729,7 +749,8 @@ class APIProfilePrivacyTests(TestCase):
         self.assertNotIn('lunch_card', payload['userprofile'])
         self.assertNotIn('has_wolfnet_password', payload['userprofile'])
         self.assertNotIn('display_email', payload['userprofile'])
-        self.assertEqual(payload['userprofile']['courses']['schedule_courses'], {})
+        self.assertIsNone(payload['userprofile']['schedule'])
+        self.assertNotIn('schedule_courses', payload['userprofile']['courses'])
         self.assertFalse(payload['userprofile']['can_compare'])
 
     def test_own_profile_returns_owner_only_fields(self):
