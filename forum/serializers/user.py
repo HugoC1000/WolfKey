@@ -278,12 +278,11 @@ class FeedUserSerializer(UserSummarySerializer):
 class PrivateUserProfileSerializer(UserProfileSerializer):
     """Owner-only profile settings and assets."""
     lunch_card = serializers.SerializerMethodField()
-    has_wolfnet_password = serializers.SerializerMethodField()
     display_email = serializers.BooleanField(read_only=True)
 
     class Meta(UserProfileSerializer.Meta):
         fields = UserProfileSerializer.Meta.fields + [
-            'lunch_card', 'has_wolfnet_password', 'display_email'
+            'lunch_card', 'display_email'
         ]
 
     def _should_hide_schedule(self, obj):
@@ -291,9 +290,6 @@ class PrivateUserProfileSerializer(UserProfileSerializer):
 
     def get_lunch_card(self, obj):
         return safe_file_url(obj.lunch_card)
-
-    def get_has_wolfnet_password(self, obj):
-        return bool(obj.wolfnet_password)
 
 
 class PrivateUserSerializer(UserSerializer):

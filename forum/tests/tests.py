@@ -763,7 +763,6 @@ class APIProfilePrivacyTests(TestCase):
         self.assertIn('phone_number', payload)
         self.assertIn('student_id', payload)
         self.assertIn('lunch_card', payload['userprofile'])
-        self.assertIn('has_wolfnet_password', payload['userprofile'])
         self.assertIn('display_email', payload['userprofile'])
 
 
