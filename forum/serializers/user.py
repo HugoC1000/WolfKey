@@ -70,7 +70,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'grade_level', 'allow_schedule_comparison',
             'stats', 'courses', 'recent_posts',
             'can_compare', 'initial_users', 'schedule',
-            'instagram_url', 'snapchat_url', 'linkedin_url'
+            'instagram_url', 'snapchat_url', 'linkedin_url',
+            'preferred_msg_app'
         ]
     
 
@@ -203,18 +204,47 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return obj.get_linkedin_url()
 
 
+class FeedUserProfileSerializer(serializers.ModelSerializer):
+    """Compact public profile fields embedded with user summaries and authors."""
+    profile_picture = serializers.SerializerMethodField()
+    instagram_url = serializers.SerializerMethodField()
+    snapchat_url = serializers.SerializerMethodField()
+    linkedin_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserProfile
+        fields = [
+            'profile_picture', 'preferred_msg_app',
+            'instagram_url', 'snapchat_url', 'linkedin_url',
+        ]
+
+    def get_profile_picture(self, obj):
+        return safe_file_url(obj.profile_picture)
+
+    def get_instagram_url(self, obj):
+        return obj.get_instagram_url()
+
+    def get_snapchat_url(self, obj):
+        return obj.get_snapchat_url()
+
+    def get_linkedin_url(self, obj):
+        return obj.get_linkedin_url()
+
+
 class UserSummarySerializer(serializers.ModelSerializer):
     """Small public user representation for search, mentions, and selectors."""
     full_name = serializers.SerializerMethodField()
     profile_picture_url = serializers.SerializerMethodField()
     grade_level = serializers.SerializerMethodField()
     school_email = serializers.SerializerMethodField()
+    userprofile = FeedUserProfileSerializer(read_only=True)
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'first_name', 'last_name', 'full_name',
-            'school_email', 'profile_picture_url', 'grade_level', 'is_teacher'
+            'school_email', 'profile_picture_url', 'grade_level', 'is_teacher',
+            'userprofile',
         ]
     
     def get_full_name(self, obj):
@@ -241,19 +271,7 @@ class UserSerializer(UserSummarySerializer):
     userprofile = UserProfileSerializer(read_only=True)
 
     class Meta(UserSummarySerializer.Meta):
-        fields = UserSummarySerializer.Meta.fields + ['date_joined', 'userprofile']
-
-
-class FeedUserProfileSerializer(serializers.ModelSerializer):
-    """Only the profile-picture field needed by legacy feed renderers."""
-    profile_picture = serializers.SerializerMethodField()
-
-    class Meta:
-        model = UserProfile
-        fields = ['profile_picture']
-
-    def get_profile_picture(self, obj):
-        return safe_file_url(obj.profile_picture)
+        fields = UserSummarySerializer.Meta.fields + ['date_joined']
 
 
 class FeedUserSerializer(UserSummarySerializer):

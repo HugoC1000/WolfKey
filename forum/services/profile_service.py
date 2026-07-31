@@ -194,6 +194,17 @@ def update_profile_info(request, username):
                     linkedin_url = linkedin_url.replace('http://', 'https://')
             profile_user.userprofile.linkedin_url = linkedin_url if linkedin_url else None
 
+        if 'preferred_msg_app' in request.POST:
+            preferred_msg_app = request.POST.get('preferred_msg_app')
+            if preferred_msg_app is None:
+                preferred_msg_app = ''
+            elif not isinstance(preferred_msg_app, str):
+                return False, 'Invalid preferred messaging app.'
+            preferred_msg_app = preferred_msg_app.strip()
+            if preferred_msg_app and preferred_msg_app not in UserProfile.PreferredMessageApp.values:
+                return False, 'Invalid preferred messaging app.'
+            profile_user.userprofile.preferred_msg_app = preferred_msg_app or None
+
         hue_value = request.POST.get('background_hue', profile_user.userprofile.background_hue)
         profile_user.userprofile.background_hue = int(hue_value)
         profile_user.userprofile.save()

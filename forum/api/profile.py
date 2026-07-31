@@ -120,6 +120,7 @@ def update_profile_api(request):
         - instagram_handle: Instagram username (without @)
         - snapchat_handle: Snapchat username (without @)
         - linkedin_url: LinkedIn profile URL (must start with www.linkedin.com/in/)
+        - preferred_msg_app: Preferred contact app (Instagram, LinkedIn, Snapchat, Email, or Discord)
         - form_type: Type of form ('wolfnet_settings' for WolfNet settings)
         - wolfnet_password: WolfNet password (if form_type is 'wolfnet_settings')
         - clear_wolfnet_password: Boolean to clear WolfNet password

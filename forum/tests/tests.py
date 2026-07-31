@@ -362,6 +362,10 @@ class SerializerRefactorTests(TestCase):
         self.course = Course.objects.create(name='Private Schedule Course')
         self.owner.userprofile.block_1A = self.course
         self.owner.userprofile.allow_schedule_comparison = False
+        self.owner.userprofile.preferred_msg_app = 'LinkedIn'
+        self.owner.userprofile.instagram_handle = 'owner.user'
+        self.owner.userprofile.snapchat_handle = 'owner-snap'
+        self.owner.userprofile.linkedin_url = 'https://www.linkedin.com/in/owner-user'
         self.owner.userprofile.save()
         self.post = Post.objects.create(
             title='Serializer test post',
@@ -391,12 +395,37 @@ class SerializerRefactorTests(TestCase):
             self.course.id,
         )
 
-    def test_user_summary_does_not_embed_full_profile(self):
+    def test_user_summary_embeds_only_compact_contact_profile(self):
         data = UserSummarySerializer(self.owner).data
 
-        self.assertNotIn('userprofile', data)
         self.assertNotIn('date_joined', data)
         self.assertEqual(data['id'], self.owner.id)
+        self.assertEqual(
+            data['userprofile'],
+            {
+                'profile_picture': self.owner.userprofile.profile_picture.url,
+                'preferred_msg_app': 'LinkedIn',
+                'instagram_url': 'https://www.instagram.com/owner.user',
+                'snapchat_url': 'https://www.snapchat.com/add/owner-snap',
+                'linkedin_url': 'https://www.linkedin.com/in/owner-user',
+            },
+        )
+
+    def test_post_summary_and_detail_include_author_preferred_message_app(self):
+        summary = PostListSerializer(self.post).data
+        detail = PostDetailSerializer(self.post).data
+
+        expected_profile_fields = {
+            'preferred_msg_app': 'LinkedIn',
+            'instagram_url': 'https://www.instagram.com/owner.user',
+            'snapchat_url': 'https://www.snapchat.com/add/owner-snap',
+            'linkedin_url': 'https://www.linkedin.com/in/owner-user',
+        }
+        for payload in (summary, detail):
+            with self.subTest(serializer_payload=payload['id']):
+                author_profile = payload['author']['userprofile']
+                for field, expected_value in expected_profile_fields.items():
+                    self.assertEqual(author_profile[field], expected_value)
 
     def test_solution_serializes_only_root_comments_at_top_level(self):
         solution = Solution.objects.create(
@@ -764,6 +793,79 @@ class APIProfilePrivacyTests(TestCase):
         self.assertIn('student_id', payload)
         self.assertIn('lunch_card', payload['userprofile'])
         self.assertIn('display_email', payload['userprofile'])
+
+
+class PreferredMessageAppTests(TestCase):
+    def setUp(self):
+        from rest_framework.authtoken.models import Token
+
+        self.client = Client()
+        self.user = User.objects.create_user(
+            password='profilepass123', school_email='profile@wpga.ca',
+            first_name='Profile', last_name='User'
+        )
+        self.token = Token.objects.create(user=self.user)
+        self.auth_header = {'HTTP_AUTHORIZATION': f'Token {self.token.key}'}
+
+    def test_profile_api_updates_and_returns_preferred_message_app(self):
+        for app in ('Instagram', 'LinkedIn', 'Snapchat', 'Email', 'Discord'):
+            with self.subTest(app=app):
+                response = self.client.post(
+                    reverse('api_update_profile'),
+                    data=json.dumps({'preferred_msg_app': app}),
+                    content_type='application/json',
+                    **self.auth_header,
+                )
+                self.assertEqual(response.status_code, 200)
+                self.user.userprofile.refresh_from_db()
+                self.assertEqual(self.user.userprofile.preferred_msg_app, app)
+
+        self.user.userprofile.refresh_from_db()
+        self.assertEqual(self.user.userprofile.preferred_msg_app, 'Discord')
+
+        response = self.client.get(reverse('api_get_current_profile'), **self.auth_header)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['userprofile']['preferred_msg_app'], 'Discord')
+
+        response = self.client.post(
+            reverse('api_update_profile'),
+            data=json.dumps({'preferred_msg_app': None}),
+            content_type='application/json',
+            **self.auth_header,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.user.userprofile.refresh_from_db()
+        self.assertIsNone(self.user.userprofile.preferred_msg_app)
+
+    def test_profile_api_rejects_unknown_preferred_message_app(self):
+        response = self.client.post(
+            reverse('api_update_profile'),
+            data=json.dumps({'preferred_msg_app': 'sms'}),
+            content_type='application/json',
+            **self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.user.userprofile.refresh_from_db()
+        self.assertIsNone(self.user.userprofile.preferred_msg_app)
+
+    def test_profile_page_has_preferred_message_app_selector(self):
+        self.user.userprofile.preferred_msg_app = 'Snapchat'
+        self.user.userprofile.save()
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('profile', kwargs={'username': self.user.username})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="preferred_msg_app"')
+        self.assertContains(response, '<option value="Snapchat" selected>Snapchat</option>', html=True)
+        content = response.content.decode()
+        self.assertGreater(
+            content.index('id="socialMediaForm"'),
+            content.index('id="preferences"'),
+        )
 
 
 class PostPreviewFormattingTests(TestCase):

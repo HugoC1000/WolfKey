@@ -164,54 +164,6 @@
                             </div>
                         </div>
                         
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="bi bi-share"></i> Social Media Links</h5>
-                            </div>
-                            <div class="card-body">
-                                <form method="post" id="socialMediaForm">
-                                    {% csrf_token %}
-                                    
-                                    <div class="mb-3">
-                                        <label for="id_instagram_handle" class="form-label">
-                                            <i class="bi bi-instagram"></i> Instagram Username
-                                        </label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">@</span>
-                                            <input type="text" name="instagram_handle" id="id_instagram_handle" class="form-control" 
-                                                   value="{{ profile_user.userprofile.instagram_handle|default:'' }}" 
-                                                   placeholder="username">
-                                        </div>
-                                        <small class="text-muted">Your Instagram username (without @)</small>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="id_snapchat_handle" class="form-label">
-                                            <i class="bi bi-snapchat"></i> Snapchat Username
-                                        </label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">@</span>
-                                            <input type="text" name="snapchat_handle" id="id_snapchat_handle" class="form-control" 
-                                                   value="{{ profile_user.userprofile.snapchat_handle|default:'' }}" 
-                                                   placeholder="username">
-                                        </div>
-                                        <small class="text-muted">Your Snapchat username (without @)</small>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="id_linkedin_url" class="form-label">
-                                            <i class="bi bi-linkedin"></i> LinkedIn Profile URL
-                                        </label>
-                                        <input type="url" name="linkedin_url" id="id_linkedin_url" class="form-control" 
-                                               value="{{ profile_user.userprofile.linkedin_url|default:'' }}" 
-                                               placeholder="https://www.linkedin.com/in/yourprofile">
-                                        <small class="text-muted">Must start with www.linkedin.com/in/</small>
-                                    </div>
-                                    
-                                    <button type="submit" class="btn btn-primary" disabled>Save Social Links</button>
-                                </form>
-                            </div>
-                        </div>
                         {% endif %}
                     </div>
 
@@ -332,7 +284,7 @@
             <!-- Preferences Tab -->
             <div class="tab-pane fade" id="preferences" role="tabpanel" aria-labelledby="preferences-tab">
                 <div class="row">
-                    <div class="col-md-16">
+                    <div class="col-md-6">
                         <div class="card mb-4">
                             <div class="card-header">
                                 <h5 class="mb-0">Update Personal Information</h5>
@@ -395,6 +347,72 @@
     
                         <div class="card mb-4" style = "overflow: hidden;">
                             <a href="{% url 'password_reset' %}" class="btn btn-secondary" style = "z-index: 2;">Reset Password</a>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="bi bi-share"></i> Social Media Links</h5>
+                            </div>
+                            <div class="card-body">
+                                <form method="post" id="socialMediaForm">
+                                    {% csrf_token %}
+
+                                    <div class="mb-3">
+                                        <label for="id_instagram_handle" class="form-label">
+                                            <i class="bi bi-instagram"></i> Instagram Username
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">@</span>
+                                            <input type="text" name="instagram_handle" id="id_instagram_handle" class="form-control"
+                                                   value="{{ profile_user.userprofile.instagram_handle|default:'' }}"
+                                                   placeholder="username">
+                                        </div>
+                                        <small class="text-muted">Your Instagram username (without @)</small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="id_snapchat_handle" class="form-label">
+                                            <i class="bi bi-snapchat"></i> Snapchat Username
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">@</span>
+                                            <input type="text" name="snapchat_handle" id="id_snapchat_handle" class="form-control"
+                                                   value="{{ profile_user.userprofile.snapchat_handle|default:'' }}"
+                                                   placeholder="username">
+                                        </div>
+                                        <small class="text-muted">Your Snapchat username (without @)</small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="id_linkedin_url" class="form-label">
+                                            <i class="bi bi-linkedin"></i> LinkedIn Profile URL
+                                        </label>
+                                        <input type="url" name="linkedin_url" id="id_linkedin_url" class="form-control"
+                                               value="{{ profile_user.userprofile.linkedin_url|default:'' }}"
+                                               placeholder="https://www.linkedin.com/in/yourprofile">
+                                        <small class="text-muted">Must start with www.linkedin.com/in/</small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="id_preferred_msg_app" class="form-label">
+                                            <i class="bi bi-chat-dots"></i> Preferred Messaging App
+                                        </label>
+                                        <select name="preferred_msg_app" id="id_preferred_msg_app" class="form-select">
+                                            <option value="" {% if not profile_user.userprofile.preferred_msg_app %}selected{% endif %}>No preference</option>
+                                            <option value="Instagram" {% if profile_user.userprofile.preferred_msg_app == 'Instagram' %}selected{% endif %}>Instagram</option>
+                                            <option value="LinkedIn" {% if profile_user.userprofile.preferred_msg_app == 'LinkedIn' %}selected{% endif %}>LinkedIn</option>
+                                            <option value="Snapchat" {% if profile_user.userprofile.preferred_msg_app == 'Snapchat' %}selected{% endif %}>Snapchat</option>
+                                            <option value="Email" {% if profile_user.userprofile.preferred_msg_app == 'Email' %}selected{% endif %}>Email</option>
+                                            <option value="Discord" {% if profile_user.userprofile.preferred_msg_app == 'Discord' %}selected{% endif %}>Discord</option>
+                                        </select>
+                                        <small class="text-muted">Choose how you prefer people to contact you.</small>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary" disabled>Save Contact Preferences</button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>

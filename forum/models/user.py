@@ -160,6 +160,13 @@ class User(AbstractUser):
 
 
 class UserProfile(models.Model):
+    class PreferredMessageApp(models.TextChoices):
+        INSTAGRAM = 'Instagram'
+        LINKEDIN = 'LinkedIn', 'LinkedIn'
+        SNAPCHAT = 'Snapchat'
+        EMAIL = 'Email'
+        DISCORD = 'Discord'
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     bio = models.TextField(max_length=500, blank=True)
     points = models.IntegerField(default=0)
@@ -231,6 +238,13 @@ class UserProfile(models.Model):
     display_email = models.BooleanField(
         default=False,
         help_text="Display your email address on your public profile"
+    )
+    preferred_msg_app = models.CharField(
+        max_length=9,
+        choices=PreferredMessageApp.choices,
+        blank=True,
+        null=True,
+        help_text="The app you prefer people to use when contacting you"
     )
     
     # Social Media Links

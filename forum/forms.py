@@ -140,7 +140,10 @@ class UserProfileForm(forms.ModelForm):
     
     class Meta:
         model = UserProfile
-        fields = ['bio', 'instagram_handle', 'snapchat_handle', 'linkedin_url']
+        fields = [
+            'bio', 'instagram_handle', 'snapchat_handle', 'linkedin_url',
+            'preferred_msg_app'
+        ]
         widgets = {
             'bio': forms.Textarea(attrs={'rows': 4}),
         }
