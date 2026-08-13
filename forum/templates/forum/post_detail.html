@@ -74,18 +74,10 @@
     </div>
 </div>
 
-<div id="solutions-container">
-    {% with accepted_solution=post.accepted_solution %}
-    {% if accepted_solution %}
-        {% include 'forum/components/post_detail_solution_card.html' with solution=accepted_solution accepted_solution=accepted_solution %}
-    {% endif %}
-
-    {% for solution in solutions %}
-        {% if solution != accepted_solution %}
-            {% include 'forum/components/post_detail_solution_card.html' with solution=solution accepted_solution=accepted_solution %}
-        {% endif %}
+<div id="solutions-container" data-post-id="{{ post_data.id }}">
+    {% for solution in post_data.solutions %}
+        {% include 'forum/components/post_detail_solution_card.html' with solution=solution %}
     {% endfor %}
-    {% endwith %}
 </div>
 
 <!-- Add Solution Form -->
@@ -110,6 +102,9 @@
 {% endblock %}
 
 {% block scripts %}
+
+{{ post_data.content|json_script:"post-content-data" }}
+{{ post_data.solutions|json_script:"post-solutions-data" }}
 
 
 <!-- Initialize Editor.js -->
@@ -137,22 +132,68 @@ import createEditor from '{% static "forum/js/editor-config.js" %}';
 import { SolutionInteractions } from '/static/forum/js/solution-interactions.js';
 
 document.addEventListener("DOMContentLoaded", function () {
+    function formatTimestamps() {
+        document.querySelectorAll('.js-post-date').forEach(element => {
+            const value = new Date(element.dateTime);
+            if (!Number.isNaN(value.getTime())) {
+                element.textContent = value.toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric',
+                });
+            }
+        });
+
+        document.querySelectorAll('.js-relative-time').forEach(element => {
+            const value = new Date(element.dateTime);
+            if (Number.isNaN(value.getTime())) return;
+
+            const elapsedSeconds = Math.max(0, Math.floor((Date.now() - value.getTime()) / 1000));
+            const units = [
+                ['wk', 604800],
+                ['d', 86400],
+                ['h', 3600],
+                ['m', 60],
+            ];
+
+            if (elapsedSeconds / 86400 >= 30) {
+                element.textContent = value.toLocaleDateString(undefined, {
+                    month: 'long',
+                    day: '2-digit',
+                    year: 'numeric',
+                });
+                return;
+            }
+
+            const [label, seconds] = units.find(([, unitSeconds]) => elapsedSeconds >= unitSeconds) || ['m', 60];
+            element.textContent = `${Math.max(1, Math.floor(elapsedSeconds / seconds))}${label} ago`;
+        });
+    }
+
     async function initializePage() {
+        formatTimestamps();
+
         try {
             window.solutionInteractions = new SolutionInteractions();
 
             const editorManager = new EditorManager();
 
-            const contentJSON = '{{ content_json|escapejs }}';
-            const content = JSON.parse(contentJSON);
+            const content = JSON.parse(document.getElementById('post-content-data').textContent);
             await editorManager.initializeMainEditor('editorjs', content, '{{ csrf_token }}', true);
 
-            const processedSolutions = JSON.parse('{{ processed_solutions_json|escapejs }}');
+            const processedSolutions = JSON.parse(document.getElementById('post-solutions-data').textContent);
             await editorManager.initializeSolutionEditors(processedSolutions, '{{ csrf_token }}');
 
+            const flattenComments = comments => comments.flatMap(comment => [
+                comment,
+                ...flattenComments(comment.replies || []),
+            ]);
             for (const solution of processedSolutions) {
                 if (solution.comments && solution.comments.length > 0) {
-                    await editorManager.initializeCommentEditors(solution.comments);
+                    await editorManager.initializeCommentEditors(
+                        flattenComments(solution.comments),
+                        '{{ csrf_token }}'
+                    );
                 }
             }
 
@@ -217,11 +258,11 @@ document.addEventListener("DOMContentLoaded", function () {
                         });
                         const button = this.querySelector('button');
                         if (data.followed) {
-                            this.setAttribute('action', '{% url "unfollow_post" post.id %}');
+                            this.setAttribute('action', '{% url "unfollow_post" post_data.id %}');
                             button.innerHTML = '<i class="fas fa-bell-slash me-1"></i> Unfollow<span class="follow-count">' + data.followers_count + '</span>';
                             button.classList.add('active');
                         } else {
-                            this.setAttribute('action', '{% url "follow_post" post.id %}');
+                            this.setAttribute('action', '{% url "follow_post" post_data.id %}');
                             button.innerHTML = '<i class="fas fa-bell me-1"></i> Follow<span class="follow-count">' + data.followers_count + '</span>';
                             button.classList.remove('active');
                         }
@@ -244,7 +285,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Check if user came from for-you or all-posts pages
         const referrer = document.referrer;
         const currentHost = window.location.origin;
-        const postId = {{ post.id }};
+        const postId = {{ post_data.id }};
         const storedGoBackUrl = sessionStorage.getItem('goBackUrl');
         
         let shouldShowButton = false;

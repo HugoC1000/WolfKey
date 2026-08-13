@@ -1,21 +1,39 @@
 from django.shortcuts import get_object_or_404
-from django.db.models import F, Case, When, IntegerField
-from forum.models import Post, Course, PostLike, FollowedPost, Poll, PollOption
-from forum.services.utils import detect_bad_words, selective_quote_replace
+from django.db.models import (
+    Case,
+    Count,
+    Exists,
+    F,
+    IntegerField,
+    OuterRef,
+    Prefetch,
+    Subquery,
+    Value,
+    When,
+)
+from django.db.models.functions import Coalesce
+from forum.models import (
+    Comment,
+    Course,
+    FollowedPost,
+    Poll,
+    PollOption,
+    Post,
+    PostLike,
+    SavedSolution,
+    Solution,
+    SolutionDownvote,
+    SolutionUpvote,
+    UserCourseExperience,
+    UserCourseHelp,
+)
+from forum.services.utils import detect_bad_words
 from forum.services.notification_services import send_course_notifications_service
 from forum.services.mention_service import update_mentions
-import json
+from forum.services.comment_tree import attach_comment_trees
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-def _author_display_name(user, post):
-    """Return an author name without exposing an anonymous post's author."""
-    if post.is_anonymous and user.id == post.author_id:
-        from forum.serializers import AnonymousAuthorSerializer
-        return AnonymousAuthorSerializer(user).data['full_name']
-    return user.get_full_name()
 
 
 def _check_teacher_visibility(user, post):
@@ -27,15 +45,112 @@ def _check_teacher_visibility(user, post):
         raise ValueError("You don't have permission to view this post.")
     return True
 
-def get_post_detail_service(post_id, user=None):
-    try:
-        post = get_object_or_404(Post, id=post_id)
-        
-        # Check teacher visibility
-        _check_teacher_visibility(user, post)
-        
-        solutions = post.solutions.annotate(
-            vote_score=F('upvotes') - F('downvotes')
+
+def _count_subquery(queryset, group_field):
+    return queryset.order_by().values(group_field).annotate(
+        total=Count('pk')
+    ).values('total')
+
+
+def get_post_detail_object(post_id, user):
+    """Load the complete post-detail graph in a fixed number of queries."""
+    like_count = _count_subquery(
+        PostLike.objects.filter(post_id=OuterRef('pk')),
+        'post_id',
+    )
+    solution_count = _count_subquery(
+        Solution.objects.filter(post_id=OuterRef('pk')),
+        'post_id',
+    )
+    comment_count = _count_subquery(
+        Comment.objects.filter(solution__post_id=OuterRef('pk')),
+        'solution__post_id',
+    )
+    followers_count = _count_subquery(
+        FollowedPost.objects.filter(post_id=OuterRef('pk')),
+        'post_id',
+    )
+
+    courses = Course.objects.annotate(
+        detail_is_experienced=Exists(
+            UserCourseExperience.objects.filter(
+                user=user,
+                course_id=OuterRef('pk'),
+            )
+        ),
+        detail_needs_help=Exists(
+            UserCourseHelp.objects.filter(
+                user=user,
+                course_id=OuterRef('pk'),
+                active=True,
+            )
+        ),
+    ).prefetch_related('blocks')
+
+    post = get_object_or_404(
+        Post.objects.select_related(
+            'author',
+            'author__userprofile',
+        ).prefetch_related(
+            Prefetch('courses', queryset=courses),
+        ).annotate(
+            detail_like_count=Coalesce(
+                Subquery(like_count, output_field=IntegerField()),
+                Value(0),
+            ),
+            detail_solution_count=Coalesce(
+                Subquery(solution_count, output_field=IntegerField()),
+                Value(0),
+            ),
+            detail_comment_count=Coalesce(
+                Subquery(comment_count, output_field=IntegerField()),
+                Value(0),
+            ),
+            detail_followers_count=Coalesce(
+                Subquery(followers_count, output_field=IntegerField()),
+                Value(0),
+            ),
+            detail_is_liked=Exists(
+                PostLike.objects.filter(post_id=OuterRef('pk'), user=user)
+            ),
+            detail_is_following=Exists(
+                FollowedPost.objects.filter(post_id=OuterRef('pk'), user=user)
+            ),
+            detail_has_solution_from_user=Exists(
+                Solution.objects.filter(post_id=OuterRef('pk'), author=user)
+            ),
+        ),
+        id=post_id,
+    )
+
+    # Avoid loading the nested graph when the caller will reject this post.
+    if user.is_teacher and not post.allow_teacher:
+        return post
+
+    solutions = list(
+        Solution.objects.filter(post=post).select_related(
+            'author',
+            'author__userprofile',
+        ).annotate(
+            vote_score=F('upvotes') - F('downvotes'),
+            detail_is_saved=Exists(
+                SavedSolution.objects.filter(
+                    solution_id=OuterRef('pk'),
+                    user=user,
+                )
+            ),
+            detail_viewer_has_upvoted=Exists(
+                SolutionUpvote.objects.filter(
+                    solution_id=OuterRef('pk'),
+                    user=user,
+                )
+            ),
+            detail_viewer_has_downvoted=Exists(
+                SolutionDownvote.objects.filter(
+                    solution_id=OuterRef('pk'),
+                    user=user,
+                )
+            ),
         ).order_by(
             Case(
                 When(id=post.accepted_solution_id, then=0),
@@ -43,57 +158,26 @@ def get_post_detail_service(post_id, user=None):
                 output_field=IntegerField(),
             ),
             '-vote_score',
-            '-created_at'
+            '-created_at',
         )
+    )
+    solution_ids = [solution.id for solution in solutions]
 
-        processed_solutions = []
-        for solution in solutions:
-            try:
-                solution_content = solution.content
-                if isinstance(solution_content, str):
-                    solution_content = selective_quote_replace(solution_content)
-                    solution_content = json.loads(solution_content)
-                
-                comments = solution.comments.select_related('author').order_by('created_at')
-                processed_comments = [{
-                    'id': comment.id,
-                    'content': comment.content,
-                    'author': _author_display_name(comment.author, post),
-                    'created_at': comment.created_at.isoformat(),
-                    'parent_id': comment.parent_id,
-                    'depth': comment.get_depth(),
-                } for comment in comments]
+    comments = list(
+        Comment.objects.filter(solution_id__in=solution_ids).select_related(
+            'author',
+            'author__userprofile',
+        ).order_by('created_at')
+    )
+    roots_by_solution = attach_comment_trees(comments, solution_ids)
 
-                processed_solutions.append({
-                    'id': solution.id,
-                    'content': solution_content,
-                    'author': _author_display_name(solution.author, post),
-                    'created_at': solution.created_at.isoformat(),
-                    'upvotes': solution.upvotes,
-                    'downvotes': solution.downvotes,
-                    'comments': processed_comments,
-                })
-            except Exception as e:
-                logger.error(f"Error processing solution {solution.id}: {e}")
+    for solution in solutions:
+        solution.detail_is_accepted = solution.id == post.accepted_solution_id
+        solution.detail_root_comments = roots_by_solution[solution.id]
 
-        post = Post.objects.get(id=post_id)
-        post.views += 1
-        post.save()
+    post.detail_solutions = solutions
+    return post
 
-        return {
-            'id': post.id,
-            'title': post.title,
-            'solutions_object' : solutions,
-            'content': post.content,
-            'author': _author_display_name(post.author, post),
-            'created_at': post.created_at.isoformat(),
-            'solutions': processed_solutions,
-            'courses': [{'id': c.id, 'name': c.name} for c in post.courses.all()],
-            'like_count': post.like_count(),
-            'is_liked': post.is_liked_by(user) if user else False,
-        }
-    except Exception as e:
-        return {'error': str(e)}
 
 def create_post_service(user, data):
     try:

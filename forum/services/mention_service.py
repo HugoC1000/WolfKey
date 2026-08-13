@@ -419,51 +419,6 @@ def update_mentions(content_obj, new_content: dict, old_content: Optional[dict] 
             )
 
 
-def fetch_mentions_for_content(content_obj) -> List[Dict]:
-    """
-    Get all mentions for a specific content object.
-    
-    Args:
-        content_obj: Post, Solution, or Comment object
-    
-    Returns:
-        list[dict]: List of mentions with {user_id, full_name, is_anonymous}
-    """
-    # Determine content type
-    if isinstance(content_obj, Post):
-        content_type = 'post'
-    elif isinstance(content_obj, Solution):
-        content_type = 'solution'
-    elif isinstance(content_obj, Comment):
-        content_type = 'comment'
-    else:
-        return []
-    
-    # Build the filter kwargs
-    content_kwargs = {
-        'content_type': content_type,
-    }
-    
-    if content_type == 'post':
-        content_kwargs['post'] = content_obj
-    elif content_type == 'solution':
-        content_kwargs['solution'] = content_obj
-    elif content_type == 'comment':
-        content_kwargs['comment'] = content_obj
-    
-    mentions = Mention.objects.filter(**content_kwargs).select_related('mentioned_user')
-    
-    return [
-        {
-            'user_id': mention.mentioned_user.id,
-            'full_name': mention.mentioned_user.get_full_name() or mention.mentioned_user.username,
-            'username': mention.mentioned_user.username,
-            'is_anonymous': mention.is_anonymous
-        }
-        for mention in mentions
-    ]
-
-
 def search_mentions(user, query: str, limit: int = 5, trigger: str = '') -> Dict:
     """
     Search for mentions across users, courses, and "everyone" (admin-only).

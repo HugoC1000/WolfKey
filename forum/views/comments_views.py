@@ -52,5 +52,6 @@ def get_comments(request, solution_id):
         })
     return render(request, 'forum/components/comments_list.html', {
         'comments': result['comments'],
-        'solution': result['solution']
+        'solution': result['solution'],
+        'post_data': result['post_data'],
     })

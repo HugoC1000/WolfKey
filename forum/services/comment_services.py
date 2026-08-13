@@ -4,9 +4,10 @@ from forum.models import Solution, Comment
 from forum.services.notification_services import send_comment_notifications_service
 from forum.services.mention_service import update_mentions
 from forum.services.post_services import _check_teacher_visibility
+from forum.services.comment_tree import attach_comment_trees
 from forum.services.utils import process_messages_to_json, detect_bad_words
 from django.template.loader import render_to_string
-from forum.serializers import AnonymousAuthorSerializer, FeedUserSerializer
+from forum.serializers import CommentSerializer
 
 def create_comment_service(request, solution_id, data):
     solution = get_object_or_404(Solution, id=solution_id)
@@ -75,37 +76,44 @@ def delete_comment_service(request, comment_id):
     return {'status': 'success', 'messages': process_messages_to_json(request)}
 
 def get_comments_service(request, solution_id):
-    solution = get_object_or_404(Solution, id=solution_id)
-    comments = Comment.objects.filter(solution=solution).order_by('created_at')
+    solution = get_object_or_404(
+        Solution.objects.select_related('post'),
+        id=solution_id,
+    )
+    _check_teacher_visibility(request.user, solution.post)
 
-    def process_comment(comment):
-        should_be_anonymous = (
-            solution.post.is_anonymous
-            and comment.author_id == solution.post.author_id
-        )
-        author_serializer = (
-            AnonymousAuthorSerializer if should_be_anonymous else FeedUserSerializer
-        )
-        return {
-            'id': comment.id,
-            'content': comment.content,
-            'author': author_serializer(
-                comment.author,
-                context={'request': request},
-            ).data,
-            'created_at': comment.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            'replies': [process_comment(reply) for reply in comment.replies.all()]
-        }
-    comments_data = [process_comment(comment) for comment in comments]
+    comments = list(
+        Comment.objects.filter(solution=solution).select_related(
+            'author',
+            'author__userprofile',
+        ).order_by('created_at')
+    )
+    roots_by_solution = attach_comment_trees(comments, [solution.id])
+    root_comments = roots_by_solution[solution.id]
+
+    comments_data = CommentSerializer(
+        root_comments,
+        many=True,
+        context={'request': request, 'post': solution.post},
+    ).data
+    solution_data = {
+        'id': solution.id,
+        'root_comments_count': len(root_comments),
+    }
+    post_data = {
+        'is_anonymous': solution.post.is_anonymous,
+        'author': {'id': solution.post.author_id},
+    }
 
     html = render_to_string('forum/components/comments_list.html', {
-        'comments': comments,
-        'solution': solution,
-        'post': solution.post,
+        'comments': comments_data,
+        'solution': solution_data,
+        'post_data': post_data,
     }, request=request)
     return {
         'comments_data': comments_data,
         'html': html,
-        'comments': comments,
-        'solution': solution
+        'comments': comments_data,
+        'solution': solution_data,
+        'post_data': post_data,
     }

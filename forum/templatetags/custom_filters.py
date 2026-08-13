@@ -30,6 +30,8 @@ def remove_upload(value):
 
 @register.filter
 def vote_difference(solution):
+    if isinstance(solution, dict):
+        return solution.get('upvotes', 0) - solution.get('downvotes', 0)
     return solution.upvotes - solution.downvotes
 
 @register.filter

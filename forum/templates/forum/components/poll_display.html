@@ -1,8 +1,8 @@
-{% if post.post_type == 'poll' %}
+{% if post_data.poll_info %}
 {% load static %}
 <link rel="stylesheet" href="{% static 'forum/css/poll-display.css' %}">
 
-<div class="poll-container" data-post-id="{{ post.id }}">
+<div class="poll-container" data-post-id="{{ post_data.id }}">
     <!-- Poll Subtitle -->
     <div class="poll-subtitle">
         {% if post_data.poll_info.allow_multiple_choice %}
@@ -74,7 +74,7 @@
         
         {% if not read_only %}
         <div class="poll-buttons">
-            <button type="button" class="btn btn-primary btn-sm poll-vote-button {% if post_data.user_vote %}hidden{% endif %}" data-post-id="{{ post.id }}">
+            <button type="button" class="btn btn-primary btn-sm poll-vote-button {% if post_data.user_vote %}hidden{% endif %}" data-post-id="{{ post_data.id }}">
                 Vote
             </button>
             <button type="button" class="btn btn-secondary btn-sm poll-vote-button {% if not post_data.user_vote %}hidden{% endif %}" data-role="remove">
@@ -87,9 +87,9 @@
     {% if post_data.poll_info.is_public_voting %}
     <div class="poll-voters-modal hidden" data-voters-modal>
         <div class="poll-voters-backdrop" data-voters-close></div>
-        <div class="poll-voters-dialog" role="dialog" aria-modal="true" aria-labelledby="poll-voters-title-{{ post.id }}">
+        <div class="poll-voters-dialog" role="dialog" aria-modal="true" aria-labelledby="poll-voters-title-{{ post_data.id }}">
             <div class="poll-voters-header">
-                <h6 id="poll-voters-title-{{ post.id }}" data-voters-title>Votes</h6>
+                <h6 id="poll-voters-title-{{ post_data.id }}" data-voters-title>Votes</h6>
                 <button type="button" class="poll-voters-close" data-voters-close aria-label="Close voters list">&times;</button>
             </div>
             <div class="poll-voters-list" data-voters-list></div>

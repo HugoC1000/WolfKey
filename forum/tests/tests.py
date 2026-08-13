@@ -5,11 +5,13 @@ from django.test import TestCase, Client, RequestFactory
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from forum.models import (
-    User, Post, Course, Solution, Comment, Notification,
+    User, Post, Course, Solution, Comment, Notification, Block, Mention,
     FollowedPost, Poll, PollOption, PollVote, PostLike,
+    SavedSolution, SolutionDownvote, SolutionUpvote, UserCourseExperience,
 )
 from forum.services.utils import process_post_preview
 from forum.services.notification_services import all_notifications_service
+from forum.services.post_services import get_post_detail_object
 from forum.serializers import (
     AnonymousAuthorSerializer,
     CommentSerializer,
@@ -265,14 +267,14 @@ class AnonymousSerializationTests(TestCase):
         public_data = SolutionSerializer(self.other_solution).data
 
         self.assertAnonymousAuthor(anonymous_data['author'])
-        self.assertIn('mentions', anonymous_data)
+        self.assertNotIn('mentions', anonymous_data)
         self.assertEqual(public_data['author']['id'], self.other.id)
 
     def test_comment_derives_anonymity_without_serializer_context(self):
         data = CommentSerializer(self.author_comment).data
 
         self.assertAnonymousAuthor(data['author'])
-        self.assertIn('mentions', data)
+        self.assertNotIn('mentions', data)
 
     def test_notification_uses_anonymous_sender_projection(self):
         from rest_framework.authtoken.models import Token
@@ -504,6 +506,358 @@ class SerializerRefactorTests(TestCase):
         self.assertTrue(options[second.id]['user_voted'])
         self.assertEqual(data['user_vote']['selected_option_ids'], [second.id])
         self.assertEqual(len(options[first.id]['voters']), 1)
+
+
+class PostDetailAPIOptimizationTests(TestCase):
+    def setUp(self):
+        from rest_framework.authtoken.models import Token
+
+        self.client = Client()
+        self.author = User.objects.create_user(
+            password='authorpass',
+            school_email='detail-author@wpga.ca',
+            first_name='Detail',
+            last_name='Author',
+        )
+        self.viewer = User.objects.create_user(
+            password='viewerpass',
+            school_email='detail-viewer@wpga.ca',
+            first_name='Detail',
+            last_name='Viewer',
+        )
+        self.token = Token.objects.create(user=self.viewer)
+        self.author_token = Token.objects.create(user=self.author)
+        self.auth = {'HTTP_AUTHORIZATION': f'Token {self.token.key}'}
+        self.author_auth = {
+            'HTTP_AUTHORIZATION': f'Token {self.author_token.key}'
+        }
+
+        block = Block.objects.create(code='1A', label='Block 1A')
+        self.course = Course.objects.create(name='Detail Course')
+        self.course.blocks.add(block)
+        UserCourseExperience.objects.create(
+            user=self.viewer,
+            course=self.course,
+        )
+
+        self.post = Post.objects.create(
+            title='Optimized detail',
+            content={'blocks': []},
+            author=self.author,
+            is_anonymous=True,
+        )
+        self.post.courses.add(self.course)
+        PostLike.objects.create(post=self.post, user=self.viewer)
+        FollowedPost.objects.create(post=self.post, user=self.viewer)
+
+        self.accepted = Solution.objects.create(
+            post=self.post,
+            author=self.author,
+            content={'blocks': []},
+            upvotes=0,
+        )
+        self.high_score = Solution.objects.create(
+            post=self.post,
+            author=self.viewer,
+            content={'blocks': []},
+            upvotes=10,
+        )
+        self.post.accepted_solution = self.accepted
+        self.post.save(update_fields=['accepted_solution'])
+        SavedSolution.objects.create(
+            user=self.viewer,
+            solution=self.high_score,
+        )
+        SolutionUpvote.objects.create(
+            user=self.viewer,
+            solution=self.accepted,
+        )
+        SolutionDownvote.objects.create(
+            user=self.viewer,
+            solution=self.high_score,
+        )
+
+        self.root = Comment.objects.create(
+            solution=self.accepted,
+            author=self.author,
+            content={'blocks': []},
+        )
+        self.second_root = Comment.objects.create(
+            solution=self.accepted,
+            author=self.viewer,
+            content={'blocks': []},
+        )
+        self.child = Comment.objects.create(
+            solution=self.accepted,
+            author=self.viewer,
+            parent=self.root,
+            content={'blocks': []},
+        )
+        self.grandchild = Comment.objects.create(
+            solution=self.accepted,
+            author=self.author,
+            parent=self.child,
+            content={'blocks': []},
+        )
+
+        Mention.objects.create(
+            author=self.author,
+            mentioned_user=self.viewer,
+            content_type='post',
+            post=self.post,
+            is_anonymous=True,
+        )
+        Mention.objects.create(
+            author=self.author,
+            mentioned_user=self.viewer,
+            content_type='solution',
+            solution=self.accepted,
+            is_anonymous=True,
+        )
+        Mention.objects.create(
+            author=self.author,
+            mentioned_user=self.viewer,
+            content_type='comment',
+            comment=self.root,
+            is_anonymous=True,
+        )
+
+    def get_detail(self):
+        return self.client.get(
+            reverse('api_post_detail', kwargs={'post_id': self.post.id}),
+            **self.auth,
+        )
+
+    def get_web_detail(self):
+        return self.client.get(
+            reverse('post_detail', kwargs={'post_id': self.post.id})
+        )
+
+    def test_detail_payload_preserves_behavior_with_preloaded_graph(self):
+        response = self.get_detail()
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['like_count'], 1)
+        self.assertTrue(data['is_liked'])
+        self.assertTrue(data['is_following'])
+        self.assertEqual(data['followers_count'], 1)
+        self.assertTrue(data['has_solution_from_user'])
+        self.assertFalse(data['viewer_can_edit'])
+        self.assertFalse(data['viewer_can_accept_solutions'])
+        self.assertEqual(data['solution_count'], 2)
+        self.assertEqual(data['comment_count'], 4)
+        self.assertEqual(data['courses'][0]['blocks'], ['1A'])
+        self.assertTrue(data['courses'][0]['is_experienced'])
+        self.assertFalse(data['courses'][0]['needs_help'])
+        self.assertNotIn('mentions', data)
+
+        self.assertIsNone(data['author']['id'])
+        self.assertEqual(
+            [solution['id'] for solution in data['solutions']],
+            [self.accepted.id, self.high_score.id],
+        )
+        accepted = data['solutions'][0]
+        high_score = data['solutions'][1]
+        self.assertTrue(accepted['is_accepted'])
+        self.assertFalse(accepted['is_saved'])
+        self.assertTrue(accepted['viewer_has_upvoted'])
+        self.assertFalse(accepted['viewer_has_downvoted'])
+        self.assertEqual(accepted['root_comment_count'], 2)
+        self.assertFalse(accepted['viewer_can_edit'])
+        self.assertFalse(high_score['is_accepted'])
+        self.assertTrue(high_score['is_saved'])
+        self.assertFalse(high_score['viewer_has_upvoted'])
+        self.assertTrue(high_score['viewer_has_downvoted'])
+        self.assertEqual(high_score['root_comment_count'], 0)
+        self.assertTrue(high_score['viewer_can_edit'])
+        self.assertIsNone(accepted['author']['id'])
+        self.assertNotIn('mentions', accepted)
+
+        comments = accepted['comments']
+        self.assertEqual(
+            [comment['id'] for comment in comments],
+            [self.root.id, self.second_root.id],
+        )
+        child = comments[0]['replies'][0]
+        grandchild = child['replies'][0]
+        self.assertEqual(child['id'], self.child.id)
+        self.assertEqual(child['depth'], 1)
+        self.assertTrue(child['viewer_can_edit'])
+        self.assertEqual(grandchild['id'], self.grandchild.id)
+        self.assertEqual(grandchild['depth'], 2)
+        self.assertIsNone(grandchild['author']['id'])
+        self.assertFalse(grandchild['viewer_can_edit'])
+        self.assertNotIn('mentions', comments[0])
+
+        self.post.refresh_from_db()
+        self.assertEqual(data['views'], self.post.views)
+
+    def test_comment_depth_remains_capped_at_five(self):
+        parent = self.grandchild
+        for _ in range(5):
+            parent = Comment.objects.create(
+                solution=self.accepted,
+                author=self.viewer,
+                parent=parent,
+                content={'blocks': []},
+            )
+
+        response = self.get_detail()
+        comment = response.json()['solutions'][0]['comments'][0]
+        depths = []
+        while comment['replies']:
+            comment = comment['replies'][0]
+            depths.append(comment['depth'])
+
+        self.assertEqual(depths, [1, 2, 3, 4, 5, 5, 5])
+
+    def test_anonymous_owner_permissions_do_not_depend_on_public_author_id(self):
+        response = self.client.get(
+            reverse('api_post_detail', kwargs={'post_id': self.post.id}),
+            **self.author_auth,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIsNone(data['author']['id'])
+        self.assertTrue(data['viewer_can_edit'])
+        self.assertTrue(data['viewer_can_accept_solutions'])
+
+        accepted = data['solutions'][0]
+        high_score = data['solutions'][1]
+        self.assertIsNone(accepted['author']['id'])
+        self.assertTrue(accepted['viewer_can_edit'])
+        self.assertFalse(high_score['viewer_can_edit'])
+        self.assertTrue(accepted['comments'][0]['viewer_can_edit'])
+        self.assertFalse(
+            accepted['comments'][0]['replies'][0]['viewer_can_edit']
+        )
+
+    def test_preloaded_serializer_runs_without_queries(self):
+        post = get_post_detail_object(self.post.id, self.viewer)
+        request = RequestFactory().get('/')
+        request.user = self.viewer
+
+        with CaptureQueriesContext(connection) as queries:
+            data = PostDetailSerializer(
+                post,
+                context={'request': request},
+            ).data
+
+        self.assertEqual(len(queries), 0)
+        self.assertEqual(data['comment_count'], 4)
+
+    def test_endpoint_query_count_is_bounded_and_does_not_scale(self):
+        with CaptureQueriesContext(connection) as small_queries:
+            small_response = self.get_detail()
+        self.assertEqual(small_response.status_code, 200)
+        self.assertLessEqual(len(small_queries), 10)
+
+        for index in range(5):
+            solution = Solution.objects.create(
+                post=self.post,
+                author=self.viewer,
+                content={'blocks': []},
+                upvotes=index,
+            )
+            root = Comment.objects.create(
+                solution=solution,
+                author=self.viewer,
+                content={'blocks': []},
+            )
+            Comment.objects.create(
+                solution=solution,
+                author=self.author,
+                parent=root,
+                content={'blocks': []},
+            )
+
+        with CaptureQueriesContext(connection) as large_queries:
+            large_response = self.get_detail()
+        self.assertEqual(large_response.status_code, 200)
+        self.assertEqual(len(large_queries), len(small_queries))
+
+    def test_web_detail_renders_the_serialized_graph(self):
+        self.client.force_login(self.viewer)
+
+        response = self.get_web_detail()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['post_data']['followers_count'], 1)
+        self.assertContains(response, 'Optimized detail')
+        self.assertContains(response, 'Anonymous')
+        self.assertContains(
+            response,
+            f'data-solution-id="{self.accepted.id}"',
+        )
+        self.assertContains(response, 'accepted-solution')
+        self.assertContains(response, 'voted-up')
+        self.assertContains(response, 'voted-down')
+        self.assertContains(response, f'data-comment-id="{self.grandchild.id}"')
+        self.assertContains(response, 'data-depth="2"')
+
+        content = response.content.decode()
+        self.assertLess(
+            content.index(f'data-solution-id="{self.accepted.id}"'),
+            content.index(f'data-solution-id="{self.high_score.id}"'),
+        )
+
+    def test_web_detail_query_count_is_bounded_and_does_not_scale(self):
+        self.client.force_login(self.viewer)
+
+        with CaptureQueriesContext(connection) as small_queries:
+            small_response = self.get_web_detail()
+        self.assertEqual(small_response.status_code, 200)
+        self.assertLessEqual(len(small_queries), 22)
+
+        for index in range(5):
+            solution = Solution.objects.create(
+                post=self.post,
+                author=self.viewer,
+                content={'blocks': []},
+                upvotes=index,
+            )
+            root = Comment.objects.create(
+                solution=solution,
+                author=self.viewer,
+                content={'blocks': []},
+            )
+            Comment.objects.create(
+                solution=solution,
+                author=self.author,
+                parent=root,
+                content={'blocks': []},
+            )
+
+        with CaptureQueriesContext(connection) as large_queries:
+            large_response = self.get_web_detail()
+        self.assertEqual(large_response.status_code, 200)
+        self.assertEqual(len(large_queries), len(small_queries))
+
+    def test_web_detail_preserves_serialized_poll_output(self):
+        poll = Poll.objects.create(
+            title='Serialized web poll',
+            content={'blocks': []},
+            author=self.author,
+            post_type='poll',
+            allow_multiple_choice=False,
+            is_public_voting=True,
+        )
+        option = PollOption.objects.create(poll=poll, text='First option')
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(
+            reverse('post_detail', kwargs={'post_id': poll.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'poll-container')
+        self.assertContains(response, option.text)
+        self.assertEqual(
+            response.context['post_data']['poll_options'][0]['id'],
+            option.id,
+        )
 
 
 class APIDeleteAccountTests(TestCase):

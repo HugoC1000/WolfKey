@@ -159,7 +159,14 @@ export class CommentEditor {
             
                 // Initialize editors using the comments data
                 if (data.comments && data.comments.length > 0) {
-                    await this.editorManager.initializeCommentEditors(data.comments, this.csrfToken);
+                    const flattenComments = comments => comments.flatMap(comment => [
+                        comment,
+                        ...flattenComments(comment.replies || []),
+                    ]);
+                    await this.editorManager.initializeCommentEditors(
+                        flattenComments(data.comments),
+                        this.csrfToken
+                    );
                 }
             }
         } catch (error) {

@@ -22,7 +22,6 @@ class PostListSerializer(serializers.ModelSerializer):
     first_image_url = serializers.SerializerMethodField()
     poll_data = serializers.SerializerMethodField()
     followers_count = serializers.SerializerMethodField()
-    mentions = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
@@ -31,7 +30,7 @@ class PostListSerializer(serializers.ModelSerializer):
             'created_at', 'courses', 'reply_count', 'views', 'like_count', 
             'is_liked', 'solution_count', 'comment_count', 'solved', 'is_following',
             'first_image_url', 'is_anonymous', 'allow_teacher', 'poll_data',
-            'followers_count', 'mentions'
+            'followers_count'
         ]
     
     def get_author(self, obj):
@@ -101,11 +100,6 @@ class PostListSerializer(serializers.ModelSerializer):
     def get_followers_count(self, obj):
         return obj.followers.count()
 
-    def get_mentions(self, obj):
-        """Get all mentions in this post"""
-        from forum.services.mention_service import fetch_mentions_for_content
-        return fetch_mentions_for_content(obj)
-
 class PostDetailSerializer(serializers.ModelSerializer):
     """Serializer for individual post views"""
     author = serializers.SerializerMethodField()
@@ -121,7 +115,9 @@ class PostDetailSerializer(serializers.ModelSerializer):
     poll_options = serializers.SerializerMethodField()
     poll_info = serializers.SerializerMethodField()
     user_vote = serializers.SerializerMethodField()
-    mentions = serializers.SerializerMethodField()
+    followers_count = serializers.SerializerMethodField()
+    viewer_can_edit = serializers.SerializerMethodField()
+    viewer_can_accept_solutions = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
@@ -129,7 +125,9 @@ class PostDetailSerializer(serializers.ModelSerializer):
             'id', 'title', 'content', 'author', 'courses', 'created_at',
             'solved', 'views', 'is_anonymous', 'allow_teacher', 'like_count', 'is_liked',
             'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
-            'is_following', 'poll_options', 'poll_info', 'user_vote', 'mentions'
+            'is_following', 'followers_count', 'viewer_can_edit',
+            'viewer_can_accept_solutions', 'poll_options', 'poll_info',
+            'user_vote'
         ]
     
     def get_author(self, obj):
@@ -146,20 +144,28 @@ class PostDetailSerializer(serializers.ModelSerializer):
         return localtime(obj.created_at).isoformat()
     
     def get_like_count(self, obj):
+        if hasattr(obj, 'detail_like_count'):
+            return obj.detail_like_count
         return obj.like_count()
     
     def get_is_liked(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
+            if hasattr(obj, 'detail_is_liked'):
+                return obj.detail_is_liked
             return obj.is_liked_by(request.user)
         return False
     
     def get_solution_count(self, obj):
+        if hasattr(obj, 'detail_solution_count'):
+            return obj.detail_solution_count
         if hasattr(obj, 'solution_count'):
             return obj.solution_count
         return obj.solutions.count()
     
     def get_comment_count(self, obj):
+        if hasattr(obj, 'detail_comment_count'):
+            return obj.detail_comment_count
         return getattr(obj, 'comment_count', 0)
     
     def get_solutions(self, obj):
@@ -167,24 +173,31 @@ class PostDetailSerializer(serializers.ModelSerializer):
         from django.db.models import F, Case, When, IntegerField
         from .solution import SolutionSerializer
         
-        solutions = obj.solutions.select_related('author', 'post').annotate(
-            vote_score=F('upvotes') - F('downvotes')
-        ).order_by(
-            Case(
-                When(id=obj.accepted_solution_id, then=0),
-                default=1,
-                output_field=IntegerField(),
-            ),
-            '-vote_score',
-            '-created_at'
-        )
+        if hasattr(obj, 'detail_solutions'):
+            solutions = obj.detail_solutions
+        else:
+            solutions = obj.solutions.select_related('author', 'post').annotate(
+                vote_score=F('upvotes') - F('downvotes')
+            ).order_by(
+                Case(
+                    When(id=obj.accepted_solution_id, then=0),
+                    default=1,
+                    output_field=IntegerField(),
+                ),
+                '-vote_score',
+                '-created_at'
+            )
         
-        return SolutionSerializer(solutions, many=True, context=self.context).data
+        context = dict(self.context)
+        context['post'] = obj
+        return SolutionSerializer(solutions, many=True, context=context).data
     
     def get_has_solution_from_user(self, obj):
         """Check if the current user has submitted a solution"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
+            if hasattr(obj, 'detail_has_solution_from_user'):
+                return obj.detail_has_solution_from_user
             return obj.solutions.filter(author=request.user).exists()
         return False
     
@@ -192,9 +205,32 @@ class PostDetailSerializer(serializers.ModelSerializer):
         """Check if the current user is following this post"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
+            if hasattr(obj, 'detail_is_following'):
+                return obj.detail_is_following
             from forum.models import FollowedPost
             return FollowedPost.objects.filter(user=request.user, post=obj).exists()
         return False
+
+    def get_followers_count(self, obj):
+        if hasattr(obj, 'detail_followers_count'):
+            return obj.detail_followers_count
+        return obj.followers.count()
+
+    def get_viewer_can_edit(self, obj):
+        request = self.context.get('request')
+        return bool(
+            request
+            and request.user.is_authenticated
+            and request.user.id == obj.author_id
+        )
+
+    def get_viewer_can_accept_solutions(self, obj):
+        request = self.context.get('request')
+        return bool(
+            request
+            and request.user.is_authenticated
+            and request.user.id == obj.author_id
+        )
 
     def _get_poll_data(self, obj):
         """Get cached poll payload for detail views."""
@@ -226,8 +262,3 @@ class PostDetailSerializer(serializers.ModelSerializer):
         """Get the current user's vote on this poll if applicable"""
         poll_data = self._get_poll_data(obj)
         return poll_data.get('user_vote') if poll_data else None
-
-    def get_mentions(self, obj):
-        """Get all mentions in this post"""
-        from forum.services.mention_service import fetch_mentions_for_content
-        return fetch_mentions_for_content(obj)

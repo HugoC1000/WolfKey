@@ -25,6 +25,8 @@ class CourseSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'category', 'description', 'is_experienced', 'needs_help', 'blocks']
     
     def get_is_experienced(self, obj):
+        if hasattr(obj, 'detail_is_experienced'):
+            return obj.detail_is_experienced
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             experienced_courses = getattr(request, '_experienced_courses', None)
@@ -36,6 +38,8 @@ class CourseSerializer(serializers.ModelSerializer):
         return False
     
     def get_needs_help(self, obj):
+        if hasattr(obj, 'detail_needs_help'):
+            return obj.detail_needs_help
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             help_needed_courses = getattr(request, '_help_needed_courses', None)

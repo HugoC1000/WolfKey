@@ -3,27 +3,27 @@
 <div class="container py-4" id="main-section">
     <!-- Question Header -->
     <div class="question-header">
-        <h1>{{ post.title }}</h1>
+        <h1>{{ post_data.title }}</h1>
         <div class="actions">
             {% if user.is_authenticated %}
                 {% if post_data.is_following %}
                 <form method="post" action="{% url 'unfollow_post' post.id %}" class="d-inline follow-form">
                     {% csrf_token %}
                     <button type="submit" class="button follow-button active">
-                        <i class="fas fa-bell-slash me-1"></i> Unfollow<span class="follow-count">{{ post.followers.count }}</span>
+                        <i class="fas fa-bell-slash me-1"></i> Unfollow<span class="follow-count">{{ post_data.followers_count }}</span>
                     </button>
                 </form>
                 {% else %}
                 <form method="post" action="{% url 'follow_post' post.id %}" class="d-inline follow-form">
                     {% csrf_token %}
                     <button type="submit" class="button follow-button">
-                        <i class="fas fa-bell me-1"></i> Follow<span class="follow-count">{{ post.followers.count }}</span>
+                        <i class="fas fa-bell me-1"></i> Follow<span class="follow-count">{{ post_data.followers_count }}</span>
                     </button>
                 </form>
                 {% endif %} 
             <button class="button add-answer-button"><a href="#solution-form-container">Add answer</a></button>
             {% endif %}
-            {% if user.is_authenticated and post.author == user %}
+            {% if post_data.viewer_can_edit %}
             <a href="{% url 'edit_post' post.id %}" class="btn btn-primary btn-sm rounded-pill shadow-sm px-3">
                 <i class="fas fa-edit"></i> Edit
             </a>
@@ -42,11 +42,11 @@
         {% include 'forum/components/poll_display.html' %}
 
         <!-- Courses -->
-        {% if post.courses.all %}
+        {% if post_data.courses %}
         <div class="courses-section">
             <h6 class="text-muted mb-2">Related Courses:</h6>
             <div class="d-flex flex-wrap gap-2">
-                {% for course in post.courses.all %}
+                {% for course in post_data.courses %}
                 <span class="badge bg-light text-dark border">
                     {{ course.name }}
                 </span>
@@ -60,27 +60,23 @@
             <div class="author-card">
                 <div class="author-info">
                     <div class="position-relative">
-                        {% if post.is_anonymous %}
                         <img 
-                            src="{{ MEDIA_URL }}profile_pictures/default.png" 
-                            alt="Profile Picture" 
+                            src="{{ post_data.author.profile_picture_url|default:'/media/profile_pictures/default.png' }}"
+                            alt="{{ post_data.author.full_name }}"
                             class="profile-picture"
                             style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; cursor: pointer;"
                             id="profilePicture"
                         >
-                        {% else %}
-                        <img 
-                            src="{{ post.author.userprofile.profile_picture.url }}" 
-                            alt="Profile Picture" 
-                            class="profile-picture"
-                            style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; cursor: pointer;"
-                            id="profilePicture"
-                        >
-                        {% endif %}
                     </div>
                     <div>
-                        <div class="text-muted">asked {{ post.created_at|date:"M d, Y" }}</div>
-                        <div class="fw-bold"><a href = "{% if post.is_anonymous %}#{% else %}{{post.author.get_absolute_url}}{% endif %}">{% if post.is_anonymous %} Anonymous {% else %} {{post.author.get_full_name}} {% endif %}</a></div>
+                        <div class="text-muted">asked <time class="js-post-date" datetime="{{ post_data.created_at }}">{{ post_data.created_at }}</time></div>
+                        <div class="fw-bold">
+                            {% if post_data.author.is_anonymous %}
+                                <span>Anonymous</span>
+                            {% else %}
+                                <a href="{% url 'profile' post_data.author.username %}">{{ post_data.author.full_name }}</a>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>

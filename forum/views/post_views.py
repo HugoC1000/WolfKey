@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse
+from django.db.models import F
 import json
 import logging
 from django.utils.html import escape
@@ -13,7 +14,7 @@ from forum.services.post_services import (
     create_post_service,
     update_post_service,
     delete_post_service,
-    get_post_detail_service,
+    get_post_detail_object,
     like_post_service,
     unlike_post_service,
     follow_post_service,
@@ -105,36 +106,30 @@ def create_post(request):
 
 @login_required
 def post_detail(request, post_id):
-    # Get post object and increment views
-    post = get_object_or_404(Post, id=post_id)
+    post = get_post_detail_object(post_id, request.user)
     
     # Check teacher visibility
     if request.user.is_authenticated and request.user.is_teacher and not post.allow_teacher:
         from django.http import Http404
         raise Http404("You don't have permission to view this post.")
     
-    post.views += 1
-    post.save(update_fields=['views'])
-    
     # Mark notifications as read using service
     if request.user.is_authenticated:
         mark_notifications_by_post_service(request.user, post_id)
 
-    serializer = PostDetailSerializer(post, context={'request': request})
-    post_data = serializer.data
+    Post.objects.filter(pk=post.pk).update(views=F('views') + 1)
+    post.views += 1
+    post_data = PostDetailSerializer(
+        post,
+        context={'request': request},
+    ).data
 
     solution_form = SolutionForm()
     comment_form = CommentForm()
 
-    solutions = post.solutions.select_related('author').all()
-    processed_solutions = post_data['solutions']
-
     context = {
         'post': post,
         'post_data': post_data,
-        'content_json': json.dumps(post_data['content']),
-        'processed_solutions_json': json.dumps(processed_solutions),
-        'solutions': solutions,
         'solution_form': solution_form,
         'comment_form': comment_form,
     }

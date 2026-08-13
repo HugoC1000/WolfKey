@@ -1,13 +1,13 @@
 {% load custom_filters %}
 
 
-<div class="solution-container {% if solution == accepted_solution %}accepted-solution{% endif %}" data-solution-id="{{ solution.id }}">
+<div class="solution-container {% if solution.is_accepted %}accepted-solution{% endif %}" data-solution-id="{{ solution.id }}">
 
     <!-- Solution Vote Cell -->
     <div class="vote-cell">
         {% csrf_token %}
         <button type="button" 
-                class="vote-button {% if solution|has_upvoted:user %}voted-up{% endif %}" 
+                class="vote-button {% if solution.viewer_has_upvoted %}voted-up{% endif %}"
                 data-vote-type="upvote"
                 onclick="solutionInteractions.upvoteSolution('{{ solution.id }}')">
             <svg width="36" height="36" viewBox="0 0 36 36">
@@ -18,7 +18,7 @@
         <div class="vote-count">{{ solution|vote_difference }}</div>
         
         <button type="button" 
-                class="vote-button {% if solution|has_downvoted:user %}voted-down{% endif %}" 
+                class="vote-button {% if solution.viewer_has_downvoted %}voted-down{% endif %}"
                 data-vote-type="downvote"
                 onclick="solutionInteractions.downvoteSolution('{{ solution.id }}')">
             <svg width="36" height="36" viewBox="0 0 36 36">
@@ -26,12 +26,12 @@
             </svg>
         </button>
 
-        {% if user == post.author %}
+        {% if post_data.viewer_can_accept_solutions %}
         <button type="button" 
-                class="accept-solution-button {% if solution == accepted_solution %}accept-button-accepted{% else %}accept-button-unaccepted{% endif %}"
+                class="accept-solution-button {% if solution.is_accepted %}accept-button-accepted{% else %}accept-button-unaccepted{% endif %}"
                 data-solution-id="{{ solution.id }}"
                 onclick="solutionInteractions.toggleAcceptSolution('{{ solution.id }}')"
-                title="{% if solution == accepted_solution %}Unaccept this answer{% else %}Accept this answer{% endif %}">
+                title="{% if solution.is_accepted %}Unaccept this answer{% else %}Accept this answer{% endif %}">
             <svg aria-hidden="true" class="m0 svg-icon iconCheckmarkLg" width="36" height="36" viewBox="0 0 36 36">
                 <path d="m6 14 8 8L30 6v8L14 30l-8-8z"></path>
             </svg>
@@ -41,10 +41,10 @@
         <!-- Solution Saving-->
         {% if user.is_authenticated %}
         <button type="button" 
-                class="bookmark-button {% if solution|is_saved_solution:user %}active{% endif %}" 
+                class="bookmark-button {% if solution.is_saved %}active{% endif %}"
                 onclick="solutionInteractions.toggleSaveSolution('{{ solution.id }}')"
-                title="{% if solution|is_saved_solution:user %}Unsave{% else %}Save{% endif %}">
-            <i class="{% if solution|is_saved_solution:user %}fas{% else %}far{% endif %} fa-bookmark mt-2"></i>
+                title="{% if solution.is_saved %}Unsave{% else %}Save{% endif %}">
+            <i class="{% if solution.is_saved %}fas{% else %}far{% endif %} fa-bookmark mt-2"></i>
         </button>
         {% endif %}
     </div>
@@ -53,23 +53,13 @@
     <div class="post-content-cell">
         <div class="solution-main-layout">
             <div class="solution-avatar-column">
-                {% if post.is_anonymous and solution.author == post.author %}
                 <img 
-                    src="{{ MEDIA_URL }}profile_pictures/default.png" 
-                    alt="Anonymous" 
+                    src="{{ solution.author.profile_picture_url|default:'/media/profile_pictures/default.png' }}"
+                    alt="{{ solution.author.full_name }}"
                     class="profile-picture"
                     style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; cursor: pointer;"
                     id="profilePicture"
                 >
-                {% else %}
-                <img 
-                    src="{{ solution.author.userprofile.profile_picture.url }}" 
-                    alt="Profile Picture" 
-                    class="profile-picture"
-                    style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; cursor: pointer;"
-                    id="profilePicture"
-                >
-                {% endif %}
             </div>
 
             <div class="solution-main-content">
@@ -77,15 +67,15 @@
                 <div class="author-info">
                     <div class="author-name"> 
                         <div class="d-flex align-items-center">
-                            {% if post.is_anonymous and solution.author == post.author %}
+                            {% if solution.author.is_anonymous %}
                                 <span>Anonymous</span>
                             {% else %}
-                                <a href="{{ solution.author.get_absolute_url }}">{{ solution.author.get_full_name }}</a>
+                                <a href="{% url 'profile' solution.author.username %}">{{ solution.author.full_name }}</a>
                             {% endif %}
-                            {% if solution.author == post.author and not post.is_anonymous %}
+                            {% if not post_data.is_anonymous and solution.author.id == post_data.author.id %}
                                 <span class="badge bg-primary ms-2">OP</span>
                             {% endif %}
-                            <span class="text-muted ms-2">Answered {{ solution.created_at|smart_timesince }}</span>
+                            <span class="text-muted ms-2">Answered <time class="js-relative-time" datetime="{{ solution.created_at }}">{{ solution.created_at }}</time></span>
                         </div>
                     </div>
                 </div>
@@ -106,7 +96,7 @@
             {% endif %}
 
             <!-- Right: Edit/Delete Buttons -->
-            {% if user == solution.author %}
+            {% if solution.viewer_can_edit %}
             <div class="text-end">
                 <div class="default-actions d-flex gap-2">
                     <button class="btn pill-btn btn-outline-secondary btn-sm"
@@ -136,7 +126,7 @@
                 <!-- Comments -->
                 <div class="comments-section">
                     <div class="comments">
-                        {% include 'forum/components/comments_list.html' with comments=solution.comments.all %}
+                        {% include 'forum/components/comments_list.html' with comments=solution.comments %}
                     </div>
                 </div>
             </div>

@@ -9,18 +9,18 @@ class CommentSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
     replies = serializers.SerializerMethodField()
     depth = serializers.SerializerMethodField()
-    mentions = serializers.SerializerMethodField()
+    viewer_can_edit = serializers.SerializerMethodField()
     
     class Meta:
         model = Comment
         fields = [
             'id', 'content', 'author', 'created_at', 'parent',
-            'replies', 'depth', 'mentions'
+            'replies', 'depth', 'viewer_can_edit'
         ]
     
     def get_author(self, obj):
         """Return author data, using anonymous serializer if appropriate"""
-        post = obj.solution.post
+        post = self.context.get('post') or obj.solution.post
         should_be_anon = post.is_anonymous and obj.author_id == post.author_id
         
         if should_be_anon:
@@ -32,18 +32,26 @@ class CommentSerializer(serializers.ModelSerializer):
         return localtime(obj.created_at).isoformat()
     
     def get_replies(self, obj):
-        replies = obj.replies.select_related(
-            'author', 'author__userprofile', 'solution__post'
-        )
+        if hasattr(obj, 'detail_replies'):
+            replies = obj.detail_replies
+        else:
+            replies = obj.replies.select_related(
+                'author', 'author__userprofile', 'solution__post'
+            )
         return CommentSerializer(replies, many=True, context=self.context).data
     
     def get_depth(self, obj):
+        if hasattr(obj, 'detail_depth'):
+            return obj.detail_depth
         return obj.get_depth()
 
-    def get_mentions(self, obj):
-        """Get all mentions in this comment"""
-        from forum.services.mention_service import fetch_mentions_for_content
-        return fetch_mentions_for_content(obj)
+    def get_viewer_can_edit(self, obj):
+        request = self.context.get('request')
+        return bool(
+            request
+            and request.user.is_authenticated
+            and request.user.id == obj.author_id
+        )
 
 
 class SolutionSerializer(serializers.ModelSerializer):
@@ -53,18 +61,23 @@ class SolutionSerializer(serializers.ModelSerializer):
     is_accepted = serializers.SerializerMethodField()
     is_saved = serializers.SerializerMethodField()
     processed_content = serializers.SerializerMethodField()
-    mentions = serializers.SerializerMethodField()
+    viewer_has_upvoted = serializers.SerializerMethodField()
+    viewer_has_downvoted = serializers.SerializerMethodField()
+    root_comment_count = serializers.SerializerMethodField()
+    viewer_can_edit = serializers.SerializerMethodField()
     
     class Meta:
         model = Solution
         fields = [
             'id', 'content', 'processed_content', 'author', 'created_at', 
-            'upvotes', 'downvotes', 'comments', 'is_accepted', 'is_saved', 'mentions'
+            'upvotes', 'downvotes', 'comments', 'is_accepted', 'is_saved',
+            'viewer_has_upvoted', 'viewer_has_downvoted', 'root_comment_count',
+            'viewer_can_edit'
         ]
     
     def get_author(self, obj):
         """Return author data, using anonymous serializer if appropriate"""
-        post = obj.post
+        post = self.context.get('post') or obj.post
         should_be_anon = post.is_anonymous and obj.author_id == post.author_id
         
         if should_be_anon:
@@ -91,23 +104,54 @@ class SolutionSerializer(serializers.ModelSerializer):
     
     def get_comments(self, obj):
         """Get formatted comments for this solution, using anon serializer when appropriate"""
-        comments = obj.comments.filter(parent__isnull=True).select_related(
-            'author', 'author__userprofile', 'solution__post'
-        ).order_by('created_at')
+        if hasattr(obj, 'detail_root_comments'):
+            comments = obj.detail_root_comments
+        else:
+            comments = obj.comments.filter(parent__isnull=True).select_related(
+                'author', 'author__userprofile', 'solution__post'
+            ).order_by('created_at')
         return CommentSerializer(comments, many=True, context=self.context).data
     
     def get_is_accepted(self, obj):
+        if hasattr(obj, 'detail_is_accepted'):
+            return obj.detail_is_accepted
         return hasattr(obj, 'accepted_for') and obj.accepted_for is not None
     
     def get_is_saved(self, obj):
         """Check if the current user has saved this solution"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
+            if hasattr(obj, 'detail_is_saved'):
+                return obj.detail_is_saved
             from forum.models import SavedSolution
             return SavedSolution.objects.filter(user=request.user, solution=obj).exists()
         return False
 
-    def get_mentions(self, obj):
-        """Get all mentions in this solution"""
-        from forum.services.mention_service import fetch_mentions_for_content
-        return fetch_mentions_for_content(obj)
+    def get_viewer_has_upvoted(self, obj):
+        if hasattr(obj, 'detail_viewer_has_upvoted'):
+            return obj.detail_viewer_has_upvoted
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.solutionupvote_set.filter(user=request.user).exists()
+        return False
+
+    def get_viewer_has_downvoted(self, obj):
+        if hasattr(obj, 'detail_viewer_has_downvoted'):
+            return obj.detail_viewer_has_downvoted
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.solutiondownvote_set.filter(user=request.user).exists()
+        return False
+
+    def get_root_comment_count(self, obj):
+        if hasattr(obj, 'detail_root_comments'):
+            return len(obj.detail_root_comments)
+        return obj.root_comments_count()
+
+    def get_viewer_can_edit(self, obj):
+        request = self.context.get('request')
+        return bool(
+            request
+            and request.user.is_authenticated
+            and request.user.id == obj.author_id
+        )

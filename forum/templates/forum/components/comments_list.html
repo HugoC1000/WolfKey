@@ -1,36 +1,22 @@
-{% load custom_filters %}
-<script type="application/json" id="comments-data-{{ solution.id }}">
-    {{ comments_data|safe }}
-</script>
 <div class="root-comments">
-
-    {% with root_counter=0 %}
     {% for comment in comments %}
-        {% if comment.get_depth == 0 %}
-            {% increment root_counter as root_counter %} 
-            <!-- Debug: Root Counter = {{ root_counter }} -->
-            
-            {% if root_counter <= 2 %}
+        {% if forloop.counter <= 2 %}
+            {% include 'forum/components/comment.html' with comment=comment %}
+        {% elif forloop.counter == 3 %}
+            <div class="collapsed-root-comments" style="display: none;">
                 {% include 'forum/components/comment.html' with comment=comment %}
-            {% elif root_counter == 3 %}
-                <div class="collapsed-root-comments" style="display: none;">
-                    {% include 'forum/components/comment.html' with comment=comment %}
-            {% else %}
-                    {% include 'forum/components/comment.html' with comment=comment %}
-            {% endif %}
+        {% else %}
+            {% include 'forum/components/comment.html' with comment=comment %}
         {% endif %}
     {% endfor %}
 
-    
     {% if solution.root_comments_count > 2 %}
         </div>
         <button class="toggle-root-comments btn btn-link btn-sm" 
                 data-solution-id="{{ solution.id }}"
-                data-show-text="Show {{ solution.root_comments_count|add:'-3' }} more comments"
+                data-show-text="Show {{ solution.root_comments_count|add:'-2' }} more comments"
                 data-hide-text="Hide comments">
-            Show {{ solution.root_comments_count|add:'-3' }} more comments
+            Show {{ solution.root_comments_count|add:'-2' }} more comments
         </button>
     {% endif %}
-{% endwith %}
 </div>
-

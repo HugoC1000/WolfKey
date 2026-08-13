@@ -1,43 +1,33 @@
 {% load custom_filters %}
 
-<div class="comment {% if comment.parent %}comment-reply{% endif %}" 
+<div class="comment {% if comment.parent %}comment-reply{% endif %}"
      id="comment-{{ comment.id }}" 
      data-comment-id="{{ comment.id }}"
-     data-depth="{{ comment.get_depth }}">
+     data-depth="{{ comment.depth }}">
     <div class="comment-layout">
         <div class="comment-avatar-column">
-            {% if post.is_anonymous and comment.author == post.author %}
             <img 
-                src="{{ MEDIA_URL }}profile_pictures/default.png" 
-                alt="Anonymous" 
+                src="{{ comment.author.profile_picture_url|default:'/media/profile_pictures/default.png' }}"
+                alt="{{ comment.author.full_name }}"
                 class="profile-picture"
                 style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; cursor: pointer;"
                 id="profilePicture"
             >
-            {% else %}
-            <img 
-                src="{{ comment.author.userprofile.profile_picture.url }}" 
-                alt="Profile Picture" 
-                class="profile-picture"
-                style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; cursor: pointer;"
-                id="profilePicture"
-            >
-            {% endif %}
         </div>
 
         <div class="comment-main-content">
             <div class="author-info">
                 <div class="author-name"> 
                     <div class="d-flex align-items-center">
-                        {% if post.is_anonymous and comment.author == post.author %}
+                        {% if comment.author.is_anonymous %}
                             <span>Anonymous</span>
                         {% else %}
-                            <a href="{{ comment.author.get_absolute_url }}">{{ comment.author.get_full_name }}</a>
+                            <a href="{% url 'profile' comment.author.username %}">{{ comment.author.full_name }}</a>
                         {% endif %}
-                        {% if comment.author == post.author and not post.is_anonymous  %}
+                        {% if not post_data.is_anonymous and comment.author.id == post_data.author.id %}
                             <span class="badge bg-primary ms-2">OP</span>
                         {% endif %}
-                        <div class="comment-date text-muted" style="margin-left: 8px;">{{ comment.created_at|smart_timesince }}</div>
+                        <div class="comment-date text-muted" style="margin-left: 8px;"><time class="js-relative-time" datetime="{{ comment.created_at }}">{{ comment.created_at }}</time></div>
                     </div>
                 </div>
             </div>
@@ -52,7 +42,7 @@
                 {% if user.is_authenticated %}
                 <div>
                     <button class="reply-button btn pill-btn btn-outline-secondary btn-sm" 
-                            data-solution-id="{{ comment.solution.id }}"
+                            data-solution-id="{{ solution.id }}"
                             data-parent-id="{{ comment.id }}">
                         <i class="bi bi-reply"></i> Reply
                     </button>
@@ -60,7 +50,7 @@
                 {% endif %}
 
                 <!-- Right: Edit/Delete (and Save/Cancel if editing) -->
-                {% if user == comment.author %}
+                {% if comment.viewer_can_edit %}
                 <div class="text-end">
                     <div class="default-actions d-flex gap-2">
                         <button class="edit-comment btn pill-btn btn-outline-secondary btn-sm" data-comment-id="{{ comment.id }}">
@@ -83,7 +73,7 @@
             </div>
 
             <div class="replies">
-                {% for reply in comment.replies.all %}
+                {% for reply in comment.replies %}
                     {% if forloop.counter <= 2 %}
                         {% include 'forum/components/comment.html' with comment=reply %}
                     {% elif forloop.counter == 3 %}
@@ -93,13 +83,13 @@
                             {% include 'forum/components/comment.html' with comment=reply %}
                     {% endif %}
                 {% endfor %}
-                {% if comment.replies.count > 2 %}
+                {% if comment.replies|length > 2 %}
                     </div>
                     <button class="toggle-replies btn btn-link btn-sm" 
                             data-comment-id="{{ comment.id }}"
-                            data-show-text="Show {{ comment.replies.count|add:'-2' }} more replies"
+                            data-show-text="Show {{ comment.replies|length|add:'-2' }} more replies"
                             data-hide-text="Hide replies">
-                        Show {{ comment.replies.count|add:'-2' }} more replies
+                        Show {{ comment.replies|length|add:'-2' }} more replies
                     </button>
                 {% endif %}
             </div>

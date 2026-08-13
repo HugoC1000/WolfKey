@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from django.db.models import F
 import json
 
 from forum.models import Post, Course
@@ -13,7 +14,7 @@ from forum.services.post_services import (
     create_post_service,
     update_post_service,
     delete_post_service,
-    get_post_detail_service,
+    get_post_detail_object,
     like_post_service,
     unlike_post_service,
     follow_post_service,
@@ -112,7 +113,7 @@ def all_posts_api(request):
 @permission_classes([IsAuthenticated])
 def post_detail_api(request, post_id):
     try:
-        post = get_object_or_404(Post, id=post_id)
+        post = get_post_detail_object(post_id, request.user)
         
         # Check teacher visibility
         if request.user.is_authenticated and request.user.is_teacher and not post.allow_teacher:
@@ -122,8 +123,8 @@ def post_detail_api(request, post_id):
             )
         
         serializer = PostDetailSerializer(post, context={'request': request})
+        Post.objects.filter(pk=post.pk).update(views=F('views') + 1)
         post.views += 1
-        post.save()
         return Response(serializer.data)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -147,7 +148,7 @@ def create_post_api(request):
         if 'error' in result:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
         
-        post = Post.objects.get(id=result['id'])
+        post = get_post_detail_object(result['id'], request.user)
         serializer = PostDetailSerializer(post, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Exception as e:
@@ -170,7 +171,7 @@ def update_post_api(request, post_id):
             status_code = status.HTTP_403_FORBIDDEN if 'permission' in result['error'] else status.HTTP_400_BAD_REQUEST
             return Response(result, status=status_code)
         
-        post = Post.objects.get(id=post_id)
+        post = get_post_detail_object(post_id, request.user)
         serializer = PostDetailSerializer(post, context={'request': request})
         return Response(serializer.data)
     except Exception as e:
