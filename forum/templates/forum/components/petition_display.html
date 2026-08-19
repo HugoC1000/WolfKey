@@ -1,0 +1,196 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'forum/css/poll-display.css' %}">
+<link rel="stylesheet" href="{% static 'forum/css/petition-display.css' %}">
+
+<div class="poll-container petition-container" data-post-id="{{ post.id }}">
+    <h5 class="petition-heading">Petition</h5>
+    <div class="poll-subtitle">Choose one position</div>
+
+    {% if petition_data.support_goal %}
+    <p class="petition-goal"><strong class="petition-support-count">{{ petition_data.support_count }}</strong> of {{ petition_data.support_goal }} Support goal</p>
+    <div class="petition-progress" role="progressbar" aria-label="Support goal progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ petition_data.support_percentage|default:0 }}">
+        <div class="petition-progress-bar" style="width: {{ petition_data.support_percentage|default:0 }}%;"></div>
+    </div>
+    {% endif %}
+
+    <div class="poll-options petition-results {% if not petition_data.viewer_stance %}hidden{% endif %}">
+        <div class="poll-option voted {% if petition_data.viewer_stance == 'support' %}user-voted{% endif %}" data-stance="support" style="--vote-percent: {{ petition_data.support_vote_percentage }}%;">
+            <div class="poll-result">
+                    <span class="poll-option-text">Support</span>
+                    <div class="vote-stats">
+                        <div class="option-voters{% if not petition_data.support_voters %} hidden{% endif %}">
+                            {% for voter in petition_data.support_voters|slice:':3' %}<img src="{{ voter.profile_picture_url }}" alt="{{ voter.full_name }}" title="{{ voter.full_name }}" class="option-voter-avatar">{% endfor %}
+                        </div>
+                        <span class="vote-count">{{ petition_data.support_count }}</span>
+                        <button type="button" class="vote-text votes-link" data-show-voters>{% if petition_data.support_count == 1 %}vote{% else %}votes{% endif %}</button>
+                    <span class="vote-percent">{{ petition_data.support_vote_percentage|floatformat:0 }}%</span>
+                </div>
+            </div>
+        </div>
+        <div class="poll-option voted {% if petition_data.viewer_stance == 'oppose' %}user-voted{% endif %}" data-stance="oppose" style="--vote-percent: {{ petition_data.oppose_vote_percentage }}%;">
+            <div class="poll-result">
+                    <span class="poll-option-text">Oppose</span>
+                    <div class="vote-stats">
+                        <div class="option-voters{% if not petition_data.oppose_voters %} hidden{% endif %}">
+                            {% for voter in petition_data.oppose_voters|slice:':3' %}<img src="{{ voter.profile_picture_url }}" alt="{{ voter.full_name }}" title="{{ voter.full_name }}" class="option-voter-avatar">{% endfor %}
+                        </div>
+                        <span class="vote-count">{{ petition_data.oppose_count }}</span>
+                        <button type="button" class="vote-text votes-link" data-show-voters>{% if petition_data.oppose_count == 1 %}vote{% else %}votes{% endif %}</button>
+                    <span class="vote-percent">{{ petition_data.oppose_vote_percentage|floatformat:0 }}%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% if user.is_authenticated %}
+    <form class="petition-vote-form {% if petition_data.viewer_stance %}hidden{% endif %}" method="post" action="{% url 'set_petition_stance' post.id %}">
+        {% csrf_token %}
+        <div class="poll-options">
+            <label class="poll-input petition-choice">
+                <span class="poll-option-text">Support</span>
+                <input type="radio" name="stance" value="support" required>
+            </label>
+            <label class="poll-input petition-choice">
+                <span class="poll-option-text">Oppose</span>
+                <input type="radio" name="stance" value="oppose" required>
+            </label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm poll-vote-button">Vote</button>
+    </form>
+    {% endif %}
+
+    <div class="poll-actions">
+        <div class="vote-summary">
+            <div class="vote-summary-count">
+                <div>
+                    <strong class="total-votes">{{ petition_data.total_participants }}</strong>
+                    <span class="total-votes-text">{% if petition_data.total_participants == 1 %}participant{% else %}participants{% endif %}</span>
+                </div>
+            </div>
+        </div>
+        <form class="petition-remove-form {% if not petition_data.viewer_stance %}hidden{% endif %}" method="post" action="{% url 'remove_petition_stance' post.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary btn-sm poll-vote-button">Remove Vote</button>
+        </form>
+    </div>
+
+    {% if can_download %}
+    <a class="btn btn-outline-secondary btn-sm mt-3" href="{% url 'download_petition_signers_csv' post.id %}">Download participants CSV</a>
+    {% endif %}
+
+    <div class="poll-voters-modal hidden" data-voters-modal>
+        <div class="poll-voters-backdrop" data-voters-close></div>
+        <div class="poll-voters-dialog" role="dialog" aria-modal="true">
+            <div class="poll-voters-header"><h6 data-voters-title>Votes</h6><button type="button" class="poll-voters-close" data-voters-close aria-label="Close voters list">&times;</button></div>
+            <div class="poll-voters-list" data-voters-list></div>
+        </div>
+    </div>
+    <script type="application/json" data-petition-voters-json>{"support": [{% for voter in petition_data.support_voters %}{"full_name":"{{ voter.full_name|escapejs }}","profile_picture_url":"{{ voter.profile_picture_url|escapejs }}","profile_url":"{{ voter.profile_url|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}],"oppose": [{% for voter in petition_data.oppose_voters %}{"full_name":"{{ voter.full_name|escapejs }}","profile_picture_url":"{{ voter.profile_picture_url|escapejs }}","profile_url":"{{ voter.profile_url|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]}</script>
+</div>
+
+<script>
+(function() {
+    const container = document.currentScript.previousElementSibling;
+    if (!container || container.dataset.petitionBound) return;
+    container.dataset.petitionBound = 'true';
+
+    const voteForm = container.querySelector('.petition-vote-form');
+    const removeForm = container.querySelector('.petition-remove-form');
+    const results = container.querySelector('.petition-results');
+    const choices = container.querySelectorAll('.petition-choice');
+    const resultOptions = container.querySelectorAll('.petition-results .poll-option');
+    const votersModal = container.querySelector('[data-voters-modal]');
+    const votersList = container.querySelector('[data-voters-list]');
+    const votersTitle = container.querySelector('[data-voters-title]');
+    let votersByStance = {};
+    try {
+        votersByStance = JSON.parse(container.querySelector('[data-petition-voters-json]')?.textContent || '{}');
+    } catch (error) {}
+
+    function escapeHtml(value) {
+        return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function renderVoters(voters, emptyLabel) {
+        return voters.length ? voters.map(voter => `<a href="${escapeHtml(voter.profile_url || '#')}" class="voter-list-item"><img src="${escapeHtml(voter.profile_picture_url)}" alt="${escapeHtml(voter.full_name)}" class="voter-list-avatar"><span>${escapeHtml(voter.full_name)}</span></a>`).join('') : `<div class="voter-list-empty">${emptyLabel}</div>`;
+    }
+
+    container.querySelectorAll('[data-show-voters]').forEach(button => button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const stance = button.closest('.poll-option')?.dataset.stance;
+        const label = stance === 'support' ? 'Support' : 'Oppose';
+        votersTitle.textContent = `${label} votes`;
+        const voters = votersByStance[stance] || [];
+        votersList.innerHTML = renderVoters(voters, 'No votes yet.');
+        votersModal.classList.remove('hidden');
+    }));
+    container.querySelectorAll('[data-voters-close]').forEach(close => close.addEventListener('click', () => votersModal.classList.add('hidden')));
+
+    function updateResult(data) {
+        votersByStance = {
+            support: data.support_voters || [],
+            oppose: data.oppose_voters || [],
+        };
+        const support = data.support_count || 0;
+        const oppose = data.oppose_count || 0;
+        const total = data.total_participants || 0;
+        const supportPercent = data.support_vote_percentage || 0;
+        const opposePercent = data.oppose_vote_percentage || 0;
+        const goalPercent = data.support_percentage || 0;
+        const values = [
+            [support, supportPercent],
+            [oppose, opposePercent],
+        ];
+
+        resultOptions.forEach((option, index) => {
+            const count = values[index][0];
+            const percent = values[index][1];
+            option.style.setProperty('--vote-percent', `${percent}%`);
+            option.querySelector('.vote-count').textContent = count;
+            option.querySelector('.vote-text').textContent = count === 1 ? 'vote' : 'votes';
+            option.querySelector('.vote-percent').textContent = `${Math.round(percent)}%`;
+            option.classList.toggle('user-voted', (index === 0 && data.viewer_stance === 'support') || (index === 1 && data.viewer_stance === 'oppose'));
+            option.classList.add('petition-result-animate');
+        });
+
+        container.querySelector('.total-votes').textContent = total;
+        container.querySelector('.total-votes-text').textContent = total === 1 ? 'participant' : 'participants';
+        const supportCount = container.querySelector('.petition-support-count');
+        if (supportCount) supportCount.textContent = support;
+        const progress = container.querySelector('.petition-progress');
+        const progressBar = container.querySelector('.petition-progress-bar');
+        if (progress && progressBar) {
+            progressBar.style.width = `${goalPercent}%`;
+            progress.setAttribute('aria-valuenow', goalPercent);
+        }
+        results.classList.toggle('hidden', !data.viewer_stance);
+        voteForm.classList.toggle('hidden', !!data.viewer_stance);
+        removeForm.classList.toggle('hidden', !data.viewer_stance);
+        choices.forEach(choice => {
+            const input = choice.querySelector('input');
+            if (input) input.checked = false;
+        });
+    }
+
+    async function submitForm(form) {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        if (!response.ok) throw new Error('Petition update failed');
+        const payload = await response.json();
+        updateResult(payload.petition_data);
+    }
+
+    voteForm?.addEventListener('submit', event => {
+        event.preventDefault();
+        if (!voteForm.querySelector('input[name="stance"]:checked')) return;
+        submitForm(voteForm).catch(() => window.location.reload());
+    });
+    removeForm?.addEventListener('submit', event => {
+        event.preventDefault();
+        submitForm(removeForm).catch(() => window.location.reload());
+    });
+})();
+</script>

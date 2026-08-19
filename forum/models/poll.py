@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from .post import Post
 
 
@@ -19,6 +20,12 @@ class Poll(Post):
     class Meta:
         verbose_name = "Poll"
         verbose_name_plural = "Polls"
+
+    def save(self, *args, **kwargs):
+        if self.post_type == 'petition':
+            self.allow_multiple_choice = False
+            self.is_public_voting = True
+        return super().save(*args, **kwargs)
 
     def get_poll_options(self):
         """Get all poll options for this poll"""
@@ -63,6 +70,20 @@ class PollOption(models.Model):
 
     def __str__(self):
         return f"{self.poll.title} - {self.text}"
+
+    def save(self, *args, **kwargs):
+        if self.poll.post_type == 'petition':
+            if self.text not in ('Support', 'Oppose'):
+                raise ValidationError('Petition options must be Support or Oppose')
+            duplicate = self.poll.options.filter(text=self.text).exclude(pk=self.pk)
+            if duplicate.exists():
+                raise ValidationError(f'The {self.text} petition option already exists')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.poll.post_type == 'petition':
+            raise ValidationError('Petition stance options cannot be deleted')
+        return super().delete(*args, **kwargs)
 
 
 class PollVote(models.Model):

@@ -3,6 +3,7 @@ from .user import User, UserManager, UserProfile
 from .course import Block, Course, CourseAlias, UserCourseExperience, UserCourseHelp
 from .post import Post, StandardPost, SavedPost, FollowedPost, PostLike
 from .poll import Poll, PollOption, PollVote
+from .petition import Petition
 from .solution import Solution, SavedSolution, Comment, SolutionUpvote, SolutionDownvote, CommentUpvote
 from .schedule import GradebookSnapshot, DailySchedule
 from .notification import Notification, UpdateAnnouncement, UserUpdateView
@@ -34,6 +35,7 @@ __all__ = [
     'Poll',
     'PollOption',
     'PollVote',
+    'Petition',
     # Solution models
     'Solution',
     'SavedSolution',

@@ -23,9 +23,14 @@
                 <div id="editorjs" class="post-form-editor"></div>
                 <input type="hidden" id="editorjs-content" name="content">
                 <input type="hidden" id="poll-data" name="poll_data" value="">
+                <input type="hidden" id="petition-data" name="petition_data" value="">
 
                 {% if is_poll %}
                 {% include 'forum/poll_editing_component.html' %}
+                {% endif %}
+
+                {% if is_petition %}
+                {% include 'forum/petition_editing_component.html' %}
                 {% endif %}
 
                 <h3 class="mt-4">Select a Course:</h3>
@@ -247,6 +252,20 @@
                     formData.set('poll_data', JSON.stringify(pollData));
                     {% else %}
                     formData.set('poll_data', JSON.stringify({ isPoll: false }));
+                    {% endif %}
+
+                    {% if is_petition %}
+                    const supportGoalValue = document.getElementById('petitionSupportGoal').value.trim();
+                    if (!document.querySelector('#id_title').value.trim()) {
+                        throw new Error('Petition title is required');
+                    }
+                    const petitionData = {
+                        isPetition: true,
+                        supportGoal: supportGoalValue === '' ? null : Number(supportGoalValue)
+                    };
+                    formData.set('petition_data', JSON.stringify(petitionData));
+                    {% else %}
+                    formData.set('petition_data', JSON.stringify({ isPetition: false }));
                     {% endif %}
 
                     courseSelector.selectedCourses.forEach(course => {

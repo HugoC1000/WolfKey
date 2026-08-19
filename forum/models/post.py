@@ -11,6 +11,7 @@ class Post(models.Model):
     POST_TYPE_CHOICES = [
         ('standard', 'Standard Post'),
         ('poll', 'Poll'),
+        ('petition', 'Petition'),
     ]
     
     title = models.CharField(max_length=200)

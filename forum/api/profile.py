@@ -84,7 +84,10 @@ def get_profile_posts_api(request, username):
         )
 
         from forum.serializers import PostListSerializer
-        serializer = PostListSerializer(page_obj.object_list, many=True, context={'request': request})
+        serializer = PostListSerializer(page_obj.object_list, many=True, context={
+            'request': request,
+            'exclude_preview_html': str(request.GET.get('compact', '')).lower() in ('true', '1', 'yes', 'on'),
+        })
 
         return Response({
             'posts': serializer.data,

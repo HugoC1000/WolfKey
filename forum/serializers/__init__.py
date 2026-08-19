@@ -25,6 +25,7 @@ from .poll import (
     PollSerializer,
     serialize_poll_display_data,
 )
+from .petition import PetitionSerializer, serialize_petition_display_data
 from .notification import NotificationSerializer
 from .volunteer import (
     VolunteerPinMilestoneSerializer,
@@ -56,6 +57,8 @@ __all__ = [
     'PollSerializer',
     'serialize_poll_display_data',
     'attach_poll_data_to_posts',
+    'PetitionSerializer',
+    'serialize_petition_display_data',
     # Notification serializers
     'NotificationSerializer',
     'VolunteerPinMilestoneSerializer',

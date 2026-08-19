@@ -181,6 +181,7 @@
                                     <ul class="dropdown-menu">
                                         <li><a class="dropdown-item" href="{% url 'create_post' %}"><i class="bi bi-chat-left-quote"></i> Ask a Question</a></li>
                                         <li><a class="dropdown-item" href="{% url 'create_post' %}?type=poll"><i class="bi bi-pie-chart"></i> Create a Poll</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'create_post' %}?type=petition"><i class="bi bi-megaphone"></i> Start a Petition</a></li>
                                     </ul>
                                 </div>
                                 {% if user.is_moderator or user.is_superuser %}

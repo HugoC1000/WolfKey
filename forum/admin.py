@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
 from django.utils.html import format_html
-from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, SavedPost, Solution, Course, CourseAlias, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, SavedSolution, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource
+from .models import Post, StandardPost, Poll, Petition, PollOption, PollVote, File, UserProfile, SavedPost, Solution, Course, CourseAlias, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, SavedSolution, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource
 
 
 class StandardPostInline(admin.StackedInline):
@@ -40,6 +40,50 @@ class PollAdmin(admin.ModelAdmin):
         }),
     )
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).exclude(post_type='petition')
+
+
+class PetitionOptionInline(admin.TabularInline):
+    model = PollOption
+    extra = 0
+    can_delete = False
+    readonly_fields = ('text', 'created_at')
+    fields = ('text', 'created_at')
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class PetitionAdmin(admin.ModelAdmin):
+    inlines = [PetitionOptionInline]
+    list_display = ('title', 'author', 'support_goal', 'created_at')
+    search_fields = (
+        'title', 'author__school_email',
+        'author__first_name', 'author__last_name',
+    )
+    readonly_fields = (
+        'created_at', 'post_type', 'allow_multiple_choice', 'is_public_voting',
+    )
+    fieldsets = (
+        ('Petition', {
+            'fields': ('title', 'support_goal', 'content', 'author')
+        }),
+        ('Fixed voting settings', {
+            'fields': ('post_type', 'is_public_voting', 'allow_multiple_choice')
+        }),
+        ('Post settings', {
+            'fields': ('is_anonymous', 'allow_teacher', 'solved')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'last_activity_at', 'views', 'courses', 'accepted_solution'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False
+
 
 class PollInline(admin.StackedInline):
     model = Poll
@@ -71,7 +115,9 @@ class PostAdmin(admin.ModelAdmin):
     
     def get_post_type(self, obj):
         """Display the post type based on which subclass exists"""
-        if hasattr(obj, 'poll'):
+        if hasattr(obj, 'poll') and hasattr(obj.poll, 'petition'):
+            return 'Petition'
+        elif hasattr(obj, 'poll'):
             return 'Poll'
         elif hasattr(obj, 'standardpost'):
             return 'Standard Post'
@@ -82,6 +128,7 @@ class PostAdmin(admin.ModelAdmin):
 # Register your models here.
 admin.site.register(Post, PostAdmin)
 admin.site.register(Poll, PollAdmin)
+admin.site.register(Petition, PetitionAdmin)
 admin.site.register(File)
 admin.site.register(SavedPost)
 admin.site.register(FollowedPost)

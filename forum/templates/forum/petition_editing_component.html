@@ -1,0 +1,18 @@
+<div class="poll-container petition-editor" style="border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-top: 15px; background-color: #f9f9f9;">
+    <div class="poll-section" style="margin-bottom: 10px;">
+        <h5 style="margin-bottom: 10px;">Petition settings</h5>
+        <label class="form-label" for="petitionSupportGoal">
+            Support goal <span class="text-muted fw-normal">(optional)</span>
+        </label>
+        <input
+            type="number"
+            class="form-control"
+            id="petitionSupportGoal"
+            min="1"
+            step="1"
+            value="{{ petition_support_goal }}"
+            placeholder="For example, 100"
+        >
+        <div class="form-text">Petitions always have public Support and Oppose positions.</div>
+    </div>
+</div>

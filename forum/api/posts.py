@@ -19,13 +19,16 @@ from forum.services.post_services import (
     unlike_post_service,
     follow_post_service,
     unfollow_post_service,
-    get_post_share_info_service
+    get_post_share_info_service,
+    set_petition_stance_service,
+    remove_petition_stance_service,
 )
 from forum.serializers import (
     PostListSerializer,
     PostDetailSerializer,
     UserSerializer,
-    serialize_poll_display_data
+    serialize_poll_display_data,
+    serialize_petition_display_data,
 )
 
 def convert_string_to_bool(value):
@@ -61,6 +64,14 @@ def process_post_data_upload(data):
                 processed_data['poll_data'] = json.loads(poll_data_str)
         except (json.JSONDecodeError, TypeError):
             processed_data['poll_data'] = None
+
+    if 'petition_data' in processed_data:
+        petition_data = processed_data['petition_data']
+        try:
+            if isinstance(petition_data, str):
+                processed_data['petition_data'] = json.loads(petition_data)
+        except (json.JSONDecodeError, TypeError):
+            processed_data['petition_data'] = None
     
     return processed_data
 
@@ -74,7 +85,10 @@ def for_you_api(request):
 
         page_obj = get_for_you_posts(request.user, page, per_page)
         
-        serializer = PostListSerializer(page_obj.object_list, many=True, context={'request': request})
+        serializer = PostListSerializer(page_obj.object_list, many=True, context={
+            'request': request,
+            'exclude_preview_html': convert_string_to_bool(request.GET.get('compact')),
+        })
         
         return Response({
             "posts": serializer.data,
@@ -96,7 +110,10 @@ def all_posts_api(request):
 
         page_obj = get_all_posts(request.user, query, page, per_page)
         
-        serializer = PostListSerializer(page_obj.object_list, many=True, context={'request': request})
+        serializer = PostListSerializer(page_obj.object_list, many=True, context={
+            'request': request,
+            'exclude_preview_html': convert_string_to_bool(request.GET.get('compact')),
+        })
         
         return Response({
             "posts": serializer.data,
@@ -134,7 +151,6 @@ def post_detail_api(request, post_id):
 @permission_classes([IsAuthenticated])
 def create_post_api(request):
     try:
-        print("Request data, " , request.data)
         processed_data = process_post_data_upload(request.data)
         
         # Parse content
@@ -142,8 +158,6 @@ def create_post_api(request):
         content_data = json.loads(content_json) if content_json else {}
         processed_data['content'] = content_data
 
-        print(processed_data)
-        
         result = create_post_service(request.user, processed_data)
         if 'error' in result:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
@@ -277,9 +291,15 @@ def vote_on_poll_api(request, post_id):
         from forum.services.post_services import _check_teacher_visibility
         
         poll = Poll.objects.get(id=post_id)
-        
+
         # Check teacher visibility
         _check_teacher_visibility(request.user, poll)
+
+        if poll.post_type == 'petition':
+            return Response(
+                {'error': 'Use the petition stance endpoint for petitions'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         
         selected_option_ids = request.data.get('selected_option_ids', [])
         
@@ -322,9 +342,15 @@ def remove_poll_vote_api(request, post_id):
         from forum.services.post_services import _check_teacher_visibility
         
         poll = Poll.objects.get(id=post_id)
-        
+
         # Check teacher visibility
         _check_teacher_visibility(request.user, poll)
+
+        if poll.post_type == 'petition':
+            return Response(
+                {'error': 'Use the petition stance endpoint for petitions'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         
         poll_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
         
@@ -346,6 +372,56 @@ def remove_poll_vote_api(request, post_id):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['POST'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def set_petition_stance_api(request, post_id):
+    result = set_petition_stance_service(
+        request.user,
+        post_id,
+        request.data.get('stance'),
+    )
+    if 'error' in result:
+        if result['error'] == 'Petition not found':
+            response_status = status.HTTP_404_NOT_FOUND
+        elif 'permission' in result['error'].lower():
+            response_status = status.HTTP_403_FORBIDDEN
+        else:
+            response_status = status.HTTP_400_BAD_REQUEST
+        return Response(result, status=response_status)
+
+    from forum.models import Petition
+    petition = Petition.objects.get(id=post_id)
+    result['petition_data'] = serialize_petition_display_data(
+        petition,
+        request=request,
+    )
+    return Response(result, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def remove_petition_stance_api(request, post_id):
+    result = remove_petition_stance_service(request.user, post_id)
+    if 'error' in result:
+        if result['error'] in ('Petition not found', 'No petition stance found'):
+            response_status = status.HTTP_404_NOT_FOUND
+        elif 'permission' in result['error'].lower():
+            response_status = status.HTTP_403_FORBIDDEN
+        else:
+            response_status = status.HTTP_400_BAD_REQUEST
+        return Response(result, status=response_status)
+
+    from forum.models import Petition
+    petition = Petition.objects.get(id=post_id)
+    result['petition_data'] = serialize_petition_display_data(
+        petition,
+        request=request,
+    )
+    return Response(result, status=status.HTTP_200_OK)
+
+
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
@@ -359,7 +435,10 @@ def search_posts_api(request):
         posts = search_posts(request.user, query)
         page_obj = paginate_posts(posts, page, per_page)
         
-        serializer = PostListSerializer(page_obj.object_list, many=True, context={'request': request})
+        serializer = PostListSerializer(page_obj.object_list, many=True, context={
+            'request': request,
+            'exclude_preview_html': convert_string_to_bool(request.GET.get('compact')),
+        })
         
         return Response({
             'posts': serializer.data,

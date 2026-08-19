@@ -37,7 +37,10 @@ from forum.views.post_views import (
     follow_post,
     unfollow_post,
     vote_on_poll,
-    remove_poll_vote
+    remove_poll_vote,
+    set_petition_stance,
+    remove_petition_stance,
+    download_petition_signers_csv,
 )
 
 from forum.views.feed_views import (
@@ -180,6 +183,8 @@ from forum.api.posts import (
     for_you_api, all_posts_api,
     vote_on_poll_api,
     remove_poll_vote_api,
+    set_petition_stance_api,
+    remove_petition_stance_api,
     search_posts_api
 )
 
@@ -227,6 +232,9 @@ urlpatterns = [
     path('posts/<int:post_id>/unlike/', unlike_post, name='unlike_post'),
     path('post/<int:post_id>/vote/', vote_on_poll, name='vote_on_poll'),
     path('post/<int:post_id>/remove-vote/', remove_poll_vote, name='remove_poll_vote'),
+    path('post/<int:post_id>/petition-stance/', set_petition_stance, name='set_petition_stance'),
+    path('post/<int:post_id>/remove-petition-stance/', remove_petition_stance, name='remove_petition_stance'),
+    path('post/<int:post_id>/petition-signers.csv', download_petition_signers_csv, name='download_petition_signers_csv'),
 
     path('solution/<int:solution_id>/edit/', edit_solution, name='edit_solution'),
     path('solution/<int:solution_id>/delete/', delete_solution, name='delete_solution'),
@@ -362,6 +370,8 @@ urlpatterns = [
     # Poll voting API endpoints
     path('api/posts/<int:post_id>/vote/', vote_on_poll_api, name='api_vote_on_poll'),
     path('api/posts/<int:post_id>/remove-vote/', remove_poll_vote_api, name='api_remove_poll_vote'),
+    path('api/posts/<int:post_id>/petition-stance/', set_petition_stance_api, name='api_set_petition_stance'),
+    path('api/posts/<int:post_id>/remove-petition-stance/', remove_petition_stance_api, name='api_remove_petition_stance'),
     path('api/search-posts/', search_posts_api, name='api_search_posts'),
     
     # Solution API endpoints

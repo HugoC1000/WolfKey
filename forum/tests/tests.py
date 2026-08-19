@@ -477,6 +477,17 @@ class SerializerRefactorTests(TestCase):
         self.assertTrue(serializer.get_is_liked(self.post))
         self.assertTrue(serializer.get_is_following(self.post))
 
+    def test_compact_post_card_omits_preview_html(self):
+        standard_payload = PostListSerializer(self.post).data
+        compact_payload = PostListSerializer(
+            self.post,
+            context={'exclude_preview_html': True},
+        ).data
+
+        self.assertIn('preview_html', standard_payload)
+        self.assertNotIn('preview_html', compact_payload)
+        self.assertEqual(compact_payload['preview_text'], standard_payload['preview_text'])
+
     def test_poll_state_is_computed_once_without_per_option_queries(self):
         poll = Poll.objects.create(
             title='Efficient poll',
@@ -858,6 +869,227 @@ class PostDetailAPIOptimizationTests(TestCase):
             response.context['post_data']['poll_options'][0]['id'],
             option.id,
         )
+
+
+class PetitionTests(TestCase):
+    def setUp(self):
+        from rest_framework.authtoken.models import Token
+
+        self.author = User.objects.create_user(
+            password='authorpass',
+            school_email='petition-author@wpga.ca',
+            first_name='Petition',
+            last_name='Author',
+        )
+        self.viewer = User.objects.create_user(
+            password='viewerpass',
+            school_email='petition-viewer@wpga.ca',
+            first_name='Public',
+            last_name='Signer',
+        )
+        self.other = User.objects.create_user(
+            password='otherpass',
+            school_email='petition-other@wpga.ca',
+            first_name='Other',
+            last_name='User',
+        )
+        self.viewer_token = Token.objects.create(user=self.viewer)
+
+    def create_petition(self):
+        from forum.models import Petition
+        from forum.services.post_services import create_post_service
+
+        result = create_post_service(self.author, {
+            'title': 'Improve student spaces',
+            'content': {'blocks': [{'type': 'paragraph', 'data': {'text': 'Our story'}}]},
+            'allow_teacher': True,
+            'petition_data': {
+                'isPetition': True,
+                'supportGoal': 100,
+            },
+        })
+        self.assertNotIn('error', result)
+        return Petition.objects.get(id=result['id'])
+
+    def test_creation_builds_constrained_public_poll(self):
+        from django.core.exceptions import ValidationError
+
+        petition = self.create_petition()
+
+        self.assertEqual(petition.post_type, 'petition')
+        self.assertFalse(petition.allow_multiple_choice)
+        self.assertTrue(petition.is_public_voting)
+        self.assertEqual(petition.support_goal, 100)
+        self.assertEqual(
+            list(petition.options.values_list('text', flat=True)),
+            ['Support', 'Oppose'],
+        )
+        with self.assertRaises(ValidationError):
+            PollOption.objects.create(poll=petition, text='Custom choice')
+
+        petition.allow_multiple_choice = True
+        petition.is_public_voting = False
+        petition.save()
+        petition.refresh_from_db()
+        self.assertFalse(petition.allow_multiple_choice)
+        self.assertTrue(petition.is_public_voting)
+
+    def test_stance_can_change_and_be_withdrawn(self):
+        from forum.services.post_services import (
+            remove_petition_stance_service,
+            set_petition_stance_service,
+        )
+
+        petition = self.create_petition()
+        result = set_petition_stance_service(self.viewer, petition.id, 'support')
+        self.assertTrue(result['success'])
+        vote = PollVote.objects.get(poll=petition, user=self.viewer)
+        self.assertEqual(
+            list(vote.selected_options.values_list('text', flat=True)),
+            ['Support'],
+        )
+
+        result = set_petition_stance_service(self.viewer, petition.id, 'oppose')
+        self.assertTrue(result['success'])
+        vote.refresh_from_db()
+        self.assertEqual(
+            list(vote.selected_options.values_list('text', flat=True)),
+            ['Oppose'],
+        )
+        self.assertEqual(PollVote.objects.filter(poll=petition, user=self.viewer).count(), 1)
+
+        result = remove_petition_stance_service(self.viewer, petition.id)
+        self.assertTrue(result['success'])
+        self.assertFalse(PollVote.objects.filter(poll=petition, user=self.viewer).exists())
+
+    def test_public_payload_has_names_but_never_email(self):
+        from forum.serializers import serialize_petition_display_data
+        from forum.services.post_services import set_petition_stance_service
+
+        petition = self.create_petition()
+        set_petition_stance_service(self.viewer, petition.id, 'support')
+        request = RequestFactory().get('/')
+        request.user = self.viewer
+
+        data = serialize_petition_display_data(petition, request=request)
+
+        self.assertEqual(data['support_count'], 1)
+        self.assertEqual(data['oppose_count'], 0)
+        self.assertEqual(data['viewer_stance'], 'support')
+        self.assertNotIn('school_email', json.dumps(data))
+
+    def test_generic_poll_vote_endpoint_rejects_petitions(self):
+        petition = self.create_petition()
+        response = self.client.post(
+            reverse('api_vote_on_poll', kwargs={'post_id': petition.id}),
+            data=json.dumps({'selected_option_ids': [petition.options.first().id]}),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Token {self.viewer_token.key}',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PollVote.objects.filter(poll=petition).exists())
+
+    def test_api_create_stance_and_remove_contract(self):
+        from forum.models import Petition
+
+        response = self.client.post(
+            reverse('api_create_post'),
+            data={
+                'title': 'API petition',
+                'content': json.dumps({'blocks': []}),
+                'allow_teacher': 'true',
+                'petition_data': json.dumps({
+                    'isPetition': True,
+                    'supportGoal': 25,
+                }),
+            },
+            HTTP_AUTHORIZATION=f'Token {self.viewer_token.key}',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        petition = Petition.objects.get(title='API petition')
+        self.assertIsNone(response.json()['poll_info'])
+        self.assertEqual(response.json()['petition_data']['support_goal'], 25)
+
+        stance_url = reverse('api_set_petition_stance', kwargs={'post_id': petition.id})
+        response = self.client.post(
+            stance_url,
+            data=json.dumps({'stance': 'support'}),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Token {self.viewer_token.key}',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['petition_data']['viewer_stance'], 'support')
+
+        response = self.client.post(
+            reverse('api_remove_petition_stance', kwargs={'post_id': petition.id}),
+            HTTP_AUTHORIZATION=f'Token {self.viewer_token.key}',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()['petition_data']['viewer_stance'])
+
+    def test_invalid_goal_is_rejected_without_creating_petition(self):
+        from forum.models import Petition
+        from forum.services.post_services import create_post_service
+
+        result = create_post_service(self.author, {
+            'title': 'Invalid goal',
+            'content': {'blocks': []},
+            'petition_data': {
+                'isPetition': True,
+                'supportGoal': 0,
+            },
+        })
+
+        self.assertEqual(result['error'], 'Support goal must be a positive whole number')
+        self.assertFalse(Petition.objects.filter(title='Invalid goal').exists())
+
+    def test_hidden_petition_rejects_teacher_stance(self):
+        from forum.services.post_services import set_petition_stance_service
+
+        petition = self.create_petition()
+        petition.allow_teacher = False
+        petition.save(update_fields=['allow_teacher'])
+        teacher = User.objects.create_user(
+            password='teacherpass',
+            school_email='petition-teacher@wpga.ca',
+            first_name='Test',
+            last_name='Teacher',
+            is_teacher=True,
+        )
+
+        result = set_petition_stance_service(teacher, petition.id, 'support')
+
+        self.assertIn('permission', result['error'])
+        self.assertFalse(PollVote.objects.filter(poll=petition, user=teacher).exists())
+
+    def test_web_detail_renders_petition_without_poll_controls(self):
+        petition = self.create_petition()
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse('post_detail', kwargs={'post_id': petition.id}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'petition-container')
+        self.assertContains(response, 'poll-container')
+
+    def test_csv_is_author_only_and_contains_private_contact_data(self):
+        from forum.services.post_services import set_petition_stance_service
+
+        petition = self.create_petition()
+        set_petition_stance_service(self.viewer, petition.id, 'oppose')
+        url = reverse('download_petition_signers_csv', kwargs={'post_id': petition.id})
+
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get(url).status_code, 403)
+
+        self.client.force_login(self.author)
+        response = self.client.get(url)
+        body = response.content.decode('utf-8')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('full_name,school_email,stance,signed_at', body)
+        self.assertIn('Public Signer,petition-viewer@wpga.ca,oppose,', body)
 
 
 class APIDeleteAccountTests(TestCase):

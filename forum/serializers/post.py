@@ -21,6 +21,7 @@ class PostListSerializer(serializers.ModelSerializer):
     solved = serializers.SerializerMethodField()
     first_image_url = serializers.SerializerMethodField()
     poll_data = serializers.SerializerMethodField()
+    petition_data = serializers.SerializerMethodField()
     followers_count = serializers.SerializerMethodField()
     
     class Meta:
@@ -30,8 +31,16 @@ class PostListSerializer(serializers.ModelSerializer):
             'created_at', 'courses', 'reply_count', 'views', 'like_count', 
             'is_liked', 'solution_count', 'comment_count', 'solved', 'is_following',
             'first_image_url', 'is_anonymous', 'allow_teacher', 'poll_data',
+            'petition_data',
             'followers_count'
         ]
+
+    def get_fields(self):
+        """Allow compact API clients to omit HTML that they cannot render."""
+        fields = super().get_fields()
+        if self.context.get('exclude_preview_html'):
+            fields.pop('preview_html', None)
+        return fields
     
     def get_author(self, obj):
         """Return author data with anonymous serializer if post is anonymous"""
@@ -97,6 +106,11 @@ class PostListSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         return serialize_poll_display_data(obj, request=request)
 
+    def get_petition_data(self, obj):
+        from .petition import serialize_petition_display_data
+        request = self.context.get('request')
+        return serialize_petition_display_data(obj, request=request)
+
     def get_followers_count(self, obj):
         return obj.followers.count()
 
@@ -115,6 +129,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
     poll_options = serializers.SerializerMethodField()
     poll_info = serializers.SerializerMethodField()
     user_vote = serializers.SerializerMethodField()
+    petition_data = serializers.SerializerMethodField()
     followers_count = serializers.SerializerMethodField()
     viewer_can_edit = serializers.SerializerMethodField()
     viewer_can_accept_solutions = serializers.SerializerMethodField()
@@ -127,7 +142,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
             'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
             'is_following', 'followers_count', 'viewer_can_edit',
             'viewer_can_accept_solutions', 'poll_options', 'poll_info',
-            'user_vote'
+            'user_vote', 'petition_data'
         ]
     
     def get_author(self, obj):
@@ -262,3 +277,9 @@ class PostDetailSerializer(serializers.ModelSerializer):
         """Get the current user's vote on this poll if applicable"""
         poll_data = self._get_poll_data(obj)
         return poll_data.get('user_vote') if poll_data else None
+
+    def get_petition_data(self, obj):
+        from .petition import serialize_petition_display_data
+
+        request = self.context.get('request')
+        return serialize_petition_display_data(obj, request=request)

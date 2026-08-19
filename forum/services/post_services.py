@@ -12,12 +12,16 @@ from django.db.models import (
     When,
 )
 from django.db.models.functions import Coalesce
+from django.db import transaction
+from django.utils import timezone
 from forum.models import (
     Comment,
     Course,
     FollowedPost,
     Poll,
     PollOption,
+    PollVote,
+    Petition,
     Post,
     PostLike,
     SavedSolution,
@@ -181,6 +185,19 @@ def get_post_detail_object(post_id, user):
 
 def create_post_service(user, data):
     try:
+        petition_data = data.get('petition_data')
+        if (
+            petition_data
+            and isinstance(petition_data, dict)
+            and petition_data.get('isPetition')
+        ):
+            petition_data['title'] = data.get('title')
+            petition_data['content'] = data.get('content')
+            petition_data['is_anonymous'] = data.get('is_anonymous', False)
+            petition_data['allow_teacher'] = data.get('allow_teacher', False)
+            petition_data['courses'] = data.get('courses', [])
+            return create_petition_service(user, petition_data)
+
         # Check if this is a poll
         poll_data = data.get('poll_data')
         if poll_data and isinstance(poll_data, dict) and poll_data.get('isPoll'):
@@ -250,6 +267,13 @@ def update_post_service(user, post_id, data):
         
         if 'allow_teacher' in data:
             post.allow_teacher = data['allow_teacher']
+
+        petition_data = data.get('petition_data')
+        if post.post_type == 'petition' and petition_data:
+            petition = Petition.objects.get(poll_ptr_id=post.id)
+            support_goal = _parse_support_goal(petition_data.get('supportGoal'))
+            petition.support_goal = support_goal
+            petition.save(update_fields=['support_goal'])
 
         if 'courses' in data:
             course_ids = data['courses']
@@ -471,4 +495,115 @@ def create_poll_service(user, data):
         }
     except Exception as e:
         logger.error(f"Error creating poll: {str(e)}")
+        return {'error': str(e)}
+
+
+def _parse_support_goal(value):
+    if value in (None, ''):
+        return None
+    if isinstance(value, bool):
+        raise ValueError('Support goal must be a positive whole number')
+    if isinstance(value, float) and not value.is_integer():
+        raise ValueError('Support goal must be a positive whole number')
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        raise ValueError('Support goal must be a positive whole number')
+    if value < 1:
+        raise ValueError('Support goal must be a positive whole number')
+    return value
+
+
+def create_petition_service(user, data):
+    try:
+        title = str(data.get('title') or '').strip()
+        if not title:
+            return {'error': 'Petition title is required'}
+
+        support_goal = _parse_support_goal(data.get('supportGoal'))
+        content = data.get('content') or {
+            'blocks': [{'type': 'paragraph', 'data': {'text': title}}]
+        }
+        detect_bad_words(content)
+
+        with transaction.atomic():
+            petition = Petition.objects.create(
+                author=user,
+                title=title,
+                content=content,
+                post_type='petition',
+                is_anonymous=data.get('is_anonymous', False),
+                allow_teacher=data.get('allow_teacher', False),
+                allow_multiple_choice=False,
+                is_public_voting=True,
+                support_goal=support_goal,
+            )
+            petition.ensure_stance_options()
+            update_mentions(petition, content, old_content=None)
+
+            course_ids = data.get('courses', [])
+            if course_ids:
+                courses = Course.objects.filter(id__in=course_ids)
+                petition.courses.set(courses)
+                send_course_notifications_service(petition, courses)
+
+        return {
+            'id': petition.id,
+            'url': petition.get_absolute_url(),
+            'message': 'Petition created successfully',
+        }
+    except ValueError as e:
+        return {'error': str(e)}
+    except Exception as e:
+        logger.error(f"Error creating petition: {str(e)}")
+        return {'error': str(e)}
+
+
+def set_petition_stance_service(user, petition_id, stance):
+    try:
+        with transaction.atomic():
+            petition = Petition.objects.select_for_update().get(id=petition_id)
+            _check_teacher_visibility(user, petition)
+            option = petition.get_stance_option(stance)
+            if option is None:
+                return {'error': 'Stance must be support or oppose'}
+
+            vote, _ = PollVote.objects.get_or_create(poll=petition, user=user)
+            vote.selected_options.set([option])
+            vote.save(update_fields=['updated_at'])
+            Post.objects.filter(pk=petition.pk).update(last_activity_at=timezone.now())
+
+        return {
+            'success': True,
+            'message': f'{option.text} stance recorded successfully',
+        }
+    except Petition.DoesNotExist:
+        return {'error': 'Petition not found'}
+    except ValueError as e:
+        return {'error': str(e)}
+    except Exception as e:
+        logger.error(f"Error setting petition stance: {str(e)}")
+        return {'error': str(e)}
+
+
+def remove_petition_stance_service(user, petition_id):
+    try:
+        with transaction.atomic():
+            petition = Petition.objects.select_for_update().get(id=petition_id)
+            _check_teacher_visibility(user, petition)
+            deleted, _ = PollVote.objects.filter(poll=petition, user=user).delete()
+            if not deleted:
+                return {'error': 'No petition stance found'}
+            Post.objects.filter(pk=petition.pk).update(last_activity_at=timezone.now())
+
+        return {
+            'success': True,
+            'message': 'Petition stance removed successfully',
+        }
+    except Petition.DoesNotExist:
+        return {'error': 'Petition not found'}
+    except ValueError as e:
+        return {'error': str(e)}
+    except Exception as e:
+        logger.error(f"Error removing petition stance: {str(e)}")
         return {'error': str(e)}

@@ -49,7 +49,9 @@
                     <h4 class="card-title post-card-title">{{ post.title }}</h4>
                     
                     {% if post.post_type == 'poll' and post.poll_data %}
-                        {% include 'forum/components/poll_display.html' with post_data=post.poll_data read_only=False %}
+                        {% include 'forum/components/poll_display.html' with post_data=post.poll_data post_id=post.id read_only=False %}
+                    {% elif post.post_type == 'petition' and post.petition_data %}
+                        {% include 'forum/components/petition_display.html' with petition_data=post.petition_data can_download=False %}
                     {% else %}
                         <p class="card-text mt-2 post-card-text">{{ post.preview_html|truncatechars:700|linebreaksbr }}</p>
                     {% endif %}
@@ -240,7 +242,7 @@
         if (!card) return;
 
         // Ignore clicks on interactive elements and poll areas
-        if (e.target.closest('button, input, textarea, select, .poll-display, .poll-container')) return;
+        if (e.target.closest('button, input, textarea, select, .poll-display, .poll-container, .petition-container')) return;
 
         // Ignore if user is selecting text
         if (window.getSelection && window.getSelection().toString()) return;

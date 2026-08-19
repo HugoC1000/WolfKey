@@ -41,6 +41,10 @@
         <!-- Poll Display (if this is a poll) -->
         {% include 'forum/components/poll_display.html' %}
 
+        {% if post_data.petition_data %}
+            {% include 'forum/components/petition_display.html' with petition_data=post_data.petition_data can_download=post_data.viewer_can_edit %}
+        {% endif %}
+
         <!-- Courses -->
         {% if post_data.courses %}
         <div class="courses-section">
