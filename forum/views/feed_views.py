@@ -2,7 +2,8 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from forum.services.feed_services import get_for_you_posts, get_all_posts, paginate_posts, get_user_posts
-from forum.serializers import PostListSerializer, attach_poll_data_to_posts
+from forum.serializers import PostListSerializer
+from forum.services.poll_display_service import attach_poll_data_to_posts
 from forum.services.schedule_services import (
     get_block_order_for_day,
     process_schedule_for_user,

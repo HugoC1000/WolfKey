@@ -9,14 +9,14 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.authentication import TokenAuthentication
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from forum.forms import CustomUserCreationForm
 from forum.services.utils import upload_image
 from forum.services.search_services import search_users
-from forum.serializers import UserSerializer
+from forum.serializers import PrivateUserSerializer, UserSerializer, UserSummarySerializer
 import json
 from django.utils import timezone
 from datetime import timedelta
@@ -42,7 +42,7 @@ def api_login(request):
 
         token, _ = Token.objects.get_or_create(user=user)
         
-        user_serializer = UserSerializer(user)
+        user_serializer = PrivateUserSerializer(user)
 
         return JsonResponse({
             'token': token.key,
@@ -92,7 +92,7 @@ def api_register(request):
 
         token, _ = Token.objects.get_or_create(user=user)
 
-        user_serializer = UserSerializer(user)
+        user_serializer = PrivateUserSerializer(user)
 
         logger.info(f"Registration successful for user: {user.school_email}")
         return JsonResponse({
@@ -116,16 +116,26 @@ def api_register(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 @api_view(['GET'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def search_users_api(request):
     """Search for users API endpoint"""
     try:
         query = request.GET.get('query', '').strip()
         limit = int(request.GET.get('limit', 5))
-        users = search_users(request.user, query)[:limit]
+        users = list(search_users(request.user, query)[:limit])
 
-        serializer = UserSerializer(users, many=True, context={'request': request})
-        
-        return Response({'users': serializer.data})
+        serializer = UserSummarySerializer(users, many=True, context={'request': request})
+        serialized_users = [dict(user_data) for user_data in serializer.data]
+
+        if request.GET.get('include_schedule_comparison') == '1':
+            for user_data, user in zip(serialized_users, users):
+                profile = getattr(user, 'userprofile', None)
+                user_data['schedule_comparison_enabled'] = bool(
+                    profile and profile.allow_schedule_comparison
+                )
+
+        return Response({'users': serialized_users})
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -148,7 +158,8 @@ def get_user_profile_api(request, user_id=None):
         else:
             user = request.user
             
-        serializer = UserSerializer(user, context={'request': request})
+        serializer_class = PrivateUserSerializer if user == request.user else UserSerializer
+        serializer = serializer_class(user, context={'request': request})
         return Response(serializer.data)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

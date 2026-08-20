@@ -17,6 +17,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 import json
 from django.core import serializers
+from forum.serializers import AnonymousAuthorSerializer, FeedUserSerializer
 
 @login_required
 def create_solution(request, post_id):
@@ -194,13 +195,17 @@ def get_sorted_solutions(request, post_id):
     
     solutions_data = []
     for solution in result['solutions']:
+        should_be_anonymous = (
+            solution.post.is_anonymous
+            and solution.author_id == solution.post.author_id
+        )
+        author_serializer = (
+            AnonymousAuthorSerializer if should_be_anonymous else FeedUserSerializer
+        )
         solution_dict = {
             'id': solution.id,
             'content': solution.content,
-            'author': {
-                'username': solution.author.username,
-                'id': solution.author.id
-            },
+            'author': author_serializer(solution.author, context={'request': request}).data,
             'created_at': solution.created_at.isoformat(),
             'upvotes': solution.upvotes,
             'downvotes': solution.downvotes,

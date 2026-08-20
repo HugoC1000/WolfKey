@@ -6,6 +6,14 @@ from django.contrib.postgres.search import TrigramSimilarity
 from functools import reduce
 from operator import or_
 
+
+def filter_courses_for_grade(courses, grade_level):
+    """Keep courses available to a grade; an unset maximum is unrestricted."""
+    if grade_level is None:
+        return courses
+    return courses.filter(Q(max_grade__isnull=True) | Q(max_grade__gte=grade_level))
+
+
 def get_user_courses(user):
     """Get user's experienced and help-needed courses"""
     if not user.is_authenticated:

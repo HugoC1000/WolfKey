@@ -44,6 +44,27 @@ Run the Django development server:
 python manage.py runserver
 ```
 
+### Schedule Import
+
+The screenshot and pasted-text schedule importer requires a Gemini API key:
+
+```bash
+GEMINI_API_KEY=your-key
+```
+
+It uses `gemini-3.5-flash-lite` by default. Override the model only when needed:
+
+```bash
+SCHEDULE_IMPORT_GEMINI_MODEL=gemini-3.5-flash-lite
+```
+
+Gemini-backed previews are limited to 4 requests per authenticated user per
+hour. Override the rate when needed:
+
+```bash
+SCHEDULE_IMPORT_RATE=4/hour
+```
+
 ## Testing
 
 ### Manual Grade Checking

@@ -2,53 +2,57 @@
 from .user import (
     CourseSerializer,
     UserProfileSerializer,
-    AnonUserProfileSerializer,
+    UserSummarySerializer,
     UserSerializer,
-    AnonUserSerializer,
-    BlockSerializer,
+    PrivateUserSerializer,
+    PrivateUserProfileSerializer,
+    AnonymousAuthorSerializer,
+    FeedUserSerializer,
+    FeedUserProfileSerializer,
+    UserScheduleSerializer,
 )
 from .post import (
     PostListSerializer,
     PostDetailSerializer,
-    AnonPostDetailSerializer,
 )
 from .solution import (
     CommentSerializer,
-    AnonCommentSerializer,
     SolutionSerializer,
-    AnonSolutionSerializer,
 )
 from .poll import (
     PollOptionSerializer,
+    PollVoterSerializer,
     PollSerializer,
     serialize_poll_display_data,
-    attach_poll_data_to_posts,
 )
-from .notification import (
-    NotificationSerializer,
+from .notification import NotificationSerializer
+from .volunteer import (
     VolunteerPinMilestoneSerializer,
     VolunteerResourceSerializer,
 )
+from forum.services.poll_display_service import attach_poll_data_to_posts
 
 __all__ = [
     # User serializers
     'CourseSerializer',
     'UserProfileSerializer',
-    'AnonUserProfileSerializer',
+    'UserSummarySerializer',
     'UserSerializer',
-    'AnonUserSerializer',
-    'BlockSerializer',
+    'PrivateUserSerializer',
+    'PrivateUserProfileSerializer',
+    'AnonymousAuthorSerializer',
+    'FeedUserSerializer',
+    'FeedUserProfileSerializer',
+    'UserScheduleSerializer',
     # Post serializers
     'PostListSerializer',
     'PostDetailSerializer',
-    'AnonPostDetailSerializer',
     # Solution serializers
     'CommentSerializer',
-    'AnonCommentSerializer',
     'SolutionSerializer',
-    'AnonSolutionSerializer',
     # Poll serializers
     'PollOptionSerializer',
+    'PollVoterSerializer',
     'PollSerializer',
     'serialize_poll_display_data',
     'attach_poll_data_to_posts',

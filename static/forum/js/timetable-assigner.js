@@ -1,8 +1,21 @@
 import { CourseSelector } from '/static/forum/js/course-selector.js';
+import { UserSelector } from '/static/forum/js/user-selector.js';
+import { applyClassmateMatches } from '/static/forum/js/atlas-classmate-matching.js';
+import { getCSRFToken } from '/static/forum/js/utilities.js';
 
 const BLOCK_CODES = ['1A','1B','1D','1E','2A','2B','2C','2D','2E'];
 
 const selectors = [];
+let selectedPeople = [];
+const selectedPeopleSchedules = new Map();
+const selectedPeopleScheduleRequests = new Map();
+let userSelector = null;
+let hasGeneratedResults = false;
+let lastGeneratedInputSignature = null;
+let resultsStale = false;
+let isGenerating = false;
+const blockCoursesCache = new Map();
+let blockCourseRequestVersion = 0;
 
 function createSelectors() {
     const container = document.getElementById('selectors-container');
@@ -38,9 +51,7 @@ function createSelectors() {
             block: null,
             maxCourses: 1,
             initialSelection: initial,
-            onSelectionChange: (sel) => {
-                // no-op for now
-            }
+            onSelectionChange: handleScheduleInputsChanged
         });
 
         // Default required flag
@@ -51,6 +62,7 @@ function createSelectors() {
         if (cb) {
             cb.addEventListener('change', () => {
                 selector.required = cb.checked;
+                handleScheduleInputsChanged();
             });
         }
 
@@ -61,21 +73,29 @@ function createSelectors() {
 // Keep track of generated schedules
 let schedulesCache = [];
 
-async function requestSchedulesFromApi(selectedCourses) {
+async function requestSchedulesFromApi(selectedCourses, options = {}) {
     // Call API to generate possible schedules for the selected courses
+    const requestInputSignature = getCurrentInputSignature();
+    isGenerating = true;
+    updateFlowState();
     try {
         const response = await fetch('/timetable/generate/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
             body: JSON.stringify({
                 requested_course_ids: selectedCourses.map(c => c.id),
-                required_course_ids: collectRequiredCourseIds()
+                required_course_ids: collectRequiredCourseIds(),
             })
         });
 
         const data = await response.json();
-        if (!data.success) {
-            alert('Error: ' + (data.error || 'Unknown error'));
+        if (!response.ok || !data.success) {
+            alert('Error: ' + (data.error || 'Unable to generate schedules'));
+            isGenerating = false;
+            updateFlowState();
             return;
         }
 
@@ -96,9 +116,25 @@ async function requestSchedulesFromApi(selectedCourses) {
             });
         });
 
+        applyClassmateMatches(normalized, selectedPeople, selectedPeopleSchedules);
         schedulesCache = normalized;
+        hasGeneratedResults = true;
+        lastGeneratedInputSignature = requestInputSignature;
+        resultsStale = getCurrentInputSignature() !== requestInputSignature;
+        isGenerating = false;
         renderScheduleCards(normalized);
+        updateFlowState();
+
+        if (options.scrollToResults) {
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            document.getElementById('atlas-results-step')?.scrollIntoView({
+                behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                block: 'start'
+            });
+        }
     } catch (err) {
+        isGenerating = false;
+        updateFlowState();
         console.error('Error generating schedules:', err);
         alert('Error generating schedules: ' + (err.message || err));
     }
@@ -133,7 +169,7 @@ function evaluateSchedules() {
     }
 
         // Generate schedules based on selected courses instead of using predefined ones
-        requestSchedulesFromApi(actionable);
+        requestSchedulesFromApi(actionable, { scrollToResults: true });
 }
 
 function initializeBlockView() {
@@ -149,8 +185,8 @@ function initializeBlockView() {
     initialDiv.innerHTML = `
         <div class="card-body text-center text-muted">
             <i class="fas fa-search fa-3x mb-3"></i>
-            <h5>Select courses and click "Evaluate Best Schedules"</h5>
-            <p>We'll generate optimal schedule combinations for your selected courses.</p>
+            <h5>Your schedule options will appear here</h5>
+            <p>Choose courses, optionally add people, then generate your options.</p>
         </div>
     `;
     rc.appendChild(initialDiv);
@@ -162,48 +198,122 @@ function initializeBlockView() {
 function renderStaticBlockView() {
     const rc = document.getElementById('result-container');
     
-    // Add block view header and container
-    const blockViewHeader = document.createElement('div');
-    blockViewHeader.className = 'mb-3';
-    blockViewHeader.innerHTML = `
-        <h4>All Available Courses by Block. Use this to see what you can fill a blank space with</h4>
-    `;
-    rc.appendChild(blockViewHeader);
-    
-    // Create block view container
-    const blockViewContainer = document.createElement('div');
-    blockViewContainer.className = 'block-view-container card';
-    
+    const blockReference = document.createElement('section');
+    blockReference.id = 'atlas-block-reference';
+    blockReference.className = 'atlas-block-reference mb-3';
+
     const blockViewBody = document.createElement('div');
-    blockViewBody.className = 'card-body p-3';
+    blockViewBody.className = 'block-view-container';
+
+    const blockReferenceHeader = document.createElement('div');
+    blockReferenceHeader.className = 'atlas-block-reference-heading';
+
+    const blockReferenceTitle = document.createElement('h5');
+    blockReferenceTitle.textContent = 'Courses by block';
+    blockReferenceHeader.appendChild(blockReferenceTitle);
+
+    const blockFilter = document.createElement('fieldset');
+    blockFilter.className = 'atlas-block-filter';
+
+    const eligibleOption = createBlockFilterOption(
+        'atlas-block-filter-eligible',
+        'eligible',
+        'Only show courses you can take',
+        Boolean(window.atlasHasGradeLevel),
+        !window.atlasHasGradeLevel
+    );
+    const allOption = createBlockFilterOption(
+        'atlas-block-filter-all',
+        'all',
+        'Show all courses',
+        !window.atlasHasGradeLevel,
+        false
+    );
+    blockFilter.appendChild(eligibleOption);
+    blockFilter.appendChild(allOption);
+
+    if (!window.atlasHasGradeLevel) {
+        const gradeGuidance = document.createElement('span');
+        gradeGuidance.className = 'atlas-block-filter-guidance';
+        gradeGuidance.textContent = 'Add your grade level in your profile to use this filter.';
+        blockFilter.appendChild(gradeGuidance);
+    }
+
+    const blockRowsContainer = document.createElement('div');
+    blockRowsContainer.className = 'atlas-block-rows';
+
+    blockFilter.addEventListener('change', event => {
+        if (event.target.name === 'atlas-block-filter') {
+            loadBlockCourseRows(blockRowsContainer, event.target.value === 'eligible');
+        }
+    });
+
+    blockReferenceHeader.appendChild(blockFilter);
+    blockViewBody.appendChild(blockReferenceHeader);
+    blockViewBody.appendChild(blockRowsContainer);
+    loadBlockCourseRows(blockRowsContainer, Boolean(window.atlasHasGradeLevel));
     
-    // Fetch all courses and their block relationships
-    fetchAllCoursesAndBlocks().then(blockCoursesData => {
-        // For each block, show all courses that are available in it
+    blockReference.appendChild(blockViewBody);
+    rc.appendChild(blockReference);
+}
+
+function createBlockFilterOption(id, value, text, checked, disabled) {
+    const label = document.createElement('label');
+    label.className = `atlas-block-filter-option${disabled ? ' is-disabled' : ''}`;
+
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.id = id;
+    input.name = 'atlas-block-filter';
+    input.value = value;
+    input.checked = checked;
+    input.disabled = disabled;
+
+    const labelText = document.createElement('span');
+    labelText.textContent = text;
+
+    label.appendChild(input);
+    label.appendChild(labelText);
+    return label;
+}
+
+async function loadBlockCourseRows(container, eligibleOnly) {
+    const requestVersion = ++blockCourseRequestVersion;
+    container.replaceChildren();
+
+    const loading = document.createElement('div');
+    loading.className = 'atlas-block-loading text-muted';
+    loading.textContent = 'Loading courses…';
+    container.appendChild(loading);
+
+    try {
+        const cacheKey = eligibleOnly ? 'eligible' : 'all';
+        let blockCoursesData = blockCoursesCache.get(cacheKey);
+        if (!blockCoursesData) {
+            blockCoursesData = await fetchAllCoursesAndBlocks(eligibleOnly);
+            blockCoursesCache.set(cacheKey, blockCoursesData);
+        }
+        if (requestVersion !== blockCourseRequestVersion) return;
+        container.replaceChildren();
+
         BLOCK_CODES.forEach(block => {
             const blockRow = document.createElement('div');
             blockRow.className = 'block-row d-flex align-items-center py-2 border-bottom';
-            
-            // Block label
+
             const blockLabel = document.createElement('div');
             blockLabel.className = 'block-label font-weight-bold text-primary';
             blockLabel.style.width = '60px';
             blockLabel.style.flexShrink = '0';
             blockLabel.textContent = block;
-            
-            // Courses container
+
             const coursesContainer = document.createElement('div');
             coursesContainer.className = 'courses-container flex-grow-1 ml-3';
-            
-            // Get all courses available in this block
             const coursesInBlock = blockCoursesData[block] || [];
-            
-            // Display courses as secondary badges
+
             if (coursesInBlock.length > 0) {
                 coursesInBlock.forEach(courseName => {
                     const courseBadge = document.createElement('span');
-                    courseBadge.className = 'badge badge-secondary mr-2 mb-1';
-                    courseBadge.style.fontSize = '0.8rem';
+                    courseBadge.className = 'atlas-course-pill';
                     courseBadge.textContent = courseName;
                     coursesContainer.appendChild(courseBadge);
                 });
@@ -214,22 +324,19 @@ function renderStaticBlockView() {
                 emptyText.textContent = 'No courses available';
                 coursesContainer.appendChild(emptyText);
             }
-            
+
             blockRow.appendChild(blockLabel);
             blockRow.appendChild(coursesContainer);
-            blockViewBody.appendChild(blockRow);
+            container.appendChild(blockRow);
         });
-    }).catch(error => {
+    } catch (error) {
+        if (requestVersion !== blockCourseRequestVersion) return;
         console.error('Error fetching block courses data:', error);
-        // Fallback: show empty state
         const errorDiv = document.createElement('div');
         errorDiv.className = 'text-center text-muted p-3';
         errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Unable to load course data';
-        blockViewBody.appendChild(errorDiv);
-    });
-    
-    blockViewContainer.appendChild(blockViewBody);
-    rc.appendChild(blockViewContainer);
+        container.replaceChildren(errorDiv);
+    }
 }
 
 function collectSelectedCourses() {
@@ -242,13 +349,6 @@ function collectSelectedCourses() {
             if (c && !/study/i.test((c.name || '').toString())) selected.push(c);
         }
     });
-
-    // If no selections were made, fallback to window.initialSelections (flattened)
-    if (selected.length === 0 && window.initialSelections) {
-        Object.values(window.initialSelections).forEach(v => {
-            if (v && v.name && !/study/i.test(v.name)) selected.push(v);
-        });
-    }
 
     // Deduplicate by id if present, otherwise by name
     const seen = new Set();
@@ -264,7 +364,7 @@ function collectSelectedCourses() {
     return deduped;
 }
 
-function renderScheduleCards(schedules) {
+function renderScheduleCards(schedules, options = {}) {
     const rc = document.getElementById('result-container');
     
     // Remove the initial message if it exists
@@ -280,19 +380,21 @@ function renderScheduleCards(schedules) {
     }
     
     if (schedules.length === 0) {
+        const optionsRemoved = options.emptyState === 'removed';
         const noSchedulesDiv = document.createElement('div');
         noSchedulesDiv.className = 'card mb-3 schedules-section';
         noSchedulesDiv.innerHTML = `
             <div class="card-body text-center text-muted">
-                <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
-                <h5>No optimal schedules found</h5>
-                <p>Unable to generate schedules that accommodate your selected courses.</p>
+                <i class="fas ${optionsRemoved ? 'fa-trash-alt' : 'fa-exclamation-triangle'} fa-3x mb-3"></i>
+                <h5>${optionsRemoved ? 'All schedule options removed' : 'No optimal schedules found'}</h5>
+                <p>${optionsRemoved
+                    ? 'Generate again whenever you want a fresh set of options.'
+                    : 'Unable to generate schedules that accommodate your selected courses.'}</p>
             </div>
         `;
-        // Insert before the block view; support either <h4> or <h5> in template
-        let blockViewHeader = rc.querySelector('h4');
-        if (blockViewHeader && blockViewHeader.textContent.includes('All Available Courses')) {
-            rc.insertBefore(noSchedulesDiv, blockViewHeader.parentElement);
+        const blockReference = document.getElementById('atlas-block-reference');
+        if (blockReference) {
+            rc.insertBefore(noSchedulesDiv, blockReference);
         } else {
             rc.appendChild(noSchedulesDiv);
         }
@@ -303,12 +405,10 @@ function renderScheduleCards(schedules) {
     const scheduleSection = document.createElement('div');
     scheduleSection.className = 'schedules-section mb-4';
     
-    // Create header
+    // Keep the generated count quiet; the main section title is fixed above.
     const header = document.createElement('div');
-    header.className = 'mb-2';
-    header.innerHTML = `
-        <h4>Generated Schedule Options (${schedules.length} options found)</h4>
-    `;
+    header.className = 'atlas-schedule-count mb-2';
+    header.textContent = `${schedules.length} ${schedules.length === 1 ? 'option' : 'options'} found`;
     scheduleSection.appendChild(header);
 
     const scrollContainer = document.createElement('div');
@@ -332,10 +432,14 @@ function renderScheduleCards(schedules) {
         `;
         
         const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
         removeBtn.className = 'btn btn-sm btn-outline-danger';
         removeBtn.innerHTML = '&times;';
         removeBtn.title = 'Remove this schedule';
-        removeBtn.addEventListener('click', () => {
+        removeBtn.setAttribute('aria-label', `Remove schedule ${index + 1}`);
+        removeBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             removeSchedule(index);
         });
         
@@ -362,10 +466,22 @@ function renderScheduleCards(schedules) {
             courseDiv.className = 'flex-grow-1 ml-2';
             courseDiv.style.fontSize = '0.85rem';
             
-            // Get course for this block from schedule
-            const courseInBlock = getCourseForBlock(schedule, block);
-            if (courseInBlock) {
-                courseDiv.innerHTML = `<span class="text-primary">${courseInBlock}</span>`;
+            // Get course and exact-block classmate matches for this assignment.
+            const assignment = getAssignmentForBlock(schedule, block);
+            if (assignment) {
+                const courseName = document.createElement('span');
+                courseName.className = 'text-primary';
+                courseName.textContent = assignment.course_name;
+                courseDiv.appendChild(courseName);
+
+                if (assignment.classmates.length > 0) {
+                    const classmates = document.createElement('div');
+                    classmates.className = 'atlas-classmates';
+                    assignment.classmates.forEach((classmate, index) => {
+                        classmates.appendChild(createClassmateChip(classmate, index));
+                    });
+                    courseDiv.appendChild(classmates);
+                }
             } else {
                 courseDiv.innerHTML = `<span class="text-muted">Blank (See other options below) </span>`;
             }
@@ -395,56 +511,324 @@ function renderScheduleCards(schedules) {
     
     scheduleSection.appendChild(scrollContainer);
     
-    let blockViewHeader = rc.querySelector('h4');
-    if (blockViewHeader && blockViewHeader.textContent.includes('All Available Courses')) {
-        rc.insertBefore(scheduleSection, blockViewHeader.parentElement);
+    const blockReference = document.getElementById('atlas-block-reference');
+    if (blockReference) {
+        rc.insertBefore(scheduleSection, blockReference);
     } else {
         rc.appendChild(scheduleSection);
     }
 }
 
-async function fetchAllCoursesAndBlocks() {
-    try {
-    const response = await fetch('/courses/all-courses-by-block', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch course-block data');
+async function fetchAllCoursesAndBlocks(eligibleOnly = false) {
+    const url = eligibleOnly
+        ? '/courses/all-courses-by-block/?eligible_only=1'
+        : '/courses/all-courses-by-block/';
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
         }
-        
-        const data = await response.json();
-        return data.blocks || {};
-    } catch (error) {
-        console.error('Error fetching all courses and blocks:', error);
-        return {};
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch course-block data');
     }
+
+    const data = await response.json();
+    return data.blocks || {};
 }
 
-function getCourseForBlock(schedule, block) {
-    // Check if there's a mapping for this block
+function getAssignmentForBlock(schedule, block) {
     if (schedule.mapping) {
-        for (const [courseId, assignment] of Object.entries(schedule.mapping)) {
+        for (const assignment of Object.values(schedule.mapping)) {
             if (assignment.block === block) {
-                return assignment.course_name;
+                return {
+                    course_name: assignment.course_name,
+                    classmates: Array.isArray(assignment.classmates) ? assignment.classmates : []
+                };
             }
         }
     }
-    
-    // Check if schedule has a blocks structure
+
     if (schedule.blocks && schedule.blocks[block] && schedule.blocks[block].length > 0) {
-        return schedule.blocks[block][0]; // Take first course in block
+        const course = schedule.blocks[block][0];
+        return {
+            course_name: typeof course === 'string' ? course : course.name,
+            classmates: []
+        };
     }
-    
+
     return null;
 }
 
-function removeSchedule(index) {
-    schedulesCache.splice(index, 1);
+function createClassmateChip(classmate, index) {
+    const chip = document.createElement('span');
+    chip.className = 'atlas-classmate-chip';
+    chip.tabIndex = 0;
+    chip.title = classmate.full_name;
+    chip.style.zIndex = String(index + 1);
+
+    if (classmate.profile_picture_url) {
+        const image = document.createElement('img');
+        image.src = classmate.profile_picture_url;
+        image.alt = classmate.full_name;
+        image.className = 'atlas-classmate-avatar';
+        chip.appendChild(image);
+    }
+
+    const name = document.createElement('span');
+    name.className = 'atlas-classmate-name';
+    name.textContent = classmate.full_name;
+    chip.appendChild(name);
+    return chip;
+}
+
+function initializePeopleSelector() {
+    if (!window.atlasClassmateMatchingEnabled) return;
+
+    userSelector = new UserSelector({
+        containerId: 'user-selector-container',
+        excludeUsers: [{ id: window.currentUserId }],
+        searchParams: { include_schedule_comparison: '1' },
+        isUserDisabled: user => user.schedule_comparison_enabled === false,
+        getDisabledReason: () => 'Schedule comparison off',
+        onUserSelect: (user) => {
+            if (selectedPeople.some(selected => selected.id === user.id)) return;
+            const selectedUser = { ...user, scheduleLoading: true };
+            selectedPeople.push(selectedUser);
+            updateSelectedPeopleDisplay();
+            updateUserSelectorExclusions();
+            updateFlowState();
+            fetchAndCachePersonSchedule(selectedUser);
+        }
+    });
+}
+
+function updateUserSelectorExclusions() {
+    if (!userSelector) return;
+    userSelector.updateExcludeUsers([{ id: window.currentUserId }, ...selectedPeople]);
+}
+
+function updateSelectedPeopleDisplay() {
+    const container = document.getElementById('selected-people');
+    if (!container) return;
+    container.innerHTML = '';
+
+    selectedPeople.forEach(user => {
+        const tag = document.createElement('span');
+        tag.className = 'user-tag';
+        if (user.comparisonDisabled || user.scheduleUnavailable) {
+            tag.classList.add('atlas-person-disabled');
+            tag.title = user.comparisonDisabled
+                ? 'Schedule comparison off'
+                : 'Schedule unavailable';
+        }
+
+        if (user.profile_picture_url) {
+            const image = document.createElement('img');
+            image.src = user.profile_picture_url;
+            image.alt = '';
+            image.className = 'atlas-selected-person-avatar';
+            tag.appendChild(image);
+        }
+
+        const name = document.createElement('span');
+        name.textContent = user.full_name || user.username;
+        tag.appendChild(name);
+
+        if (user.scheduleLoading) {
+            const status = document.createElement('small');
+            status.textContent = 'Loading schedule…';
+            tag.appendChild(status);
+        } else if (user.comparisonDisabled || user.scheduleUnavailable) {
+            const status = document.createElement('small');
+            status.textContent = user.comparisonDisabled
+                ? 'Comparison off'
+                : 'Schedule unavailable';
+            tag.appendChild(status);
+        }
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'remove-btn atlas-person-remove';
+        removeButton.setAttribute('aria-label', `Remove ${user.full_name || user.username}`);
+        removeButton.textContent = '×';
+        removeButton.addEventListener('click', () => {
+            selectedPeople = selectedPeople.filter(selected => selected.id !== user.id);
+            selectedPeopleSchedules.delete(Number(user.id));
+            selectedPeopleScheduleRequests.delete(Number(user.id));
+            refreshCachedScheduleClassmates();
+            updateSelectedPeopleDisplay();
+            updateUserSelectorExclusions();
+            updateFlowState();
+        });
+        tag.appendChild(removeButton);
+        container.appendChild(tag);
+    });
+}
+
+async function fetchAndCachePersonSchedule(user) {
+    const userId = Number(user.id);
+    const requestToken = Symbol('person-schedule-request');
+    selectedPeopleScheduleRequests.set(userId, requestToken);
+
+    try {
+        const response = await fetch(`/user-blocks/${user.id}/`);
+        const data = await response.json();
+        if (selectedPeopleScheduleRequests.get(userId) !== requestToken) return;
+
+        if (!response.ok) {
+            markPersonScheduleUnavailable(user.id, response.status === 403, requestToken);
+            return;
+        }
+
+        if (!selectedPeople.some(selected => selected.id === user.id)) return;
+        selectedPeopleScheduleRequests.delete(userId);
+        selectedPeopleSchedules.set(userId, data.schedule || {});
+        selectedPeople = selectedPeople.map(selected => (
+            selected.id === user.id
+                ? { ...selected, scheduleLoading: false, scheduleUnavailable: false }
+                : selected
+        ));
+        updateSelectedPeopleDisplay();
+        refreshCachedScheduleClassmates();
+        updateFlowState();
+    } catch (error) {
+        if (selectedPeopleScheduleRequests.get(userId) !== requestToken) return;
+        console.error('Unable to load selected person schedule:', error);
+        markPersonScheduleUnavailable(user.id, false, requestToken);
+    }
+}
+
+function markPersonScheduleUnavailable(userId, comparisonDisabled, requestToken) {
+    const normalizedUserId = Number(userId);
+    if (selectedPeopleScheduleRequests.get(normalizedUserId) !== requestToken) return;
+    if (!selectedPeople.some(selected => selected.id === userId)) return;
+
+    selectedPeopleScheduleRequests.delete(normalizedUserId);
+    selectedPeopleSchedules.delete(normalizedUserId);
+    selectedPeople = selectedPeople.map(selected => (
+        selected.id === userId
+            ? {
+                ...selected,
+                scheduleLoading: false,
+                scheduleUnavailable: !comparisonDisabled,
+                comparisonDisabled,
+            }
+            : selected
+    ));
+    updateSelectedPeopleDisplay();
+    updateUserSelectorExclusions();
+    refreshCachedScheduleClassmates();
+    updateFlowState();
+}
+
+function refreshCachedScheduleClassmates() {
+    if (!hasGeneratedResults || schedulesCache.length === 0) return;
+    applyClassmateMatches(schedulesCache, selectedPeople, selectedPeopleSchedules);
     renderScheduleCards(schedulesCache);
+}
+
+function getCurrentInputSignature() {
+    const courseIds = collectSelectedCourses()
+        .map(course => String(course.id))
+        .sort();
+    const requiredIds = collectRequiredCourseIds()
+        .map(String)
+        .sort();
+    return `${courseIds.join(',')}|required:${requiredIds.join(',')}`;
+}
+
+function handleScheduleInputsChanged() {
+    resultsStale = hasGeneratedResults
+        && getCurrentInputSignature() !== lastGeneratedInputSignature;
+    updateFlowState();
+}
+
+function updateFlowState() {
+    const courseCount = collectSelectedCourses().length;
+    const activePeople = selectedPeople.filter(user => (
+        !user.comparisonDisabled && !user.scheduleUnavailable
+    )).length;
+    const hasCourses = courseCount > 0;
+    const resultsCurrent = hasGeneratedResults && !resultsStale;
+    const activeStep = !hasCourses ? 1 : (isGenerating || resultsCurrent ? 3 : 2);
+
+    document.querySelectorAll('[data-atlas-panel]').forEach(panel => {
+        const panelNumber = Number(panel.dataset.atlasPanel);
+        panel.classList.toggle('is-active', panelNumber === activeStep);
+        panel.classList.toggle('is-complete', panelNumber < activeStep || (panelNumber === 2 && resultsCurrent));
+        panel.classList.toggle('is-stale', panelNumber === 3 && resultsStale);
+    });
+
+    const courseCountElement = document.getElementById('atlas-course-count');
+    if (courseCountElement) {
+        courseCountElement.textContent = courseCount === 0
+            ? 'No courses selected'
+            : `${courseCount} course${courseCount === 1 ? '' : 's'} selected`;
+    }
+
+    const peopleCountElement = document.getElementById('atlas-people-count');
+    if (peopleCountElement) {
+        peopleCountElement.textContent = activePeople === 0
+            ? 'No people selected'
+            : `${activePeople} ${activePeople === 1 ? 'person' : 'people'} selected`;
+    }
+
+    const evaluateButton = document.getElementById('evaluate-btn');
+    if (evaluateButton) {
+        evaluateButton.disabled = !hasCourses || isGenerating;
+        evaluateButton.classList.toggle(
+            'is-ready',
+            hasCourses && !isGenerating && !resultsCurrent
+        );
+
+        const buttonEyebrow = document.getElementById('evaluate-btn-eyebrow');
+        const buttonLabel = document.getElementById('evaluate-btn-label');
+        if (isGenerating) {
+            buttonEyebrow.textContent = 'Working';
+            buttonLabel.textContent = 'Generating options…';
+        } else if (resultsStale) {
+            buttonEyebrow.textContent = 'Courses changed';
+            buttonLabel.textContent = 'Update schedule options';
+        } else if (resultsCurrent) {
+            buttonEyebrow.textContent = 'Generate a new set';
+            buttonLabel.textContent = 'Find schedule options';
+        } else if (hasCourses) {
+            buttonEyebrow.textContent = 'Ready to generate';
+            buttonLabel.textContent = 'Find schedule options';
+        } else {
+            buttonEyebrow.textContent = 'Add courses first';
+            buttonLabel.textContent = 'Find schedule options';
+        }
+    }
+
+    const actionStatus = document.getElementById('atlas-action-status');
+    if (actionStatus) {
+        if (!hasCourses) {
+            actionStatus.textContent = 'Select at least one course to continue.';
+        } else if (isGenerating) {
+            actionStatus.textContent = 'Building your schedule options…';
+        } else if (resultsStale) {
+            actionStatus.textContent = 'Courses changed — regenerate to update the options.';
+        } else if (resultsCurrent) {
+            actionStatus.textContent = '';
+        } else if (activePeople > 0) {
+            actionStatus.textContent = `Ready with ${courseCount} course${courseCount === 1 ? '' : 's'} and ${activePeople} ${activePeople === 1 ? 'person' : 'people'}.`;
+        } else {
+            actionStatus.textContent = 'Get possible alternatives for your schedule';
+        }
+    }
+
+}
+
+function removeSchedule(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= schedulesCache.length) return;
+    schedulesCache.splice(index, 1);
+    renderScheduleCards(schedulesCache, {
+        emptyState: schedulesCache.length === 0 ? 'removed' : undefined,
+    });
+    updateFlowState();
 }
 
 function computeMissingText(schedule) {
@@ -474,6 +858,8 @@ function computeMissingText(schedule) {
 
 function init() {
     createSelectors();
+    initializePeopleSelector();
+    updateFlowState();
 
     document.getElementById('evaluate-btn').addEventListener('click', (e) => {
         e.preventDefault();

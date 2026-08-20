@@ -12,7 +12,7 @@ from forum.services.google_api_service import google_api_service
 logger = logging.getLogger(__name__)
 
 # Sheet constants
-SHEET_NAME = "Copy of 2025-2026 SS Block Order Calendar"
+SHEET_NAME = "Copy of 2026-2027 SS Block Order Calendar"
 SHEET_HEADER_ROWS = 6  # Number of header rows to skip
 SHEET_DATE_COLUMN = 4  # Column D (1-indexed in sheet, 4 in API)
 SHEET_BLOCK_START_COLUMN = 5  # Column E (1-indexed in sheet, 5 in API) - blocks 1-5 start here

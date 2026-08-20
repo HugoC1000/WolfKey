@@ -25,7 +25,7 @@ def search_posts(user, query):
 def search_users(user, query):
     query = query.strip()
 
-    qs = User.objects.annotate(
+    qs = User.objects.select_related('userprofile').annotate(
         trigram_first=TrigramSimilarity('first_name', query),
         trigram_last=TrigramSimilarity('last_name', query),
         trigram_full=TrigramSimilarity(
@@ -42,4 +42,3 @@ def search_users(user, query):
     ).order_by('-similarity')
 
     return qs
-

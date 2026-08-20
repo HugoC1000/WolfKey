@@ -39,7 +39,8 @@ class CourseSelector {
     }
 
     clearExistingInputs() {
-        const existingInputs = this.form.querySelectorAll('input[name="courses"]');
+        const inputName = this.block ? `block_${this.block}` : 'courses';
+        const existingInputs = this.form.querySelectorAll(`input[name="${inputName}"]`);
         existingInputs.forEach(input => input.remove());
     }
 
@@ -102,6 +103,12 @@ class CourseSelector {
 
     removeCourse(courseId) {
         this.selectedCourses = this.selectedCourses.filter(course => course.id !== courseId);
+        this.updateSelectedCourses();
+        this.updateFormData();
+    }
+
+    setSelectedCourses(courses) {
+        this.selectedCourses = Array.isArray(courses) ? courses.slice(0, this.maxCourses) : [];
         this.updateSelectedCourses();
         this.updateFormData();
     }

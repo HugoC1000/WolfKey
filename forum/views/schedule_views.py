@@ -75,11 +75,19 @@ def user_blocks_view(request, user_id):
     """
     from django.shortcuts import get_object_or_404
     from forum.models import User, UserProfile
-    from forum.serializers import BlockSerializer
+    from forum.serializers import UserScheduleSerializer
 
     try:
         user = get_object_or_404(User, id=user_id)
         user_profile = get_object_or_404(UserProfile, user=user)
+
+        viewer_profile = getattr(request.user, 'userprofile', None)
+        if request.user != user and (
+            not viewer_profile or not viewer_profile.allow_schedule_comparison
+        ):
+            return JsonResponse({
+                'error': 'Enable schedule comparison to compare schedules'
+            }, status=403)
         
         # Check if user allows schedule comparison
         if not user_profile.allow_schedule_comparison:
@@ -87,7 +95,7 @@ def user_blocks_view(request, user_id):
                 'error': 'This user has disabled schedule comparison'
             }, status=403)
 
-        serializer = BlockSerializer(user_profile)
+        serializer = UserScheduleSerializer(user_profile)
         return JsonResponse(serializer.data)
 
     except Exception as e:

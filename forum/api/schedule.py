@@ -111,7 +111,7 @@ def get_user_blocks_api(request, user_id):
     """
     from django.shortcuts import get_object_or_404
     from forum.models import User, UserProfile
-    from forum.serializers import BlockSerializer
+    from forum.serializers import UserScheduleSerializer
 
     try:
         user = get_object_or_404(User, id=user_id)
@@ -123,7 +123,7 @@ def get_user_blocks_api(request, user_id):
                 'error': 'This user has disabled schedule comparison'
             }, status=status.HTTP_403_FORBIDDEN)
 
-        serializer = BlockSerializer(user_profile)
+        serializer = UserScheduleSerializer(user_profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     except Exception as e:

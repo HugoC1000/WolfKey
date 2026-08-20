@@ -68,7 +68,7 @@ def get_for_you_posts(user, page=1, per_page=8):
         solution_count=Count('solutions', distinct=True),
         comment_count=Count('solutions__comments', distinct=True),
         total_response_count=Count('solutions', distinct=True) + Count('solutions__comments', distinct=True)
-    ).select_related('author').prefetch_related('courses', 'solutions__comments')
+    ).select_related('author', 'author__userprofile').prefetch_related('courses')
 
     posts_dict = {post.id: post for post in posts}
     ordered_posts = [posts_dict[pid] for pid in post_ids if pid in posts_dict]
@@ -117,7 +117,7 @@ def get_all_posts(user, query='', page=1, per_page=8):
         solution_count=Count('solutions', distinct=True),
         comment_count=Count('solutions__comments', distinct=True),
         total_response_count=Count('solutions', distinct=True) + Count('solutions__comments', distinct=True)
-    ).select_related('author').prefetch_related('courses', 'solutions__comments')
+    ).select_related('author', 'author__userprofile').prefetch_related('courses')
     post_dic = {post.id: post for post in posts_qs}
     ordered_posts = [post_dic[pid] for pid in post_ids if pid in post_dic]
 

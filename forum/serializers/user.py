@@ -1,8 +1,18 @@
 from rest_framework import serializers
 from forum.models import User, UserProfile, Course
 from django.conf import settings
+from django.db.models import Count
 
 ANONYMOUS_PROFILE_PICTURE = f"{settings.MEDIA_URL}profile_pictures/default.png"
+USER_SCHEDULE_BLOCKS = ('1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E')
+
+
+def safe_file_url(file_field, fallback=None):
+    """Return a storage-backed file URL without leaking storage exceptions."""
+    try:
+        return file_field.url if file_field else fallback
+    except (AttributeError, FileNotFoundError, ValueError):
+        return fallback
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -38,26 +48,16 @@ class CourseSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    block_1A = serializers.SerializerMethodField()
-    block_1B = serializers.SerializerMethodField()
-    block_1D = serializers.SerializerMethodField()
-    block_1E = serializers.SerializerMethodField()
-    block_2A = serializers.SerializerMethodField()
-    block_2B = serializers.SerializerMethodField()
-    block_2C = serializers.SerializerMethodField()
-    block_2D = serializers.SerializerMethodField()
-    block_2E = serializers.SerializerMethodField()
+    """Public profile data safe to embed when exposing another user."""
     grade_level = serializers.IntegerField(read_only=True)
     allow_schedule_comparison = serializers.BooleanField(read_only=True)
     profile_picture = serializers.SerializerMethodField()
-    lunch_card = serializers.SerializerMethodField()
-    has_wolfnet_password = serializers.SerializerMethodField()
     stats = serializers.SerializerMethodField()
     courses = serializers.SerializerMethodField()
     recent_posts = serializers.SerializerMethodField()
     can_compare = serializers.SerializerMethodField()
     initial_users = serializers.SerializerMethodField()
-    schedule_blocks = serializers.SerializerMethodField()
+    schedule = serializers.SerializerMethodField()
     instagram_url = serializers.SerializerMethodField()
     snapchat_url = serializers.SerializerMethodField()
     linkedin_url = serializers.SerializerMethodField()
@@ -66,103 +66,33 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = [
             'id', 'bio', 'points', 'is_moderator', 'created_at', 'updated_at',
-            'background_hue', 'profile_picture', 'lunch_card',
-            'block_1A', 'block_1B', 'block_1D', 'block_1E',
-            'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
-            'grade_level', 'allow_schedule_comparison', 'display_email',
-            'has_wolfnet_password', 'stats', 'courses', 'recent_posts',
-            'can_compare', 'initial_users', 'schedule_blocks',
-            'instagram_url', 'snapchat_url', 'linkedin_url'
+            'background_hue', 'profile_picture',
+            'grade_level', 'allow_schedule_comparison',
+            'stats', 'courses', 'recent_posts',
+            'can_compare', 'initial_users', 'schedule',
+            'instagram_url', 'snapchat_url', 'linkedin_url',
+            'preferred_msg_app'
         ]
     
 
     def get_profile_picture(self, obj):
         """Return profile picture URL"""
-        try:
-            if obj.profile_picture:
-                return obj.profile_picture.url
-            return None
-        except (AttributeError, FileNotFoundError, ValueError):
-            return None
-    
-    def get_lunch_card(self, obj):
-        """Return lunch card URL"""
-        try:
-            if obj.lunch_card:
-                return obj.lunch_card.url
-            return None
-        except (AttributeError, FileNotFoundError, ValueError):
-            return None
-    
-    def get_has_wolfnet_password(self, obj):
-        """Check if user has wolfnet password set"""
-        return bool(obj.wolfnet_password)
+        return safe_file_url(obj.profile_picture)
     
     def _should_hide_schedule(self, obj):
         """Check if schedule fields should be hidden based on privacy settings"""
         request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            is_self_profile = request.user == obj.user
-            if not is_self_profile and not obj.allow_schedule_comparison:
-                return True
-        return False
+        if not request or not request.user.is_authenticated:
+            return True
+        if request.user == obj.user:
+            return False
+        return not obj.allow_schedule_comparison
     
-    def _get_block(self, obj, block_name):
-        """Helper to get a block field with privacy checks"""
+    def get_schedule(self, obj):
+        """Return the canonical schedule shape while enforcing profile privacy."""
         if self._should_hide_schedule(obj):
             return None
-        
-        course = getattr(obj, f'block_{block_name}', None)
-        if course:
-            serializer = CourseSerializer(course, context=self.context)
-            return serializer.data
-        return None
-    
-    def get_block_1A(self, obj):
-        return self._get_block(obj, '1A')
-    
-    def get_block_1B(self, obj):
-        return self._get_block(obj, '1B')
-    
-    def get_block_1D(self, obj):
-        return self._get_block(obj, '1D')
-    
-    def get_block_1E(self, obj):
-        return self._get_block(obj, '1E')
-    
-    def get_block_2A(self, obj):
-        return self._get_block(obj, '2A')
-    
-    def get_block_2B(self, obj):
-        return self._get_block(obj, '2B')
-    
-    def get_block_2C(self, obj):
-        return self._get_block(obj, '2C')
-    
-    def get_block_2D(self, obj):
-        return self._get_block(obj, '2D')
-    
-    def get_block_2E(self, obj):
-        return self._get_block(obj, '2E')
-    
-    def get_schedule_blocks(self, obj):
-        """Return schedule blocks with course info, respecting privacy settings"""
-        if self._should_hide_schedule(obj):
-            return None
-        
-        blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
-        schedule_blocks = {}
-        for block in blocks:
-            course = getattr(obj, f'block_{block}', None)
-            if course:
-                schedule_blocks[f'block_{block}'] = {
-                    'id': course.id,
-                    'name': course.name,
-                    'category': course.category,
-                }
-            else:
-                schedule_blocks[f'block_{block}'] = None
-        return schedule_blocks
+        return UserScheduleSerializer(obj, context=self.context).data['schedule']
     
     def get_stats(self, obj):
         """Return user stats"""
@@ -175,15 +105,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
         }
     
     def get_courses(self, obj):
-        """Return user courses (experienced, help needed, schedule)"""
+        """Return the user's experienced and help-needed courses."""
         from forum.models import UserCourseExperience, UserCourseHelp
         
-        experienced_courses = UserCourseExperience.objects.filter(user=obj.user)
-        help_needed_courses = UserCourseHelp.objects.filter(user=obj.user, active=True)
-        
-        # Get schedule courses using BlockSerializer
-        serializer = BlockSerializer(obj)
-        schedule_courses = serializer.data.get('schedule', {}) if serializer and serializer.data else {}
+        experienced_courses = UserCourseExperience.objects.filter(
+            user=obj.user
+        ).select_related('course')
+        help_needed_courses = UserCourseHelp.objects.filter(
+            user=obj.user,
+            active=True,
+        ).select_related('course')
         
         return {
             'experienced_courses': [
@@ -206,7 +137,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
                     }
                 } for help_req in help_needed_courses
             ],
-            'schedule_courses': schedule_courses
         }
     
     def get_recent_posts(self, obj):
@@ -215,6 +145,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         recent_posts = Post.objects.filter(
             author=obj.user,
             is_anonymous=False
+        ).annotate(
+            serialized_likes_count=Count('likes', distinct=True),
+            serialized_solutions_count=Count('solutions', distinct=True),
         ).order_by('-created_at')[:3]
         
         return [
@@ -222,8 +155,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 'id': post.id,
                 'title': post.title,
                 'created_at': post.created_at.isoformat(),
-                'likes_count': post.like_count(),
-                'solutions_count': post.solutions.count()
+                'likes_count': post.serialized_likes_count,
+                'solutions_count': post.serialized_solutions_count,
             } for post in recent_posts
         ]
     
@@ -231,7 +164,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         """Check if the requesting user can compare schedules"""
         request = self.context.get('request')
         if request and request.user.is_authenticated and request.user != obj.user:
-            return True
+            return obj.allow_schedule_comparison
         return False
     
     def get_initial_users(self, obj):
@@ -247,15 +180,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
                     'id': request.user.id,
                     'username': request.user.username,
                     'full_name': request.user.get_full_name(),
-                    'school_email': request.user.school_email,
-                    'profile_picture_url': request.user.userprofile.profile_picture.url if request.user.userprofile.profile_picture else None,
+                    'profile_picture_url': safe_file_url(request.user.userprofile.profile_picture),
                 },
                 {
                     'id': obj.user.id,
                     'username': obj.user.username,
                     'full_name': obj.user.get_full_name(),
-                    'school_email': obj.user.school_email,
-                    'profile_picture_url': obj.profile_picture.url if obj.profile_picture else None,
+                    'profile_picture_url': safe_file_url(obj.profile_picture),
                 }
             ]
         return None
@@ -273,65 +204,60 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return obj.get_linkedin_url()
 
 
-class AnonUserProfileSerializer(serializers.ModelSerializer):
-    """Serializer for anonymous user profiles - returns default/anonymous data"""
-    block_1A = CourseSerializer(read_only=True)
-    block_1B = CourseSerializer(read_only=True)
-    block_1D = CourseSerializer(read_only=True)
-    block_1E = CourseSerializer(read_only=True)
-    block_2A = CourseSerializer(read_only=True)
-    block_2B = CourseSerializer(read_only=True)
-    block_2C = CourseSerializer(read_only=True)
-    block_2D = CourseSerializer(read_only=True)
-    block_2E = CourseSerializer(read_only=True)
-    grade_level = serializers.SerializerMethodField()
-    allow_schedule_comparison = serializers.BooleanField(read_only=True)
+class FeedUserProfileSerializer(serializers.ModelSerializer):
+    """Compact public profile fields embedded with user summaries and authors."""
     profile_picture = serializers.SerializerMethodField()
-    
+    instagram_url = serializers.SerializerMethodField()
+    snapchat_url = serializers.SerializerMethodField()
+    linkedin_url = serializers.SerializerMethodField()
+
     class Meta:
         model = UserProfile
         fields = [
-            'id', 'bio', 'points', 'is_moderator', 'created_at', 'updated_at',
-            'background_hue', 'profile_picture',
-            'block_1A', 'block_1B', 'block_1D', 'block_1E',
-            'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E',
-            'grade_level', 'allow_schedule_comparison'
+            'profile_picture', 'preferred_msg_app',
+            'instagram_url', 'snapchat_url', 'linkedin_url',
         ]
-    
+
     def get_profile_picture(self, obj):
-        """Always return anonymous profile picture"""
-        return ANONYMOUS_PROFILE_PICTURE
-    
-    def get_grade_level(self, obj):
-        """Hide grade level for anonymous users"""
-        return None
+        return safe_file_url(obj.profile_picture)
+
+    def get_instagram_url(self, obj):
+        return obj.get_instagram_url()
+
+    def get_snapchat_url(self, obj):
+        return obj.get_snapchat_url()
+
+    def get_linkedin_url(self, obj):
+        return obj.get_linkedin_url()
 
 
-class UserSerializer(serializers.ModelSerializer):
-    userprofile = UserProfileSerializer(read_only=True)
+class UserSummarySerializer(serializers.ModelSerializer):
+    """Small public user representation for search, mentions, and selectors."""
     full_name = serializers.SerializerMethodField()
     profile_picture_url = serializers.SerializerMethodField()
     grade_level = serializers.SerializerMethodField()
-    
+    school_email = serializers.SerializerMethodField()
+    userprofile = FeedUserProfileSerializer(read_only=True)
+
     class Meta:
         model = User
         fields = [
             'id', 'username', 'first_name', 'last_name', 'full_name',
-            'school_email', 'personal_email', 'phone_number', 'student_id',
-            'date_joined', 'userprofile', 'profile_picture_url', 'grade_level', 'is_teacher'
+            'school_email', 'profile_picture_url', 'grade_level', 'is_teacher',
+            'userprofile',
         ]
     
     def get_full_name(self, obj):
         return obj.get_full_name()
+
+    def get_school_email(self, obj):
+        profile = getattr(obj, 'userprofile', None)
+        return obj.school_email if profile and profile.display_email else None
     
     def get_profile_picture_url(self, obj):
         """Return profile picture URL"""
-        try:
-            if obj.userprofile and obj.userprofile.profile_picture:
-                return obj.userprofile.profile_picture.url
-            return None
-        except (AttributeError, FileNotFoundError, ValueError):
-            return None
+        profile = getattr(obj, 'userprofile', None)
+        return safe_file_url(profile.profile_picture if profile else None)
 
     def get_grade_level(self, obj):
         try:
@@ -340,46 +266,106 @@ class UserSerializer(serializers.ModelSerializer):
             return None
 
 
-class AnonUserSerializer(serializers.ModelSerializer):
-    """Serializer for anonymous users - returns anonymous/default data"""
-    userprofile = AnonUserProfileSerializer(read_only=True)
+class UserSerializer(UserSummarySerializer):
+    """Complete public profile representation."""
+    userprofile = UserProfileSerializer(read_only=True)
+
+    class Meta(UserSummarySerializer.Meta):
+        fields = UserSummarySerializer.Meta.fields + ['date_joined']
+
+
+class FeedUserSerializer(UserSummarySerializer):
+    """Small author representation for post cards and feed responses."""
     full_name = serializers.SerializerMethodField()
-    first_name = serializers.SerializerMethodField()
-    last_name = serializers.SerializerMethodField()
     profile_picture_url = serializers.SerializerMethodField()
-    grade_level = serializers.SerializerMethodField()
-    username = serializers.SerializerMethodField()
-    
+    userprofile = FeedUserProfileSerializer(read_only=True)
+
     class Meta:
         model = User
-        fields = [
-            'id', 'username', 'first_name', 'last_name', 'full_name',
-            'school_email', 'personal_email', 'phone_number', 
-            'date_joined', 'userprofile', 'profile_picture_url', 'grade_level'
+        fields = ['id', 'username', 'first_name', 'last_name', 'full_name',
+                  'profile_picture_url', 'userprofile', 'is_teacher']
+
+    def get_full_name(self, obj):
+        return obj.get_full_name()
+
+    def get_profile_picture_url(self, obj):
+        profile = getattr(obj, 'userprofile', None)
+        return safe_file_url(profile.profile_picture if profile else None)
+
+
+class PrivateUserProfileSerializer(UserProfileSerializer):
+    """Owner-only profile settings and assets."""
+    lunch_card = serializers.SerializerMethodField()
+    display_email = serializers.BooleanField(read_only=True)
+
+    class Meta(UserProfileSerializer.Meta):
+        fields = UserProfileSerializer.Meta.fields + [
+            'lunch_card', 'display_email'
         ]
+
+    def _should_hide_schedule(self, obj):
+        return False
+
+    def get_lunch_card(self, obj):
+        return safe_file_url(obj.lunch_card)
+
+
+class PrivateUserSerializer(UserSerializer):
+    """Authenticated user's own account data. Never use for another user."""
+    userprofile = PrivateUserProfileSerializer(read_only=True)
+    school_email = serializers.EmailField(read_only=True)
+
+    class Meta(UserSerializer.Meta):
+        fields = UserSerializer.Meta.fields + [
+            'personal_email', 'phone_number', 'student_id'
+        ]
+
+
+class AnonymousAuthorSerializer(serializers.Serializer):
+    """A fixed author projection that cannot expose fields from the real user."""
+    id = serializers.SerializerMethodField()
+    username = serializers.SerializerMethodField()
+    first_name = serializers.SerializerMethodField()
+    last_name = serializers.SerializerMethodField()
+    full_name = serializers.SerializerMethodField()
+    profile_picture_url = serializers.SerializerMethodField()
+    userprofile = serializers.SerializerMethodField()
+    grade_level = serializers.SerializerMethodField()
+    is_teacher = serializers.SerializerMethodField()
+    is_anonymous = serializers.SerializerMethodField()
+
+    def get_id(self, obj):
+        return None
 
     def get_username(self, obj):
         return ''
-    
+
     def get_first_name(self, obj):
-        return "Anonymous"
+        return 'Anonymous'
 
     def get_last_name(self, obj):
-        return ""
-    
+        return ''
+
     def get_full_name(self, obj):
-        return "Anonymous"
-    
+        return 'Anonymous'
+
     def get_profile_picture_url(self, obj):
-        """Always return anonymous profile picture"""
         return ANONYMOUS_PROFILE_PICTURE
 
+    def get_userprofile(self, obj):
+        return {'profile_picture': ANONYMOUS_PROFILE_PICTURE}
+
     def get_grade_level(self, obj):
-        """Hide grade level for anonymous users"""
         return None
 
+    def get_is_teacher(self, obj):
+        return False
 
-class BlockSerializer(serializers.ModelSerializer):
+    def get_is_anonymous(self, obj):
+        return True
+
+
+class UserScheduleSerializer(serializers.ModelSerializer):
     """Serializer for user blocks data - returns user info + schedule blocks"""
     user_id = serializers.IntegerField(source='user.id', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
@@ -396,49 +382,14 @@ class BlockSerializer(serializers.ModelSerializer):
         return obj.user.get_full_name()
     
     def get_profile_picture_url(self, obj):
-        try:
-            if obj.profile_picture:
-                return obj.profile_picture.url
-            return None
-        except (AttributeError, FileNotFoundError, ValueError):
-            return None
+        return safe_file_url(obj.profile_picture)
     
     def get_schedule(self, obj):
-        return {
-            '1A': {
-                'course': obj.block_1A.name if obj.block_1A else None,
-                'course_id': obj.block_1A.id if obj.block_1A else None,
-            },
-            '1B': {
-                'course': obj.block_1B.name if obj.block_1B else None,
-                'course_id': obj.block_1B.id if obj.block_1B else None,
-            },
-            '1D': {
-                'course': obj.block_1D.name if obj.block_1D else None,
-                'course_id': obj.block_1D.id if obj.block_1D else None,
-            },
-            '1E': {
-                'course': obj.block_1E.name if obj.block_1E else None,
-                'course_id': obj.block_1E.id if obj.block_1E else None,
-            },
-            '2A': {
-                'course': obj.block_2A.name if obj.block_2A else None,
-                'course_id': obj.block_2A.id if obj.block_2A else None,
-            },
-            '2B': {
-                'course': obj.block_2B.name if obj.block_2B else None,
-                'course_id': obj.block_2B.id if obj.block_2B else None,
-            },
-            '2C': {
-                'course': obj.block_2C.name if obj.block_2C else None,
-                'course_id': obj.block_2C.id if obj.block_2C else None,
-            },
-            '2D': {
-                'course': obj.block_2D.name if obj.block_2D else None,
-                'course_id': obj.block_2D.id if obj.block_2D else None,
-            },
-            '2E': {
-                'course': obj.block_2E.name if obj.block_2E else None,
-                'course_id': obj.block_2E.id if obj.block_2E else None,
-            },
-        }
+        schedule = {}
+        for block in USER_SCHEDULE_BLOCKS:
+            course = getattr(obj, f'block_{block}', None)
+            schedule[block] = {
+                'course': course.name if course else None,
+                'course_id': course.id if course else None,
+            }
+        return schedule

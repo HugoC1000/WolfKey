@@ -212,6 +212,7 @@ from forum.api.profile import (
     remove_help_request_api,
     update_privacy_preferences_api,
 )
+from forum.api.schedule_import import apply_schedule_import, preview_schedule_import
 
 urlpatterns = [
 
@@ -387,20 +388,25 @@ urlpatterns = [
     path('api/notifications/register-push-token/', register_push_token_api, name='api_register_push_token'),
     path('api/notifications/unregister-push-token/', unregister_push_token_api, name='api_unregister_push_token'),
     
-    # Profile API endpoints
+    # Owner-only profile endpoints. These always operate on request.user.
     path('api/profile/', get_profile_api, name='api_get_current_profile'),
     path('api/profile/update/', update_profile_api, name='api_update_profile'),
     path('api/profile/upload-picture/', upload_profile_picture_api, name='api_upload_profile_picture'),
     path('api/profile/upload-lunch-card/', upload_lunch_card_api, name='api_upload_lunch_card'),
     path('api/profile/delete-lunch-card/', delete_lunch_card_api, name='api_delete_lunch_card'),
     path('api/profile/courses/update/', update_courses_api, name='api_update_courses'),
+    path('api/schedule-import/preview/', preview_schedule_import, name='api_schedule_import_preview'),
+    path('api/schedule-import/apply/', apply_schedule_import, name='api_schedule_import_apply'),
     path('api/profile/preferences/update/', update_privacy_preferences_api, name='api_update_privacy_preferences'),
-    path('api/profile/<str:username>/', get_profile_api, name='api_get_profile'),
-    path('api/profile/<str:username>/posts/', get_profile_posts_api, name='api_get_profile_posts'),
     path('api/profile/experience/add/', add_experience_api, name='api_add_experience'),
-    path('api/profile/help/add/', add_help_request_api, name='api_add_help_request'),
     path('api/profile/experience/<int:experience_id>/remove/', remove_experience_api, name='api_remove_experience'),
+    path('api/profile/help/add/', add_help_request_api, name='api_add_help_request'),
     path('api/profile/help/<int:help_id>/remove/', remove_help_request_api, name='api_remove_help_request'),
+
+    # Public-safe views of another user. Keep these separate from owner routes so
+    # a username can never shadow an action such as "update" or "experience".
+    path('api/profiles/<str:username>/', get_profile_api, name='api_get_profile'),
+    path('api/profiles/<str:username>/posts/', get_profile_posts_api, name='api_get_profile_posts'),
 ]
 
 if settings.DEBUG:

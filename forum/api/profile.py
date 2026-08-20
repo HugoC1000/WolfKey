@@ -53,9 +53,9 @@ def get_profile_api(request, username=None):
             from forum.models import UserProfile
             UserProfile.objects.create(user=profile_user)
         
-        # Use UserSerializer which includes UserProfileSerializer
-        from forum.serializers import UserSerializer
-        serializer = UserSerializer(profile_user, context={'request': request})
+        from forum.serializers import PrivateUserSerializer, UserSerializer
+        serializer_class = PrivateUserSerializer if profile_user == request.user else UserSerializer
+        serializer = serializer_class(profile_user, context={'request': request})
         
         return Response(serializer.data, status=status.HTTP_200_OK)
         
@@ -120,6 +120,7 @@ def update_profile_api(request):
         - instagram_handle: Instagram username (without @)
         - snapchat_handle: Snapchat username (without @)
         - linkedin_url: LinkedIn profile URL (must start with www.linkedin.com/in/)
+        - preferred_msg_app: Preferred contact app (Instagram, LinkedIn, Snapchat, Email, or Discord)
         - form_type: Type of form ('wolfnet_settings' for WolfNet settings)
         - wolfnet_password: WolfNet password (if form_type is 'wolfnet_settings')
         - clear_wolfnet_password: Boolean to clear WolfNet password
@@ -472,8 +473,8 @@ def update_privacy_preferences_api(request):
         profile_user.userprofile.save()
         
         # Return updated user data using UserSerializer
-        from forum.serializers import UserSerializer
-        serializer = UserSerializer(profile_user, context={'request': request})
+        from forum.serializers import PrivateUserSerializer
+        serializer = PrivateUserSerializer(profile_user, context={'request': request})
         
         return Response({
             'message': 'Privacy preferences updated successfully',

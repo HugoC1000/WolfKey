@@ -1,7 +1,27 @@
-from django.test import TestCase, Client
+from django.contrib.auth.models import AnonymousUser
+from django.db import connection
+from django.db.models import Count
+from django.test import TestCase, Client, RequestFactory
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
-from forum.models import User, Post, Course, Solution, Comment
+from forum.models import (
+    User, Post, Course, Solution, Comment, Notification,
+    FollowedPost, Poll, PollOption, PollVote, PostLike,
+)
 from forum.services.utils import process_post_preview
+from forum.services.notification_services import all_notifications_service
+from forum.serializers import (
+    AnonymousAuthorSerializer,
+    CommentSerializer,
+    NotificationSerializer,
+    PostDetailSerializer,
+    PostListSerializer,
+    PollSerializer,
+    PrivateUserSerializer,
+    SolutionSerializer,
+    UserProfileSerializer,
+    UserSummarySerializer,
+)
 import json
 
 class GeneralURLTests(TestCase):
@@ -171,6 +191,319 @@ class CommentFeatureTests(TestCase):
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Comment.objects.filter(id=comment.id).exists())
+
+
+class AnonymousSerializationTests(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            password='authorpass',
+            school_email='anonymous-author@wpga.ca',
+            personal_email='private@example.com',
+            phone_number='555-0199',
+            student_id='987654',
+            first_name='Secret',
+            last_name='Person',
+        )
+        self.other = User.objects.create_user(
+            password='otherpass',
+            school_email='other-author@wpga.ca',
+            first_name='Public',
+            last_name='Person',
+        )
+        self.post = Post.objects.create(
+            title='Anonymous post',
+            content={'blocks': []},
+            author=self.author,
+            is_anonymous=True,
+        )
+        self.author_solution = Solution.objects.create(
+            post=self.post,
+            author=self.author,
+            content={'blocks': []},
+        )
+        self.other_solution = Solution.objects.create(
+            post=self.post,
+            author=self.other,
+            content={'blocks': []},
+        )
+        self.author_comment = Comment.objects.create(
+            solution=self.other_solution,
+            author=self.author,
+            content={'blocks': []},
+        )
+
+    def assertAnonymousAuthor(self, author):
+        self.assertIsNone(author['id'])
+        self.assertEqual(author['username'], '')
+        self.assertEqual(author['full_name'], 'Anonymous')
+        self.assertTrue(author['is_anonymous'])
+        serialized = json.dumps(author)
+        self.assertNotIn(self.author.school_email, serialized)
+        self.assertNotIn(self.author.personal_email, serialized)
+        self.assertNotIn(self.author.phone_number, serialized)
+        self.assertNotIn(self.author.student_id, serialized)
+
+    def test_anonymous_author_projection_contains_only_safe_identity_data(self):
+        data = AnonymousAuthorSerializer(self.author).data
+
+        self.assertAnonymousAuthor(data)
+        self.assertEqual(
+            set(data),
+            {
+                'id', 'username', 'first_name', 'last_name', 'full_name',
+                'profile_picture_url', 'userprofile', 'grade_level',
+                'is_teacher', 'is_anonymous',
+            },
+        )
+
+    def test_post_list_and_detail_use_anonymous_author_projection(self):
+        self.assertAnonymousAuthor(PostListSerializer(self.post).data['author'])
+        self.assertAnonymousAuthor(PostDetailSerializer(self.post).data['author'])
+
+    def test_solution_derives_anonymity_without_serializer_context(self):
+        anonymous_data = SolutionSerializer(self.author_solution).data
+        public_data = SolutionSerializer(self.other_solution).data
+
+        self.assertAnonymousAuthor(anonymous_data['author'])
+        self.assertIn('mentions', anonymous_data)
+        self.assertEqual(public_data['author']['id'], self.other.id)
+
+    def test_comment_derives_anonymity_without_serializer_context(self):
+        data = CommentSerializer(self.author_comment).data
+
+        self.assertAnonymousAuthor(data['author'])
+        self.assertIn('mentions', data)
+
+    def test_notification_uses_anonymous_sender_projection(self):
+        from rest_framework.authtoken.models import Token
+
+        notification = Notification.objects.create(
+            recipient=self.other,
+            sender=self.author,
+            notification_type='comment',
+            post=self.post,
+            comment=self.author_comment,
+            message='Anonymous commented.',
+        )
+
+        data = NotificationSerializer(notification).data
+
+        self.assertAnonymousAuthor(data['sender'])
+
+        token = Token.objects.create(user=self.other)
+        response = self.client.get(
+            reverse('api_notifications'),
+            HTTP_AUTHORIZATION=f'Token {token.key}',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        api_sender = response.json()['data']['notifications'][0]['sender']
+        self.assertAnonymousAuthor(api_sender)
+
+    def test_notification_resolves_post_through_solution_without_extra_queries(self):
+        notification = Notification.objects.create(
+            recipient=self.other,
+            sender=self.author,
+            notification_type='solution',
+            solution=self.author_solution,
+            message='Anonymous answered.',
+        )
+        notifications = list(all_notifications_service(self.other))
+
+        with CaptureQueriesContext(connection) as queries:
+            data = NotificationSerializer(notifications, many=True).data
+
+        self.assertEqual(len(queries), 0)
+        self.assertEqual(data[0]['id'], notification.id)
+        self.assertEqual(data[0]['post_title'], self.post.title)
+        self.assertAnonymousAuthor(data[0]['sender'])
+
+    def test_legacy_sorted_solutions_endpoint_uses_safe_author_projection(self):
+        response = self.client.get(
+            reverse('get_sorted_solutions', kwargs={'post_id': self.post.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        solutions = {
+            solution['id']: solution for solution in response.json()['solutions']
+        }
+        self.assertAnonymousAuthor(solutions[self.author_solution.id]['author'])
+        self.assertEqual(solutions[self.other_solution.id]['author']['id'], self.other.id)
+
+    def test_legacy_comments_endpoint_uses_safe_author_projection(self):
+        response = self.client.get(
+            reverse(
+                'get_solution_comments',
+                kwargs={'solution_id': self.other_solution.id},
+            ),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertAnonymousAuthor(response.json()['comments'][0]['author'])
+        self.assertNotContains(response, self.author.get_full_name())
+
+
+class SerializerRefactorTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.owner = User.objects.create_user(
+            password='ownerpass',
+            school_email='owner@wpga.ca',
+            first_name='Owner',
+            last_name='User',
+        )
+        self.viewer = User.objects.create_user(
+            password='viewerpass',
+            school_email='viewer-summary@wpga.ca',
+            first_name='Viewer',
+            last_name='User',
+        )
+        self.course = Course.objects.create(name='Private Schedule Course')
+        self.owner.userprofile.block_1A = self.course
+        self.owner.userprofile.allow_schedule_comparison = False
+        self.owner.userprofile.preferred_msg_app = 'LinkedIn'
+        self.owner.userprofile.instagram_handle = 'owner.user'
+        self.owner.userprofile.snapchat_handle = 'owner-snap'
+        self.owner.userprofile.linkedin_url = 'https://www.linkedin.com/in/owner-user'
+        self.owner.userprofile.save()
+        self.post = Post.objects.create(
+            title='Serializer test post',
+            content={'blocks': []},
+            author=self.owner,
+        )
+
+    def test_public_profile_schedule_defaults_to_hidden(self):
+        request = self.factory.get('/')
+        request.user = AnonymousUser()
+
+        data = UserProfileSerializer(
+            self.owner.userprofile,
+            context={'request': request},
+        ).data
+
+        self.assertIsNone(data['schedule'])
+        self.assertNotIn('block_1A', data)
+        self.assertNotIn('schedule_blocks', data)
+        self.assertNotIn('schedule_courses', data['courses'])
+
+    def test_private_profile_can_include_owner_schedule_without_request_context(self):
+        data = PrivateUserSerializer(self.owner).data
+
+        self.assertEqual(
+            data['userprofile']['schedule']['1A']['course_id'],
+            self.course.id,
+        )
+
+    def test_user_summary_embeds_only_compact_contact_profile(self):
+        data = UserSummarySerializer(self.owner).data
+
+        self.assertNotIn('date_joined', data)
+        self.assertEqual(data['id'], self.owner.id)
+        self.assertEqual(
+            data['userprofile'],
+            {
+                'profile_picture': self.owner.userprofile.profile_picture.url,
+                'preferred_msg_app': 'LinkedIn',
+                'instagram_url': 'https://www.instagram.com/owner.user',
+                'snapchat_url': 'https://www.snapchat.com/add/owner-snap',
+                'linkedin_url': 'https://www.linkedin.com/in/owner-user',
+            },
+        )
+
+    def test_post_summary_and_detail_include_author_preferred_message_app(self):
+        summary = PostListSerializer(self.post).data
+        detail = PostDetailSerializer(self.post).data
+
+        expected_profile_fields = {
+            'preferred_msg_app': 'LinkedIn',
+            'instagram_url': 'https://www.instagram.com/owner.user',
+            'snapchat_url': 'https://www.snapchat.com/add/owner-snap',
+            'linkedin_url': 'https://www.linkedin.com/in/owner-user',
+        }
+        for payload in (summary, detail):
+            with self.subTest(serializer_payload=payload['id']):
+                author_profile = payload['author']['userprofile']
+                for field, expected_value in expected_profile_fields.items():
+                    self.assertEqual(author_profile[field], expected_value)
+
+    def test_solution_serializes_only_root_comments_at_top_level(self):
+        solution = Solution.objects.create(
+            post=self.post,
+            author=self.viewer,
+            content={'blocks': []},
+        )
+        root = Comment.objects.create(
+            solution=solution,
+            author=self.viewer,
+            content={'blocks': []},
+        )
+        reply = Comment.objects.create(
+            solution=solution,
+            author=self.owner,
+            parent=root,
+            content={'blocks': []},
+        )
+
+        comments = SolutionSerializer(solution).data['comments']
+
+        self.assertEqual([comment['id'] for comment in comments], [root.id])
+        self.assertEqual(
+            [comment['id'] for comment in comments[0]['replies']],
+            [reply.id],
+        )
+
+    def test_annotated_solution_count_does_not_run_fallback_query(self):
+        annotated_post = Post.objects.annotate(
+            solution_count=Count('solutions')
+        ).get(id=self.post.id)
+        serializer = PostListSerializer()
+
+        with CaptureQueriesContext(connection) as queries:
+            solution_count = serializer.get_solution_count(annotated_post)
+
+        self.assertEqual(solution_count, 0)
+        self.assertEqual(len(queries), 0)
+
+    def test_post_card_engagement_falls_back_when_annotations_are_missing(self):
+        PostLike.objects.create(post=self.post, user=self.viewer)
+        FollowedPost.objects.create(post=self.post, user=self.viewer)
+        request = self.factory.get('/')
+        request.user = self.viewer
+        serializer = PostListSerializer(context={'request': request})
+
+        self.assertTrue(serializer.get_is_liked(self.post))
+        self.assertTrue(serializer.get_is_following(self.post))
+
+    def test_poll_state_is_computed_once_without_per_option_queries(self):
+        poll = Poll.objects.create(
+            title='Efficient poll',
+            content={'blocks': []},
+            author=self.owner,
+            is_public_voting=True,
+            allow_multiple_choice=False,
+        )
+        first = PollOption.objects.create(poll=poll, text='First')
+        second = PollOption.objects.create(poll=poll, text='Second')
+        owner_vote = PollVote.objects.create(poll=poll, user=self.owner)
+        owner_vote.selected_options.add(first)
+        viewer_vote = PollVote.objects.create(poll=poll, user=self.viewer)
+        viewer_vote.selected_options.add(second)
+        request = self.factory.get('/')
+        request.user = self.viewer
+
+        with CaptureQueriesContext(connection) as queries:
+            data = PollSerializer(poll, context={'request': request}).data
+
+        self.assertLessEqual(len(queries), 5)
+        options = {option['id']: option for option in data['poll_options']}
+        self.assertEqual(data['poll_info']['total_votes'], 2)
+        self.assertEqual(options[first.id]['vote_count'], 1)
+        self.assertEqual(options[second.id]['vote_count'], 1)
+        self.assertFalse(options[first.id]['user_voted'])
+        self.assertTrue(options[second.id]['user_voted'])
+        self.assertEqual(data['user_vote']['selected_option_ids'], [second.id])
+        self.assertEqual(len(options[first.id]['voters']), 1)
 
 
 class APIDeleteAccountTests(TestCase):
@@ -404,6 +737,135 @@ class APIProfilePostsTests(TestCase):
         self.assertEqual(payload['posts'][0]['title'], 'QA Visible New')
         self.assertTrue(payload['has_next'])
         self.assertEqual(payload['total_pages'], 2)
+
+
+class APIProfilePrivacyTests(TestCase):
+    def setUp(self):
+        from rest_framework.authtoken.models import Token
+
+        self.client = Client()
+        self.viewer = User.objects.create_user(
+            password='viewerpass123', school_email='viewer@wpga.ca',
+            personal_email='viewer@example.com', first_name='View', last_name='Er'
+        )
+        self.other = User.objects.create_user(
+            password='otherpass123', school_email='other@wpga.ca',
+            personal_email='other@example.com', phone_number='555-0100',
+            student_id='123456', first_name='Other', last_name='User'
+        )
+        self.other.userprofile.wolfnet_password = 'secret'
+        self.other.userprofile.lunch_card = 'lunch_cards/private.png'
+        self.other.userprofile.display_email = False
+        self.other.userprofile.allow_schedule_comparison = False
+        self.other.userprofile.save()
+        self.token = Token.objects.create(user=self.viewer)
+
+    def _get_profile(self, user):
+        return self.client.get(
+            reverse('api_get_profile', kwargs={'username': user.username}),
+            HTTP_AUTHORIZATION=f'Token {self.token.key}'
+        )
+
+    def test_other_users_profile_only_returns_public_fields(self):
+        response = self._get_profile(self.other)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertNotIn('personal_email', payload)
+        self.assertNotIn('phone_number', payload)
+        self.assertNotIn('student_id', payload)
+        self.assertIsNone(payload['school_email'])
+        self.assertNotIn('lunch_card', payload['userprofile'])
+        self.assertNotIn('has_wolfnet_password', payload['userprofile'])
+        self.assertNotIn('display_email', payload['userprofile'])
+        self.assertIsNone(payload['userprofile']['schedule'])
+        self.assertNotIn('schedule_courses', payload['userprofile']['courses'])
+        self.assertFalse(payload['userprofile']['can_compare'])
+
+    def test_own_profile_returns_owner_only_fields(self):
+        response = self._get_profile(self.viewer)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['school_email'], self.viewer.school_email)
+        self.assertIn('personal_email', payload)
+        self.assertIn('phone_number', payload)
+        self.assertIn('student_id', payload)
+        self.assertIn('lunch_card', payload['userprofile'])
+        self.assertIn('display_email', payload['userprofile'])
+
+
+class PreferredMessageAppTests(TestCase):
+    def setUp(self):
+        from rest_framework.authtoken.models import Token
+
+        self.client = Client()
+        self.user = User.objects.create_user(
+            password='profilepass123', school_email='profile@wpga.ca',
+            first_name='Profile', last_name='User'
+        )
+        self.token = Token.objects.create(user=self.user)
+        self.auth_header = {'HTTP_AUTHORIZATION': f'Token {self.token.key}'}
+
+    def test_profile_api_updates_and_returns_preferred_message_app(self):
+        for app in ('Instagram', 'LinkedIn', 'Snapchat', 'Email', 'Discord'):
+            with self.subTest(app=app):
+                response = self.client.post(
+                    reverse('api_update_profile'),
+                    data=json.dumps({'preferred_msg_app': app}),
+                    content_type='application/json',
+                    **self.auth_header,
+                )
+                self.assertEqual(response.status_code, 200)
+                self.user.userprofile.refresh_from_db()
+                self.assertEqual(self.user.userprofile.preferred_msg_app, app)
+
+        self.user.userprofile.refresh_from_db()
+        self.assertEqual(self.user.userprofile.preferred_msg_app, 'Discord')
+
+        response = self.client.get(reverse('api_get_current_profile'), **self.auth_header)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['userprofile']['preferred_msg_app'], 'Discord')
+
+        response = self.client.post(
+            reverse('api_update_profile'),
+            data=json.dumps({'preferred_msg_app': None}),
+            content_type='application/json',
+            **self.auth_header,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.user.userprofile.refresh_from_db()
+        self.assertIsNone(self.user.userprofile.preferred_msg_app)
+
+    def test_profile_api_rejects_unknown_preferred_message_app(self):
+        response = self.client.post(
+            reverse('api_update_profile'),
+            data=json.dumps({'preferred_msg_app': 'sms'}),
+            content_type='application/json',
+            **self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.user.userprofile.refresh_from_db()
+        self.assertIsNone(self.user.userprofile.preferred_msg_app)
+
+    def test_profile_page_has_preferred_message_app_selector(self):
+        self.user.userprofile.preferred_msg_app = 'Snapchat'
+        self.user.userprofile.save()
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('profile', kwargs={'username': self.user.username})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="preferred_msg_app"')
+        self.assertContains(response, '<option value="Snapchat" selected>Snapchat</option>', html=True)
+        content = response.content.decode()
+        self.assertGreater(
+            content.index('id="socialMediaForm"'),
+            content.index('id="preferences"'),
+        )
 
 
 class PostPreviewFormattingTests(TestCase):

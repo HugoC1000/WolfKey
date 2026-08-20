@@ -20,8 +20,10 @@ Returned schedule shape matches the previous conventions:
 
 from typing import List, Dict, Optional, Set
 from forum.models import Course
+from forum.serializers.user import USER_SCHEDULE_BLOCKS
 
-ALL_BLOCKS = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
+ALL_BLOCKS = USER_SCHEDULE_BLOCKS
+
 
 def generate_possible_schedules(requested_course_ids: List[int],
                                 required_course_ids: Optional[List[int]] = None,
@@ -106,7 +108,6 @@ def generate_possible_schedules(requested_course_ids: List[int],
     return schedules[:max_schedules]
 
 
-
 def evaluate_multiple_schedules(requested_course_ids: List[int], schedules_list: List[Dict]) -> List[Dict]:
     """Score candidate schedules by how many requested courses they satisfy.
 
@@ -123,4 +124,3 @@ def evaluate_multiple_schedules(requested_course_ids: List[int], schedules_list:
 
     results.sort(key=lambda r: r['matching'], reverse=True)
     return results
-

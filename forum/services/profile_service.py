@@ -11,7 +11,9 @@ from django.core.files.storage import default_storage
 from forum.models import User, Course, Post, Solution, UserCourseExperience, UserCourseHelp, UserProfile
 from forum.forms import UserCourseExperienceForm, UserCourseHelpForm
 from forum.services.utils import detect_bad_words, annotate_post_card_context
-from forum.serializers import BlockSerializer
+from forum.serializers import UserScheduleSerializer
+from forum.serializers.user import USER_SCHEDULE_BLOCKS
+from forum.services.schedule_import_service import ScheduleImportValidationError, replace_user_schedule
 
 
 def compress_image(image_file, max_width=1200, quality=85):
@@ -96,8 +98,8 @@ def get_profile_context(request, username):
     posts_count = Post.objects.filter(author=profile_user).count()
     solutions_count = Solution.objects.filter(author=profile_user).count()
 
-    # Use the BlockSerializer as the canonical source for schedule data
-    serializer = BlockSerializer(profile_user.userprofile)
+    # Use UserScheduleSerializer as the canonical source for profile schedule data.
+    serializer = UserScheduleSerializer(profile_user.userprofile)
     initial_courses = serializer.data.get('schedule', {}) if serializer and serializer.data else {}
     
     initial_courses_json = json.dumps(initial_courses)
@@ -119,7 +121,6 @@ def get_profile_context(request, username):
         'experienced_courses_json': experienced_courses_json,
         'help_needed_courses_json': help_needed_courses_json,
         'initial_courses_json': initial_courses_json,
-        'has_wolfnet_password' : bool(profile_user.userprofile.wolfnet_password),
         'all_courses': all_courses
     }
     
@@ -194,6 +195,17 @@ def update_profile_info(request, username):
                 elif linkedin_url.startswith('http://'):
                     linkedin_url = linkedin_url.replace('http://', 'https://')
             profile_user.userprofile.linkedin_url = linkedin_url if linkedin_url else None
+
+        if 'preferred_msg_app' in request.POST:
+            preferred_msg_app = request.POST.get('preferred_msg_app')
+            if preferred_msg_app is None:
+                preferred_msg_app = ''
+            elif not isinstance(preferred_msg_app, str):
+                return False, 'Invalid preferred messaging app.'
+            preferred_msg_app = preferred_msg_app.strip()
+            if preferred_msg_app and preferred_msg_app not in UserProfile.PreferredMessageApp.values:
+                return False, 'Invalid preferred messaging app.'
+            profile_user.userprofile.preferred_msg_app = preferred_msg_app or None
 
         hue_value = request.POST.get('background_hue', profile_user.userprofile.background_hue)
         profile_user.userprofile.background_hue = int(hue_value)
@@ -373,19 +385,19 @@ def update_lunch_card(request):
 def update_profile_courses(request):
     profile = request.user.userprofile
     try:
-        for key, value in request.POST.items():
-            if key.startswith("block_"):
-                block = key.replace("block_", "")
-                course_id = value
-                if course_id == 'NOCOURSE':
-                    setattr(profile, f'block_{block}', None)
-                else:
-                    course = Course.objects.get(id=course_id)
-                    setattr(profile, f'block_{block}', course)
-        profile.save()
+        assignments = {}
+        for block in USER_SCHEDULE_BLOCKS:
+            key = f'block_{block}'
+            if key in request.POST:
+                value = request.POST.get(key)
+                assignments[block] = None if value in (None, '', 'NOCOURSE') else value
+            else:
+                assignments[block] = getattr(profile, f'{key}_id', None)
+
+        replace_user_schedule(profile, assignments, allow_empty=True)
         return True, 'Courses updated successfully!'
-    except Course.DoesNotExist:
-        return False, f"Course with ID {course_id} does not exist."
+    except ScheduleImportValidationError as exc:
+        return False, str(exc)
     except Exception as e:
         return False, f"Error updating courses: {str(e)}"
 

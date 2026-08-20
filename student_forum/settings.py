@@ -225,6 +225,33 @@ LOGGING = {
             'handlers': ['console', 'file'],
             'level': 'DEBUG',
         },
+        # Keep useful application debug logs without printing image metadata,
+        # HTTP connection traces, or routine Gemini SDK status messages.
+        'PIL': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'httpcore': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'httpx': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'google_genai': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'google.genai': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
     },
 }
 
@@ -470,6 +497,12 @@ else:
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY', 'my-secret-key')
 FERNET_KEY = os.getenv('FERNET_KEY')
+
+# Gemini-backed schedule import. The key remains server-side; clients submit
+# screenshots or text only to WolfKey's authenticated import endpoint.
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+SCHEDULE_IMPORT_GEMINI_MODEL = os.getenv('SCHEDULE_IMPORT_GEMINI_MODEL', 'gemini-3.5-flash-lite')
+SCHEDULE_IMPORT_RATE = os.getenv('SCHEDULE_IMPORT_RATE', '4/hour')
 
 # Expo Push Notification Settings
 EXPO_ACCESS_TOKEN = os.getenv('EXPO_ACCESS_TOKEN', None)
