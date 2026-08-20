@@ -1,0 +1,40 @@
+<div class="card mb-3 profile-schedule-import" id="profile-schedule-import-card" hidden>
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-file-earmark-arrow-up me-1" aria-hidden="true"></i>Import schedule</h5>
+    </div>
+    <div class="card-body">
+        <p class="profile-schedule-import-copy">Upload a screenshot or paste schedule text to fill the course selectors below.</p>
+
+        <div class="profile-import-tabs" role="tablist" aria-label="Schedule import source">
+            <button type="button" class="profile-import-tab is-active" data-import-source="image" role="tab" aria-selected="true">
+                <i class="bi bi-image" aria-hidden="true"></i> Screenshot
+            </button>
+            <button type="button" class="profile-import-tab" data-import-source="text" role="tab" aria-selected="false">
+                <i class="bi bi-text-paragraph" aria-hidden="true"></i> Paste text
+            </button>
+        </div>
+
+        <div id="profile-import-image-panel">
+            <label id="profile-import-drop-zone" class="profile-import-drop-zone" for="profile-import-image">
+                <input id="profile-import-image" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                <span><strong>Choose or drop a screenshot</strong><small>PNG, JPEG, or WebP up to 10 MB</small></span>
+            </label>
+            <div id="profile-import-selected-file" class="profile-import-selected-file" hidden></div>
+        </div>
+
+        <div id="profile-import-text-panel" hidden>
+            <label for="profile-import-text" class="form-label small">Schedule text</label>
+            <textarea id="profile-import-text" class="form-control" rows="6" maxlength="20000"
+                      placeholder="Paste the schedule copied from WolfNet or another source..."></textarea>
+        </div>
+
+        <div class="profile-import-actions">
+            <p id="profile-import-status" class="profile-import-status" role="status" aria-live="polite"></p>
+            <button id="profile-import-process" type="button" class="btn btn-primary btn-sm">
+                <span class="profile-import-button-label"><i class="bi bi-stars" aria-hidden="true"></i> Read schedule</span>
+                <span class="profile-import-button-loading" hidden><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Reading…</span>
+            </button>
+        </div>
+    </div>
+</div>

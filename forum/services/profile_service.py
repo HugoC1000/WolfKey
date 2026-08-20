@@ -12,6 +12,8 @@ from forum.models import User, Course, Post, Solution, UserCourseExperience, Use
 from forum.forms import UserCourseExperienceForm, UserCourseHelpForm
 from forum.services.utils import detect_bad_words, annotate_post_card_context
 from forum.serializers import UserScheduleSerializer
+from forum.serializers.user import USER_SCHEDULE_BLOCKS
+from forum.services.schedule_import_service import ScheduleImportValidationError, replace_user_schedule
 
 
 def compress_image(image_file, max_width=1200, quality=85):
@@ -383,19 +385,19 @@ def update_lunch_card(request):
 def update_profile_courses(request):
     profile = request.user.userprofile
     try:
-        for key, value in request.POST.items():
-            if key.startswith("block_"):
-                block = key.replace("block_", "")
-                course_id = value
-                if course_id == 'NOCOURSE':
-                    setattr(profile, f'block_{block}', None)
-                else:
-                    course = Course.objects.get(id=course_id)
-                    setattr(profile, f'block_{block}', course)
-        profile.save()
+        assignments = {}
+        for block in USER_SCHEDULE_BLOCKS:
+            key = f'block_{block}'
+            if key in request.POST:
+                value = request.POST.get(key)
+                assignments[block] = None if value in (None, '', 'NOCOURSE') else value
+            else:
+                assignments[block] = getattr(profile, f'{key}_id', None)
+
+        replace_user_schedule(profile, assignments, allow_empty=True)
         return True, 'Courses updated successfully!'
-    except Course.DoesNotExist:
-        return False, f"Course with ID {course_id} does not exist."
+    except ScheduleImportValidationError as exc:
+        return False, str(exc)
     except Exception as e:
         return False, f"Error updating courses: {str(e)}"
 

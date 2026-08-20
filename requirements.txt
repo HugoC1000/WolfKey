@@ -27,7 +27,8 @@ djangorestframework_simplejwt==5.5.0
 exceptiongroup==1.2.2
 google-api-core==2.24.2
 google-api-python-client==2.167.0
-google-auth==2.29.0
+google-genai==2.17.0
+google-auth==2.56.3
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 googleapis-common-protos==1.70.0
@@ -52,6 +53,7 @@ prompt_toolkit==3.0.51
 proto-plus==1.26.1
 protobuf==6.30.2
 psycopg2-binary==2.9.10
+pydantic==2.12.5
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycparser==2.22
@@ -76,7 +78,8 @@ sqlparse==0.5.2
 StrEnum==0.4.15
 trio==0.30.0
 trio-websocket==0.12.2
-typing_extensions==4.14.0
+typing-inspection==0.4.2
+typing_extensions==4.14.1
 tzdata==2025.2
 uritemplate==4.1.1
 urllib3==2.5.0

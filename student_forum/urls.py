@@ -212,6 +212,7 @@ from forum.api.profile import (
     remove_help_request_api,
     update_privacy_preferences_api,
 )
+from forum.api.schedule_import import apply_schedule_import, preview_schedule_import
 
 urlpatterns = [
 
@@ -394,6 +395,8 @@ urlpatterns = [
     path('api/profile/upload-lunch-card/', upload_lunch_card_api, name='api_upload_lunch_card'),
     path('api/profile/delete-lunch-card/', delete_lunch_card_api, name='api_delete_lunch_card'),
     path('api/profile/courses/update/', update_courses_api, name='api_update_courses'),
+    path('api/schedule-import/preview/', preview_schedule_import, name='api_schedule_import_preview'),
+    path('api/schedule-import/apply/', apply_schedule_import, name='api_schedule_import_apply'),
     path('api/profile/preferences/update/', update_privacy_preferences_api, name='api_update_privacy_preferences'),
     path('api/profile/experience/add/', add_experience_api, name='api_add_experience'),
     path('api/profile/experience/<int:experience_id>/remove/', remove_experience_api, name='api_remove_experience'),

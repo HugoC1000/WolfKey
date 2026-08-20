@@ -1,0 +1,135 @@
+.profile-schedule-import {
+    border: 1px solid #e1e5e9;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(37, 49, 61, 0.06);
+}
+
+.profile-schedule-import:hover { transform: none; }
+
+.profile-schedule-import .card-header {
+    border-bottom-color: #e9ecef;
+    background: #fff;
+}
+
+.profile-schedule-import-copy {
+    margin: 0 0 0.7rem;
+    color: #6d7680;
+    font-size: 0.8rem;
+}
+
+.profile-import-tabs {
+    display: inline-flex;
+    gap: 0.2rem;
+    margin-bottom: 0.65rem;
+    padding: 0.2rem;
+    border-radius: 8px;
+    background: #eef1f4;
+}
+
+.profile-import-tab {
+    padding: 0.35rem 0.6rem;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #65707b;
+    font-size: 0.75rem;
+    font-weight: 650;
+}
+
+.profile-import-tab.is-active {
+    background: #fff;
+    color: #286bbf;
+    box-shadow: 0 1px 4px rgba(26, 38, 50, 0.12);
+}
+
+.profile-import-drop-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 105px;
+    gap: 0.65rem;
+    padding: 0.8rem;
+    border: 1.5px dashed #aebbc8;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #3e4a56;
+    cursor: pointer;
+    text-align: left;
+}
+
+.profile-import-drop-zone:hover,
+.profile-import-drop-zone.is-dragging {
+    border-color: #3b7dcc;
+    background: #f0f6fd;
+}
+
+.profile-import-drop-zone > i {
+    color: #2b70c2;
+    font-size: 1.35rem;
+}
+
+.profile-import-drop-zone span { display: flex; flex-direction: column; }
+.profile-import-drop-zone small { margin-top: 0.1rem; color: #7b858f; font-size: 0.68rem; }
+
+.profile-import-selected-file {
+    margin-top: 0.4rem;
+    color: #596570;
+    font-size: 0.72rem;
+}
+
+#profile-import-text {
+    border-radius: 9px;
+    font-size: 0.8rem;
+    resize: vertical;
+}
+
+.profile-import-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-top: 0.7rem;
+}
+
+.profile-import-status {
+    margin: 0;
+    color: #69737d;
+    font-size: 0.73rem;
+}
+
+.profile-import-status.is-error { color: #b42318; }
+.profile-import-status.is-success { color: #18794e; }
+
+#profile-import-process {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+    min-height: 34px;
+    border-radius: 8px;
+    font-weight: 650;
+}
+
+.profile-import-button-label,
+.profile-import-button-loading { align-items: center; gap: 0.35rem; }
+.profile-import-button-label { display: inline-flex; }
+.profile-import-button-loading:not([hidden]) { display: inline-flex; }
+
+.course-selector.schedule-import-needs-review .search-box {
+    border-color: #d89a2b;
+    background: #fffdf7;
+}
+
+.course-selector.schedule-import-will-clear .search-box {
+    border-color: #d9b4b0;
+    background: #fffafa;
+}
+
+@media (max-width: 520px) {
+    .profile-import-actions { align-items: stretch; flex-direction: column; }
+    #profile-import-process { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .profile-import-drop-zone { transition: none; }
+}
