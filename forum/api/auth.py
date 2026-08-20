@@ -9,7 +9,7 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.authentication import TokenAuthentication
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
@@ -116,16 +116,26 @@ def api_register(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 @api_view(['GET'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def search_users_api(request):
     """Search for users API endpoint"""
     try:
         query = request.GET.get('query', '').strip()
         limit = int(request.GET.get('limit', 5))
-        users = search_users(request.user, query)[:limit]
+        users = list(search_users(request.user, query)[:limit])
 
         serializer = UserSummarySerializer(users, many=True, context={'request': request})
-        
-        return Response({'users': serializer.data})
+        serialized_users = [dict(user_data) for user_data in serializer.data]
+
+        if request.GET.get('include_schedule_comparison') == '1':
+            for user_data, user in zip(serialized_users, users):
+                profile = getattr(user, 'userprofile', None)
+                user_data['schedule_comparison_enabled'] = bool(
+                    profile and profile.allow_schedule_comparison
+                )
+
+        return Response({'users': serialized_users})
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

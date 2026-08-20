@@ -2,37 +2,25 @@ from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 import json
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
-from forum.services.timetable_services import generate_possible_schedules, evaluate_multiple_schedules
+from forum.serializers.user import USER_SCHEDULE_BLOCKS
+from forum.services.course_services import filter_courses_for_grade
+from forum.services.timetable_services import generate_possible_schedules
 
 
-
+@login_required
 @require_http_methods(["GET"])
 def timetable_assigner(request):
     """Render the timetable assigner page and pass initial course selections from the user's profile."""
     user = request.user
     profile = getattr(user, 'userprofile', None)
 
-    blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
+    blocks = USER_SCHEDULE_BLOCKS
     initial = {}
 
     if profile:
-        # Map profile FK fields to blocks
-        mapping = {
-            '1A': profile.block_1A,
-            '1B': profile.block_1B,
-            '1D': profile.block_1D,
-            '1E': profile.block_1E,
-            '2A': profile.block_2A,
-            '2B': profile.block_2B,
-            '2C': profile.block_2C,
-            '2D': profile.block_2D,
-            '2E': profile.block_2E,
-        }
-
         for b in blocks:
-            course = mapping.get(b)
+            course = getattr(profile, f'block_{b}', None)
             if course and getattr(course, 'name', None) and 'study' not in course.name.lower():
                 initial[b] = {
                     'id': course.id,
@@ -47,20 +35,28 @@ def timetable_assigner(request):
             initial[b] = None
 
     context = {
-        'initial_selections_json': json.dumps(initial)
+        'initial_selections_json': json.dumps(initial),
+        'allow_schedule_comparison': bool(profile and profile.allow_schedule_comparison),
+        'user_grade_level': profile.grade_level if profile else None,
     }
     return render(request, 'forum/timetable_assigner.html', context)
 
 
+@login_required
 @require_http_methods(["GET"])
 def all_courses_blocks_view(request):
     try:
         # Reuse the API logic but return JsonResponse for session users
         from forum.models import Course
-        all_blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
-        blocks_data = {block_code: [] for block_code in all_blocks}
+        blocks_data = {block_code: [] for block_code in USER_SCHEDULE_BLOCKS}
 
         courses_qs = Course.objects.prefetch_related('blocks').all()
+        if request.GET.get('eligible_only') == '1':
+            profile = getattr(request.user, 'userprofile', None)
+            courses_qs = filter_courses_for_grade(
+                courses_qs,
+                profile.grade_level if profile else None,
+            )
         for course in courses_qs:
             for block in course.blocks.all():
                 if block.code in blocks_data:
@@ -71,7 +67,7 @@ def all_courses_blocks_view(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@csrf_exempt
+@login_required
 @require_http_methods(["POST"])
 def generate_schedules_view(request):
     try:
@@ -81,7 +77,11 @@ def generate_schedules_view(request):
             return JsonResponse({'error': 'No courses requested'}, status=400)
 
         required_course_ids = data.get('required_course_ids', [])
-        schedules = generate_possible_schedules(requested_course_ids, required_course_ids=required_course_ids)
+        schedules = generate_possible_schedules(
+            requested_course_ids,
+            required_course_ids=required_course_ids,
+        )
+
         return JsonResponse({'success': True, 'schedules': schedules})
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)

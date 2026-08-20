@@ -81,6 +81,13 @@
     box-shadow: 0 4px 16px rgba(33, 168, 243, 0.3);
 }
 
+/* Give step 3 its own visual treatment. */
+.step-item:nth-child(3) .step-circle {
+    background: #f3e8ff;
+    border-color: #c084fc;
+    color: #7e22ce;
+}
+
 .step-label {
     font-size: 14px;
     color: #6a6969;

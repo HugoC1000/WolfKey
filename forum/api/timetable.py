@@ -4,7 +4,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from forum.services.timetable_services import evaluate_multiple_schedules, generate_possible_schedules
-from forum.models import Course, Block
+from forum.serializers.user import USER_SCHEDULE_BLOCKS
+from forum.services.course_services import filter_courses_for_grade
+from forum.models import Course
 
 
 @api_view(['GET'])
@@ -13,8 +15,7 @@ from forum.models import Course, Block
 def all_courses_blocks_api(request):
     """Token-authenticated API endpoint to get all courses organized by their available blocks."""
     try:
-        all_blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E']
-        blocks_data = {block_code: [] for block_code in all_blocks}
+        blocks_data = {block_code: [] for block_code in USER_SCHEDULE_BLOCKS}
 
         # Determine grade threshold: use provided ?maxgrade= or user's profile grade if authenticated
         maxgrade_param = request.query_params.get('maxgrade', None)
@@ -29,9 +30,7 @@ def all_courses_blocks_api(request):
                 user_grade = None
 
         courses_qs = Course.objects.prefetch_related('blocks').all()
-        if user_grade is not None:
-            from django.db.models import Q
-            courses_qs = courses_qs.filter(Q(max_grade__isnull=True) | Q(max_grade__gte=user_grade))
+        courses_qs = filter_courses_for_grade(courses_qs, user_grade)
 
         for course in courses_qs:
             for block in course.blocks.all():
