@@ -11,8 +11,8 @@ PREVIEW_EMAIL = 'chunghugo99994@gmail.com'
 DEFAULT_NEWSLETTER = 'Announcement_New_Features'
 SUBJECTS = {
     'Announcement_New_Features': "What's New: Profiles, Polls & Volunteer Hours",
-    'atlas_intro': 'Find a Better Fit with Atlas',
-    'atlas_schedule_upload': 'Upload Your Schedule to Atlas',
+    'atlas_intro': 'Find a Better Schedule with Atlas',
+    'atlas_schedule_upload': 'Upload Your Schedule to WolfKey',
 }
 
 
