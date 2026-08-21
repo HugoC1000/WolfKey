@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Find a schedule that works for you | Atlas</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #ffffff; color: #101114; font-family: Arial, Helvetica, sans-serif; }
+        .email { width: 648px; max-width: 100%; margin: 0 auto; overflow: hidden; background: #ffffff; }
+        .social { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding: 20px 50px 0; font-size: 14px; font-weight: 700; }
+        .social-icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 50%; background: #f4f7fc; color: #1d232c; font-size: 21px; text-decoration: none; }
+        .brand { display: block; width: 64px; height: 64px; margin: 25px auto 13px; object-fit: contain; }
+        .hero { padding: 0 42px; text-align: center; }
+        h1 { margin: 0; font-size: 37px; line-height: 1.08; letter-spacing: -1.9px; }
+        .blue { color: #397cf5; }
+        .copy { max-width: 530px; margin: 16px auto 26px; color: #67717d; font-size: 17px; line-height: 1.42; }
+        .cta { display: inline-block; padding: 14px 29px; border-radius: 28px; background: linear-gradient(100deg, #2876f9, #57a1ff); color: #fff; font-size: 15px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 8px rgba(42, 121, 248, .18); }
+        .planner { position: relative; height: 238px; margin: 30px 30px 52px; overflow: hidden; border-radius: 22px; background: radial-gradient(circle at 51% 51%, rgba(255,219,159,.87), rgba(195,241,196,.72) 16%, rgba(225,239,255,.85) 43%, #edf4ff 74%); }
+        .route { position: absolute; height: 17px; border: 2px solid #b5d4ff; border-radius: 12px; background: rgba(255,255,255,.88); box-shadow: 0 1px 4px rgba(29, 93, 180, .16); }
+        .route:before { content: "+"; position: absolute; left: 10px; top: -3px; color: #8d9aab; font-weight: 700; }
+        .route:after { content: "›"; position: absolute; right: 7px; top: -4px; color: #4e5d70; font-weight: 800; }
+        .r1 { width: 190px; top: 17px; left: 17px; } .r2 { width: 198px; top: 7px; right: 13px; } .r3 { width: 170px; top: 62px; left: 75px; } .r4 { width: 147px; top: 61px; right: -18px; } .r5 { width: 190px; bottom: 51px; left: -14px; } .r6 { width: 152px; bottom: 43px; right: 31px; } .r7 { width: 179px; bottom: 17px; left: 152px; }
+        .schedule-card { position: absolute; top: 79px; left: 50%; width: 92px; height: 118px; transform: translateX(-50%); border-radius: 26px; background: #1268ef; box-shadow: 0 13px 28px rgba(21,96,224,.35); }
+        .schedule-paper { position: absolute; inset: 20px 24px 18px; border-radius: 7px; background: #fff; }
+        .schedule-paper:before, .schedule-paper:after { content: ""; position: absolute; left: 11px; right: 11px; height: 5px; border: 2px solid #3b82f6; border-radius: 4px; }
+        .schedule-paper:before { top: 30px; } .schedule-paper:after { top: 47px; }
+        .bubble { position: absolute; display: grid; width: 54px; height: 54px; place-items: center; border-radius: 50%; background: #fff; color: #2978f4; box-shadow: 0 3px 12px rgba(71,110,160,.15); font-size: 27px; font-weight: 700; }
+        .b1 { top: 80px; left: 38%; } .b2 { top: 80px; right: 31%; } .b3 { bottom: 30px; left: 38%; } .b4 { bottom: 38px; right: 31%; }
+        .features { padding: 0 72px; }
+        .features h2 { margin: 0 0 28px; font-size: 30px; letter-spacing: -1.5px; text-align: center; }
+        .feature { display: grid; grid-template-columns: 28px 1fr; gap: 13px; margin: 0 0 30px; }
+        .feature-icon { color: #397cf5; font-size: 24px; font-weight: 700; }
+        .feature-title { margin: 0 0 7px; font-size: 18px; font-weight: 700; }
+        .feature-copy { margin: 0; color: #66717d; font-size: 14px; line-height: 1.4; }
+        .closing { padding: 3px 0 36px; text-align: center; }
+        .atlas-shot { display: block; width: calc(100% - 60px); height: auto; margin: 30px auto 52px; border-radius: 22px; }
+        @media (max-width: 520px) { .social { padding-right: 20px; } .hero { padding: 0 22px; } h1 { font-size: 31px; } .planner { margin-left: 16px; margin-right: 16px; } .features { padding: 0 34px; } }
+    </style>
+</head>
+<body>
+    <main class="email">
+        <div class="social">Follow us: <a class="social-icon" href="https://www.instagram.com/wolfkey.corp/" aria-label="WolfKey on Instagram">◎</a></div>
+        <img class="brand" src="https://wolfkey.net/static/forum/images/WolfkeyLogo.jpeg" alt="WolfKey logo">
+        <section class="hero">
+            <h1>Find a <span class="blue">Better Fit</span></h1>
+            <p class="copy">Wondering if there’s a better schedule? WolfKey can list all possibilities in one go.</p>
+            <a class="cta" href="https://wolfkey.net/atlas">Explore Atlas</a>
+        </section>
+        <img class="atlas-shot" src="../../../../static/forum/images/Atlas.png" alt="Atlas timetable planner">
+        <section class="features">
+            <h2>Find the schedule that fits</h2>
+            <div class="feature"><div class="feature-icon">⌕</div><div><p class="feature-title">See your friends</p><p class="feature-copy">Add friends to see which schedules include them.</p></div></div>
+            <div class="feature"><div class="feature-icon">☷</div><div><p class="feature-title">Explore Possibilities</p><p class="feature-copy">WolfKey lists all courses across every block.</p></div></div>
+        </section>
+        <div class="closing"><a class="cta" href="https://wolfkey.net/">Upload your schedule</a></div>
+    </main>
+</body>
+</html>
