@@ -5,10 +5,37 @@
     <link rel="stylesheet" href="{% static 'forum/css/schedule.css' %}"> 
     <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
     <script src="{% static 'forum/js/schedule.js' %}" defer></script>
+    <style>
+        .home-schedule-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: .65rem;
+            padding: .85rem 1.25rem;
+            border-radius: .65rem;
+            background: #000;
+            color: #fff;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .16);
+        }
+
+        .home-schedule-cta:hover,
+        .home-schedule-cta:focus {
+            background: #202020;
+            color: #fff;
+        }
+    </style>
 {% endblock %}
 {% block content %}
     <div class="d-flex justify-content-center align-items-center mb-2">
         <h1 class="fade-text" id="animated-text" style="display: none;">{{ greeting }}</h1>
+    </div>
+
+    <div class="text-center mb-4">
+        <a class="home-schedule-cta" href="{% url 'profile' user.username %}#schedule">
+            <i class="fas fa-upload" aria-hidden="true"></i>
+            Upload your schedule now!
+        </a>
     </div>
 
     <!-- Schedule-->
