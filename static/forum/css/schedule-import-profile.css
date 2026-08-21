@@ -6,6 +6,25 @@
 
 .profile-schedule-import:hover { transform: none; }
 
+#profile-schedule-import-toggle {
+    padding: 0.45rem 0.8rem;
+    border: 1px solid #000;
+    border-radius: 8px;
+    background: #000;
+    color: #14eff3;
+    font-weight: 750;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16);
+}
+
+#profile-schedule-import-toggle:hover,
+#profile-schedule-import-toggle:focus {
+    border-color: #1f1f1f;
+    background: #1f1f1f;
+    color: #66a0ff;
+}
+
+#profile-schedule-import-toggle i { color: inherit; }
+
 .profile-schedule-import .card-header {
     border-bottom-color: #e9ecef;
     background: #fff;
