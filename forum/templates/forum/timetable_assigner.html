@@ -18,6 +18,9 @@
                 <div class="card-body">
                     <h5 class="card-title atlas-controls-title"><span class="atlas-inline-step">1</span>Select courses</h5>
                     <p class="card-title text-muted atlas-controls-description">One per block. Saved courses are prefilled.</p>
+                    <a class="atlas-schedule-link" href="{% url 'profile' user.username %}#schedule">
+                        <i class="bi bi-upload" aria-hidden="true"></i> Upload your schedule
+                    </a>
                     <form id="timetable-form">
                         {% csrf_token %}
                         <!-- Course selectors will be injected here -->

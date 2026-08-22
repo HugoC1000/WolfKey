@@ -278,6 +278,23 @@
     line-height: 1.2;
 }
 
+.timetable-assigner .atlas-schedule-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.7rem;
+    color: #397cf5;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.timetable-assigner .atlas-schedule-link:hover,
+.timetable-assigner .atlas-schedule-link:focus-visible {
+    color: #185abc;
+    text-decoration: underline;
+}
+
 .timetable-assigner .selector-row {
     gap: 4px;
     margin-bottom: 6px;

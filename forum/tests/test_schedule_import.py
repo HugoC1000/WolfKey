@@ -71,6 +71,26 @@ class ScheduleImportServiceTests(TestCase):
         self.assertEqual(normalized["courses"], [])
         self.assertEqual(normalized["conflicts"]["2D"], ["AP Biology", "AP French"])
 
+    def test_normalization_canonicalizes_physics_and_ap_english_precedence(self):
+        normalized = normalize_extracted_courses([
+            {"course_name": "AP Physics C: Mechanics", "block": "1A"},
+            {"course_name": "AP Physics C E and M", "block": "1B"},
+            {"course_name": "AP Language and Composition", "block": "1D"},
+            {"course_name": "AP English Lang and Lit", "block": "1E"},
+            {"course_name": "English Studies 12", "block": "2A"},
+        ])
+
+        self.assertEqual(
+            [(course.course_name, course.block) for course in normalized["courses"]],
+            [
+                ("AP Physics C", "1A"),
+                ("AP Physics C", "1B"),
+                ("AP English Language", "1D"),
+                ("AP English Language and Literature", "1E"),
+            ],
+        )
+        self.assertEqual(normalized["ignored"], ["English Studies 12"])
+
     def test_preview_matches_top_name_result_without_using_course_blocks(self):
         wrong_block = self.make_course("AP Calculus BC Wrong", "1A")
         valid_course = self.make_course("AP Calculus BC", "2C")
