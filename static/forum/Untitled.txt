@@ -43,7 +43,8 @@ Drama 8: 1D,2B
 English First Peoples 10: 1D,2B,2E
 English 11: 1E,2A
 English 8: 1A
-English Studies 12: 2D,2E
+English 9: 1A,1B,1D,2A,2B
+English Studies 12: 1B,2D,2E
 Entrepreneurship 12: 2C
 Film/TV 10: 1B,2D
 Film/TV 11: 1B,2D
@@ -58,7 +59,11 @@ French 10 Enriched: 1A
 French 11: 2D
 French 11 Enriched: 1A
 French 12: 2E
-French 8 Foundations: 1D
+French 8 Foundations: 1D,2A
+French 8 Enriched: 2A
+French 8: 1B,2B
+French 9 Enriched: 2C,2D
+French 9: 1D,1E,2B
 Geology 12: 1D
 Global Studies: 2C
 Health Science: 2E
@@ -112,6 +117,7 @@ Theatre Company 11: 1A
 Theatre Company 12: 1A
 Theatre Production 10: 1B
 Theatre Production 11: 2E
+Theatre Production 12: 2E
 Visual Arts 8: 1E,2C
 Visual Arts 9: 2B
 Web Development 10: 1B,2A
