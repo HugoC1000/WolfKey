@@ -263,15 +263,15 @@
                         <div class="card mb-4">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5 class="mb-0">Fill in your schedule info</h5>
-                                {% if user == profile_user %}
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="profile-schedule-import-toggle"
-                                            aria-controls="profile-schedule-import-card" aria-expanded="false">
-                                        <i class="bi bi-file-earmark-arrow-up me-1" aria-hidden="true"></i>Import schedule
-                                    </button>
-                                {% endif %}
                             </div>
                             <div class="card-body">
                                 {% if user == profile_user %}
+                                    <div class="mb-3">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" id="profile-schedule-import-toggle"
+                                                aria-controls="profile-schedule-import-card" aria-expanded="false">
+                                            <i class="bi bi-file-earmark-arrow-up me-1" aria-hidden="true"></i>Import schedule through AI
+                                        </button>
+                                    </div>
                                     {% include 'forum/partials/schedule_import_card.html' %}
                                 {% endif %}
                                 <form method="post" action="{% url 'update_courses' %}" id="blockCoursesForm">
