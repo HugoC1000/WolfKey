@@ -309,10 +309,11 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_USE_SESSIONS = False
 
 # CSRF / session lifetime settings
-# Set explicit ages (seconds). These are hardcoded and will NOT be overridden by env vars.
-# 30 days = 2592000 seconds
+# Keep authentication sessions persistent for approximately 10 years. Sessions
+# can still be invalidated by logout, password/security changes, or key rotation.
 CSRF_COOKIE_AGE = 2592000  # 30 days
-SESSION_COOKIE_AGE = 2592000  # 30 days
+SESSION_COOKIE_AGE = 315360000  # 10 years
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
  
 
 try:
