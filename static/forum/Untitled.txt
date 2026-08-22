@@ -1,4 +1,6 @@
 20th Century World History: 2B
+Active Living 11: 1A,1B,2A
+Active Living 12: 1A,1B,2A
 Anatomy and Physiology 12: 1E,2D
 AP Biology: 2C
 AP Calculus AB: 1E
@@ -15,9 +17,9 @@ AP Physics C: 2B
 AP Psychology: 2B,2E
 AP Spanish: 2B
 AP Statistics: 1D,2A,2B
-AP Studio Drawing 12: 2B
+AP Studio Drawing: 2B
 AP World History: Modern: 1B
-Art Careers 12: 1B,1E,2B,2D
+Art Careers: 1B,1E,2B,2D
 Art Studio 10: 1B,2A
 Art Studio 11: 1B,2A
 Art Studio 12: 1B,2A
@@ -25,6 +27,11 @@ Calculus 12: 1E
 Chamber Music: 2B
 Chemistry 11: 1B,2C,2D
 Chemistry 12: 1A,2B
+Comparative Cultures: 2B
+Concert Band 10: 2A
+Concert Band 8: 1B
+Concert Band 9: 2A
+Contemporary Indigenous Studies: 1B
 CTC 8: 1E
 CTC 9: 2D
 Digital Arts 8: 2D,2E
@@ -34,20 +41,31 @@ Drafting: 2D
 Drama 9: 2A,2C
 Drama 8: 1D,2B
 English First Peoples 10: 1D,2B,2E
+English 11: 1E,2A
 English 8: 1A
 English Studies 12: 2D,2E
 Entrepreneurship 12: 2C
 Film/TV 10: 1B,2D
 Film/TV 11: 1B,2D
 Film/TV 12: 1A
-Math 10: 1B,2B,2C,2D
+Fitness and Conditioning 11: 1E,2C
+Fitness and Conditioning 12: 1E,2C
+Foundations of Math 11: 2B
+Foundations of Math 12: 2C
+Pre-Calculus 10: 1B,2B,2C,2D
 French 10: 1A,1D,1E
 French 10 Enriched: 1A
 French 11: 2D
 French 11 Enriched: 1A
 French 12: 2E
 French 8 Foundations: 1D
+Geology 12: 1D
 Global Studies: 2C
+Health Science: 2E
+Law Studies 12: 1B,1D,2E
+Life Science 11: 1D,2B,2D
+Math 8: 1A,2C,2E
+Math 8/9: 1A,2E
 Pre-AP English 11: 1D,1E
 Pre-AP English 10: 2E
 Mandarin 10: 1B
@@ -64,20 +82,36 @@ New Media 11: 1E
 PE.Fall Athletics: 2A
 PE.Winter Athletics: 2A
 PE 10 WP: 1D
+PE 10: 2B
 PE 8: 1B,1D,2D,2E
 PE 8 Swim: 1A
 PE 9: 1A,1B,1E
 PE 9 Swim: 1A
+Physics 11: 1D,2A
+Physics 12: 2A,2E
+Pre-Calculus 11: 1A,1E,2A
 Pre-Calculus 12: 1A,1D,2C
 Programming and Robotics 8: 2C
 Programming and Robotics 9: 2C
 Science 10: 1A,1B,1E,2E
 Science 8: 1A
+Science 9: 1B,2C
 Social Studies 8: 2B,2C,2D,2E
 Social Studies 9: 1D,1E,2D,2E
+Social Studies 10: 1E,2A,2C,2D
 Spanish 10: 1E
 Spanish 11: 2C
+Spanish 12: 2B
+Spanish 8: 1B
+Spanish 9: 2E
+STEM 8: 1D,1E
+STEM 9: 1A,2A
 Stagecraft 9: 1E
+Theatre Company 10: 1A,1B
+Theatre Company 11: 1A
+Theatre Company 12: 1A
+Theatre Production 10: 1B
+Theatre Production 11: 2E
 Visual Arts 8: 1E,2C
 Visual Arts 9: 2B
 Web Development 10: 1B,2A
