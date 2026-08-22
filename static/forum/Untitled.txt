@@ -1,135 +1,88 @@
-20th century world history: 1D\
-Active Living 11: 2A,1B,2D\
-Active Living 12: 2A,1D,2E\
-Anatomy and Physiology 12: 1A,2C\
-AP Biology: 2D\
-AP Calculus AB: 2C\
-AP Calculus BC: 2C\
-AP Chemistry: 2B\
-AP Chinese Language and Culture: 1D\
-AP Comparative Government: 1B\
-AP Computer Science A: 1B\
-AP English Language: 1E,2A\
-AP English Literature: 1D,1E\
-AP Environmental Science: 1A\
-AP French: 2D\
-AP Human Geography: 2A,2E\
-AP Economics: 1A,1E,2B\
-AP Physics C: 2E\
-AP Psychology: 1D,1E\
-AP Spanish: 2B\
-AP Statistics: 1B,2D\
-AP Studio Art: 2B\
-Art Careers 12: 1A,2A\
-Art Studio 10: 1D,2A\
-Art Studio 11: 1D,2A\
-Art Studio 12: 1D,2A\
-Calculus 12: 2C\
-Chamber Music: 2B\
-Chemistry 11: 1E,2B,2E\
-Chemistry 12: 1B,2E\
-Comparative Cultures: 1E\
-Concert Band 10: 2A\
-Concert Band 11: 2A\
-Concert Band 8: 2B\
-Concert Band 9: 1B\
-Contemporary Indigenous Studies: 1A\
-CTC 8: 1D,2E\
-CTC 9: 1D,2C\
-Digital Arts 8: 1D\
-Digital Arts 9: 2B\
-Digital Media Development 12: 1A,1B\
-Drafting 12: 1D\
-Drama 8: 2C,2D\
-Drama 9: 1E,2E\
-EFP 10: 1A,1D,2B,2C\
-Engineering 12: 1A\
-English 8: 1A,1D,2A,2D\
-English 9: 1B,1D,2B,2E\
-English Studies 12: 1E,2E\
-Entrepreneurship 12: 2D\
-Film/TV 11: 1B,2E\
-Film/TV 12: 1D,2D\
-Fitness and Conditioning 11: 1E\
-Fitness and Conditioning 12: 1E\
-Foundations of Math 11: 2B\
-Foundations of Math 12: 2B\
-Pre-Calculus 10: 2D,2E\
-Pre-Calculus 10H: 1E,2D\
-French 10: 1D,2A,2C,2E\
-French 10 Enriched: 2E\
-French 11: 2C\
-French 11 Enriched: 1E,2A\
-French 12: 2C\
-French 8 Enriched: 1A,1B\
-French 8 Foundations: 2B,2D\
-French 8: 1B,2A\
-French 9 Enriched: 1D\
-French 9: 1D,2B,2C,2E\
-Geology 12: 2C\
-Global Studies: 2B\
-Instrumental Performance 11: 2A\
-Jazz Performance 11: 2A\
-Law Studies 12: 1A,1D\
-Life Sciences 11: 1D,2E\
-Literary Studies 11: 2A,2C,2D,2E\
-Literary Studies 11 Honours: 1B,2B\
-Literary Studies 10 Honours: 1B,2C\
-Mandarin 10: 2C\
-Mandarin 10 Accelerated: 2A\
-Mandarin 11: 2B\
-Mandarin 11 Accelerated: 2C\
-Mandarin 12: 2B\
-Mandarin 12 Accelerated: 2B\
-Mandarin 8 Accelerated: 1A\
-Mandarin 8: 2E\
-Mandarin 9: 1B\
-Material Design 8: 2A,2E\
-Material Design 9: 2B,2C\
-Math 8: 1A,1D,1E,2A\
-Math 8/9: 1D,2E\
-Math 9: 1B,2D\
-Math 9/10: 1E\
-Media Design 10: 1A\
-Media Design 11: 1A\
-Media Design 12: 1A\
-PE.Fall: 2A\
-PE.Winter: 2A\
-PE 10 WP: 1D\
-PE 10: 2B,2A\
-PE 8 Swim: 1B
+20th Century World History: 2B
+Active Living 12S: 2A
+Active Living 12W: 2A
+Anatomy and Physiology 12: 1E,2D
+AP Biology: 2C
+AP Calculus AB: 1E
+AP Calculus BC: 1E
+AP Chemistry: 1D
+AP Chinese Language and Culture: 2C
+AP Computer Science A: 2D
+AP Economics: 1B,2C
+AP English Language and Composition: 2D,2E
+AP English Literature: 2D
+AP French Language and Culture: 1B
+AP Human Geography: 2E
+AP Physics C (E&M): 2B
+AP Physics C (Mechanics): 2B
+AP Psychology: 2B,2E
+AP Spanish Language: 2B
+AP Statistics: 1D,2A,2B
+AP Studio Drawing 12: 2B
+AP World History: Modern: 1B
+Art Careers 12: 1B,1E,2B,2D
+Art Studio 10: 1B,2A
+Art Studio 11: 1B,2A
+Art Studio 12: 1B,2A
+Calculus 12: 1E
+Chamber Music: 2B
+Chemistry 11: 1B,2C,2D
+Chemistry 12: 1A,2B
+Critical Thinking - Communications 8: 1E
+Critical Thinking - Communications 9: 2D
+Digital Arts 8: 2D,2E
+Digital Arts 9: 2D,2E
+Digital Media Development 12: 1B,2A
+Drafting 11: 2D
+Drama 9: 2A,2C
+Drama Performance and Stagecraft 8: 1D,2B
+EFP Literary Studies and Writing 10: 1D,2B,2E
+English 8: 1A
+English Studies 12: 2D,2E
+Entrepreneurship 12: 2C
+Film and TV 10: 1B,2D
+Film and TV 11: 1B,2D
+Film and TV 12: 1A
+Foundations of Mathematics and Pre-Calculus 10H: 1B,2B
+French 10: 1A,1D,1E
+French 10 Honours: 1A
+French 11: 2D
+French 11 Honours: 1A
+French 12: 2E
+French 8 Foundations Support: 1D
+Global Studies: 2C
+Literary Studies 11 Honours: 1D,1E
+Literary Studies and Composition 10 Honours: 2E
+Mandarin 10: 1B
+Mandarin 11: 2B
+Mandarin 11 Accelerated: 1B
+Mandarin 12: 2B
+Mandarin 12 Accelerated: 2B
+Mandarin 8 Honours: 2D
+Mandarin Chinese 8: 1D
+Mathematics 9: 2A,2B,2D
+Mathematics 9/10 Honours: 1D
+Media Design 10: 2C
+Media Design 11: 2C
+Media Design 12: 2C
+New Media 11: 1E
+PE.Fall Athletics: 2A
+PE 10 WP: 1D
+PE 8: 1B,1D,2D,2E
+PE 8 Swim: 1A
+PE 9: 1A,1B,1E
 PE 9 Swim: 1A
-PE 8: 1A,1B,1E\
-PE 9: 1A,2C,2E\
-Physics 11: 1D,1E,2D\
-Physics 12: 1D\
-Political Studies 12: 1B\
-Pre-Calculus 11: 1B,2A,2B,2E\
-Pre-Calculus 12: 1A,1E,2B,2C\
-Programming and Robotics 8: 2C\
-Programming and Robotics 9: 2C\
-Science 10: 1B,1E,2B,2C\
-Science 10H: 1B,2A\
-Science 8: 1A,1B,2A,2C,2D\
-Science 9: 1A,1D,2A\
-Social Studies 10: 1A,1E,2A,2D\
-Social Studies 8: 1E,2B,2C,2E\
-Social Studies 9: 1A,2A,2B,2D\
-Spanish 10: 1B\
-Spanish 11: 2D\
-Spanish 12: 2E\
-Spanish 8: 1E\
-Spanish 9: 2A\
-STEM 8: 1E,2B,2D\
-STEM 9: 2C\
-Theatre Company 10: 1A\
-Theatre Company 11: 1A\
-Theatre Company 12: 1A\
-Theatre Production 10: 1B\
-Theatre Production 11: 1B\
-Theatre Production 12: 1B\
-Visual Arts 8: 2B,2C\
-Visual Arts 9: 1A,1E\
-Web Development: 1A,1B\
-WP: 1E\
-Woodwork 10: 2D\
+Pre-Calculus 12: 1A,1D,2C
+Programming and Robotics 8: 2C
+Programming and Robotics 9: 2C
+Science 10: 1A,1B,1E,2E
+Science 8: 1A
+Social Studies 8: 2B,2C,2D,2E
+Social Studies 9: 1D,1E,2D,2E
+Spanish 10: 1E
+Spanish 11: 2C
+Visual Arts 8: 1E,2C
+Visual Arts 9: 2B
+Web Development 10: 1B,2A
+Wilderness Pursuits: 1E
+Woodworking 10: 2E
