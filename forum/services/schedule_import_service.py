@@ -107,7 +107,15 @@ Rules:
 - In a screenshot with multiple columns, read each card's complete title and
   class code before moving to the next card. A card such as "Chemistry 12 - CH
   12-2E" must be returned as course_name "Chemistry 12" and block "2E".
-- Ignore Flex, Activities, Academics, PEAKS, and Advisory entries.
+- Ignore non-course and administrative entries, including Coverage, Dept Head
+  Meeting, Flex, Activities, Academics, PEAKS, and Advisory.
+- Ignore one-term Active Living variants whose names end in F, S, or W (for
+  example, "Active Living 11F", "Active Living 11S", "Active Living 11W",
+  or "Active Living 12S"). Keep only the regular Active Living course rows.
+- For one-term athletics, keep only swim/aquatics as "PE.Fall Athletics" and
+  basketball as "PE.Winter Athletics". Ignore other one-term athletics rows.
+  Normalize a retained seasonal block such as "2A.F" or "2A.W" to its base
+  block "2A".
 - Teacher Assistant 10, Teacher Assistant 11, and Teacher Assistant 12 are one
   course. Always return the course name exactly as "Teacher Assistant" (without
   the grade number), preserving the detected block.
@@ -118,6 +126,14 @@ Rules:
 - If AP English Lang and Lit / AP English Language and Literature appears,
   ignore English Studies 12 entirely.
 - Return AP Language and Composition as "AP English Language".
+- Normalize these catalog title variants to the production course names:
+  "AP Chinese Language and Culture" -> "AP Chinese"; "AP French Language
+  and Culture" -> "AP French"; "AP Spanish Language" -> "AP Spanish";
+  "AP Studio Drawing" -> "AP Studio Art"; and "Critical Thinking -
+  Communications 8/9" -> "CTC 8/9".
+- Normalize "French 8/9 Honours" to the corresponding production course
+  "French 8/9 Enriched". Normalize "Film and TV 10/11/12" to "Film/TV
+  10/11/12". Preserve the grade number when it is present.
 - Do not invent missing courses or blocks.
 """.strip()
 
