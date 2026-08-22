@@ -41,7 +41,20 @@ export class EditorManager {
 
     async initializeCommentEditors(comments, csrfToken) {
         try {
-            comments.forEach(comment => {
+            const pendingComments = [...comments].reverse();
+            const seenCommentIds = new Set();
+
+            while (pendingComments.length > 0) {
+                const comment = pendingComments.pop();
+                if (!comment || seenCommentIds.has(comment.id)) continue;
+
+                seenCommentIds.add(comment.id);
+                if (Array.isArray(comment.replies)) {
+                    for (let index = comment.replies.length - 1; index >= 0; index -= 1) {
+                        pendingComments.push(comment.replies[index]);
+                    }
+                }
+
                 try {
                     const editor = createEditor(
                         `editorjs-comment-${comment.id}`,
@@ -53,7 +66,7 @@ export class EditorManager {
                 } catch (commentError) {
                     console.error(`Error initializing comment ${comment.id}:`, commentError);
                 }
-            });
+            }
         } catch (error) {
             console.error('Error initializing comment editors:', error);
             throw error;

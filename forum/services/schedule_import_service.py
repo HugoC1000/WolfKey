@@ -24,6 +24,18 @@ AP_ECONOMICS_PATTERN = re.compile(
     r"\bap\b.*\b(?:microeconomics|macroeconomics|micro\s*(?:and|&|/)\s*macro)\b",
     re.IGNORECASE,
 )
+AP_PHYSICS_C_PATTERN = re.compile(
+    r"\bap\s+physics\s+c\b(?:\s*[:\-]?\s*(?:mechanics|electricity\s*(?:and|&)\s*magnetism|e\s*(?:and|&)\s*m))?\b",
+    re.IGNORECASE,
+)
+AP_ENGLISH_LANGUAGE_PATTERN = re.compile(
+    r"\bap\s+(?:english\s+)?(?:lang(?:uage)?(?:\s+and\s+composition)?|language\s+and\s+composition)\b",
+    re.IGNORECASE,
+)
+AP_ENGLISH_LANGUAGE_AND_LITERATURE_PATTERN = re.compile(
+    r"\bap\s+english\s+(?:lang(?:uage)?\s+and\s+lit(?:erature)?|language\s+and\s+literature)\b",
+    re.IGNORECASE,
+)
 
 
 class ScheduleImportError(Exception):
@@ -101,6 +113,11 @@ Rules:
   the grade number), preserving the detected block.
 - AP Microeconomics and AP Macroeconomics are two appearances of one course.
   Return that course once as "AP Economics".
+- AP Physics C Mechanics and AP Physics C Electricity and Magnetism (including
+  "AP Physics C E and M") are one course. Return either as "AP Physics C".
+- If AP English Lang and Lit / AP English Language and Literature appears,
+  ignore English Studies 12 entirely.
+- Return AP Language and Composition as "AP English Language".
 - Do not invent missing courses or blocks.
 """.strip()
 
@@ -119,6 +136,12 @@ def _clean_course_name(value: object) -> str:
     ).strip()
     if AP_ECONOMICS_PATTERN.search(name):
         return "AP Economics"
+    if AP_PHYSICS_C_PATTERN.search(name):
+        return "AP Physics C"
+    if AP_ENGLISH_LANGUAGE_AND_LITERATURE_PATTERN.search(name):
+        return "AP English Language and Literature"
+    if AP_ENGLISH_LANGUAGE_PATTERN.search(name):
+        return "AP English Language"
     if re.fullmatch(r"teacher\s+assistant\s+(?:10|11|12)", name, flags=re.IGNORECASE):
         return "Teacher Assistant"
     return re.sub(r"\s+", " ", name)
@@ -162,6 +185,14 @@ def normalize_extracted_courses(raw_courses: Iterable[dict]) -> dict:
                 conflict_names.append(course_name)
             continue
         rows_by_block[block] = ExtractedCourse(course_name=course_name, block=block)
+
+    if any(AP_ENGLISH_LANGUAGE_AND_LITERATURE_PATTERN.search(course.course_name)
+           for course in rows_by_block.values()):
+        for block, course in list(rows_by_block.items()):
+            if course.course_name.casefold() == "english studies 12":
+                rows_by_block.pop(block)
+                if course.course_name not in ignored:
+                    ignored.append(course.course_name)
 
     for block in conflicts:
         rows_by_block.pop(block, None)

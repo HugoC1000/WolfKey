@@ -32,7 +32,7 @@ Chamber Music: 2B
 Chemistry 11: 1B, 2C, 2D
 Chemistry 12: 1A, 2B
 Comparative Cultures: 2B
-# MULTIPLE_COURSES (2): Concert Band 10: 2A
+Concert Band 10: 2A
 Concert Band 8: 1B
 Concert Band 9: 2A
 Contemporary Indigenous Studies: 1B
@@ -47,7 +47,8 @@ Drama 8: 1D, 2B
 English First Peoples 10: 1D, 2B, 2E
 English 11: 1E, 2A
 English 8: 1A
-English Studies 12: 2D, 2E
+English 9: 1A, 1B, 1D, 2A, 2B
+English Studies 12: 1B, 2D, 2E
 Entrepreneurship 12: 2C
 Film/TV 10: 1B, 2D
 Film/TV 11: 1B, 2D
@@ -55,14 +56,18 @@ Film/TV 12: 1A
 Fitness and Conditioning 11: 1E, 2C
 Fitness and Conditioning 12: 1E, 2C
 Foundations of Math 11: 2B
-# MULTIPLE_COURSES (3): Foundations of Math 12: 2C
+Foundations of Math 12: 2C
 Pre-Calculus 10: 1B, 2B, 2C, 2D
 French 10: 1A, 1D, 1E
 French 10 Enriched: 1A
 French 11: 2D
 French 11 Enriched: 1A
-# MULTIPLE_COURSES (3): French 12: 2E
-French 8 Foundations: 1D
+French 12: 2E
+French 8 Foundations: 1D, 2A
+French 8 Enriched: 2A
+French 8: 1B, 2B
+French 9 Enriched: 2C, 2D
+French 9: 1D, 1E, 2B
 Geology 12: 1D
 Global Studies: 2C
 Health Science: 2E
@@ -116,6 +121,7 @@ Theatre Company 11: 1A
 Theatre Company 12: 1A
 Theatre Production 10: 1B
 Theatre Production 11: 2E
+Theatre Production 12: 2E
 Visual Arts 8: 1E, 2C
 Visual Arts 9: 2B
 Web Development 10: 1B, 2A
@@ -133,8 +139,6 @@ Woodworking 10: 2E
 # Career
 # Choir
 # Competitive Programming
-# Concert Band 10
-# Concert Band 10
 # Concert Band 11
 # Concert Band 12
 # Debate
@@ -142,12 +146,7 @@ Woodworking 10: 2E
 # Engineering 12
 # English 10
 # English 12
-# English 9
 # French 12 Enriched
-# French 8
-# French 8 Enriched
-# French 9
-# French 9 Enriched
 # Instrumental Performance 11
 # Jazz Band/Performance
 # Mandarin 10 Accelerated
@@ -163,5 +162,4 @@ Woodworking 10: 2E
 # Science 10H
 # Study
 # TA
-# Theatre Production 12
 # University
