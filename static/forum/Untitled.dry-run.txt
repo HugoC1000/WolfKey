@@ -1,0 +1,195 @@
+# Dry run comparison generated from the supplied mapping file.
+# Resolved lines show the production Course.name and blocks that would be applied.
+# Commented lines were not applied and require review.
+
+20th Century World History: 2B
+# MULTIPLE_COURSES (3): Active Living 12S: 2A
+# MULTIPLE_COURSES (3): Active Living 12W: 2A
+Anatomy and Physiology 12: 1E, 2D
+AP Biology: 2C
+AP Calculus AB: 1E
+AP Calculus BC: 1E
+AP Chemistry: 1D
+# MULTIPLE_COURSES (3): AP Chinese Language and Culture: 2C
+AP Computer Science A: 2D
+AP Economics: 1B, 2C
+# MULTIPLE_COURSES (3): AP English Language and Composition: 2D, 2E
+AP English Literature: 2D
+# MULTIPLE_COURSES (3): AP French Language and Culture: 1B
+AP Human Geography: 2E
+# MULTIPLE_COURSES (3): AP Physics C (E&M): 2B
+# MULTIPLE_COURSES (3): AP Physics C (Mechanics): 2B
+AP Psychology: 2B, 2E
+# MULTIPLE_COURSES (3): AP Spanish Language: 2B
+AP Statistics: 1D, 2A, 2B
+# MULTIPLE_COURSES (3): AP Studio Drawing 12: 2B
+AP World History: Modern: 1B
+# MULTIPLE_COURSES (3): Art Careers 12: 1B, 1E, 2B, 2D
+Art Studio 10: 1B, 2A
+Art Studio 11: 1B, 2A
+Art Studio 12: 1B, 2A
+Calculus 12: 1E
+Chamber Music: 2B
+Chemistry 11: 1B, 2C, 2D
+Chemistry 12: 1A, 2B
+# MULTIPLE_COURSES (3): Critical Thinking - Communications 8: 1E
+# MULTIPLE_COURSES (3): Critical Thinking - Communications 9: 2D
+Digital Arts 8: 2D, 2E
+Digital Arts 9: 2D, 2E
+# MULTIPLE_COURSES (3): Digital Media Development 12: 1B, 2A
+# MULTIPLE_COURSES (3): Drafting 11: 2D
+Drama 9: 2A, 2C
+# MULTIPLE_COURSES (3): Drama Performance and Stagecraft 8: 1D, 2B
+# MULTIPLE_COURSES (3): EFP Literary Studies and Writing 10: 1D, 2B, 2E
+English 8: 1A
+English Studies 12: 2D, 2E
+Entrepreneurship 12: 2C
+# MULTIPLE_COURSES (3): Film and TV 10: 1B, 2D
+# MULTIPLE_COURSES (3): Film and TV 11: 1B, 2D
+# MULTIPLE_COURSES (3): Film and TV 12: 1A
+# MULTIPLE_COURSES (3): Foundations of Mathematics and Pre-Calculus 10H: 1B, 2B
+French 10: 1A, 1D, 1E
+# MULTIPLE_COURSES (3): French 10 Honours: 1A
+French 11: 2D
+# MULTIPLE_COURSES (3): French 11 Honours: 1A
+# MULTIPLE_COURSES (3): French 12: 2E
+# MULTIPLE_COURSES (3): French 8 Foundations Support: 1D
+Global Studies: 2C
+# MULTIPLE_COURSES (3): Literary Studies 11 Honours: 1D, 1E
+# MULTIPLE_COURSES (3): Literary Studies and Composition 10 Honours: 2E
+Mandarin 10: 1B
+Mandarin 11: 2B
+Mandarin 11 Accelerated: 1B
+Mandarin 12: 2B
+Mandarin 12 Accelerated: 2B
+# MULTIPLE_COURSES (3): Mandarin 8 Honours: 2D
+# MULTIPLE_COURSES (3): Mandarin Chinese 8: 1D
+# MULTIPLE_COURSES (3): Mathematics 9: 2A, 2B, 2D
+# MULTIPLE_COURSES (3): Mathematics 9/10 Honours: 1D
+# MULTIPLE_COURSES (3): Media Design 10: 2C
+# MULTIPLE_COURSES (3): Media Design 11: 2C
+# MULTIPLE_COURSES (3): Media Design 12: 2C
+# MULTIPLE_COURSES (3): New Media 11: 1E
+PE.Fall Athletics: 2A
+PE 10 WP: 1D
+PE 8: 1B, 1D, 2D, 2E
+PE 8 Swim: 1A
+PE 9: 1A, 1B, 1E
+PE 9 Swim: 1A
+Pre-Calculus 12: 1A, 1D, 2C
+Programming and Robotics 8: 2C
+Programming and Robotics 9: 2C
+Science 10: 1A, 1B, 1E, 2E
+Science 8: 1A
+Social Studies 8: 2B, 2C, 2D, 2E
+Social Studies 9: 1D, 1E, 2D, 2E
+Spanish 10: 1E
+Spanish 11: 2C
+Visual Arts 8: 1E, 2C
+Visual Arts 9: 2B
+Web Development 10: 1B, 2A
+Wilderness Pursuits: 1E
+Woodworking 10: 2E
+
+# COURSES_NOT_ADDED: existing Course objects not represented in the staged mappings
+# Active Living 11
+# Active Living 12
+# AMC 10
+# AMC 12
+# AMC 8
+# AP Chinese
+# AP Comparative Government
+# AP Computer Science Principles
+# AP English Language
+# AP Environmental Science
+# AP French
+# AP Music Theory
+# AP Physics C
+# AP Spanish
+# AP Studio Art
+# Art Careers
+# Career
+# Choir
+# Comparative Cultures
+# Competitive Programming
+# Concert Band 10
+# Concert Band 10
+# Concert Band 11
+# Concert Band 12
+# Concert Band 8
+# Concert Band 9
+# Contemporary Indigenous Studies
+# CTC 8
+# CTC 9
+# Debate
+# Destination Imagination
+# Digital Media Development
+# Drafting
+# Drama 8
+# Engineering 12
+# English 10
+# English 11
+# English 12
+# English 9
+# English First Peoples 10
+# Film/TV 11
+# Film/TV 12
+# Fitness and Conditioning 11
+# Fitness and Conditioning 12
+# Foundations of Math 11
+# French 10 Enriched
+# French 11 Enriched
+# French 12 Enriched
+# French 8
+# French 8 Enriched
+# French 8 Foundations
+# French 9
+# French 9 Enriched
+# Geology 12
+# Health Science
+# Instrumental Performance 11
+# Jazz Band/Performance
+# Law Studies 12
+# Life Science 11
+# Mandarin 10 Accelerated
+# Mandarin 8
+# Mandarin 8 Accelerated
+# Mandarin 9
+# Materials Design 8
+# Materials Design 9
+# Math 8
+# Math 8/9
+# Math 9
+# Math 9/10
+# Media Design
+# MUN
+# Orchestra
+# PE 10
+# PE.Winter Athletics
+# Physics 11
+# Physics 12
+# Political Studies 12
+# Pre-AP English 10
+# Pre-AP English 11
+# Pre-Calculus 10
+# Pre-Calculus 10H
+# Pre-Calculus 11
+# SAT
+# School Life
+# Science 10H
+# Science 9
+# Social Studies 10
+# Spanish 12
+# Spanish 8
+# Spanish 9
+# STEM 8
+# STEM 9
+# Study
+# TA
+# Theatre Company 10
+# Theatre Company 11
+# Theatre Company 12
+# Theatre Production 10
+# Theatre Production 11
+# Theatre Production 12
+# University
