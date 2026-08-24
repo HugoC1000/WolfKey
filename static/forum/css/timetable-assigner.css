@@ -253,10 +253,28 @@
     padding: 0.25rem 0.6rem;
     border: 0;
     border-radius: 999px;
-    background: #59636d;
+    background: var(--course-color, #59636d);
     color: #fff;
     font-size: 0.78rem;
     line-height: 1.15;
+    text-decoration: none;
+}
+
+.atlas-course-pill.course-category-french { color: #17233b; background: linear-gradient(110deg, #0055A4 0%, #6F9DCC 28%, #fff 50%, #E98A87 72%, #EF4135 100%); }
+.atlas-course-pill.course-category-math { color: #17233b; }
+
+/* Bootstrap's a:hover rule otherwise overrides the pill's category color. */
+.atlas-course-pill:hover,
+.atlas-course-pill:focus-visible {
+    color: #fff;
+    text-decoration: none;
+}
+
+.atlas-course-pill.course-category-french:hover,
+.atlas-course-pill.course-category-french:focus-visible,
+.atlas-course-pill.course-category-math:hover,
+.atlas-course-pill.course-category-math:focus-visible {
+    color: #17233b;
 }
 
 .timetable-assigner .atlas-controls-card .card-body {
@@ -296,8 +314,14 @@
 }
 
 .timetable-assigner .selector-row {
+    position: relative;
     gap: 4px;
     margin-bottom: 6px;
+}
+
+/* Keep an open course menu above the optional friend-search card below it. */
+.timetable-assigner .selector-row:focus-within {
+    z-index: 40001;
 }
 
 .timetable-assigner .atlas-controls-card #selectors-container {

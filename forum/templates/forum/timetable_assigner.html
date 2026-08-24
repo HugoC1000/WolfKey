@@ -5,7 +5,6 @@
     <link rel="stylesheet" href="{% static 'forum/css/timetable-assigner.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/course-selector.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/user-selector.css' %}">
-    <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
 
     <script type="module" src="{% static 'forum/js/timetable-assigner.js' %}"></script>
 {% endblock %}
@@ -34,17 +33,18 @@
             <div class="card mb-3 atlas-people-card atlas-step-panel" data-atlas-panel="2">
                 <div class="card-body">
                     <h5 class="card-title mb-1"><span class="atlas-inline-step">2</span>Friends to check <small class="text-muted">Optional</small></h5>
-                    <p class="text-muted small mb-3">Add people to see which generated classes you would share.</p>
+                    <p class="text-muted small mb-3">Search for friends to see which generated classes you would share. Friends must have comparison enabled.</p>
                     <div id="selected-people" class="d-flex flex-wrap gap-2 mb-3"></div>
                     <div id="user-selector-container"></div>
                     <div id="atlas-people-count" class="atlas-selection-count" aria-live="polite">No people selected</div>
                 </div>
             </div>
             {% else %}
-            <div class="alert alert-warning atlas-comparison-warning atlas-step-panel" data-atlas-panel="2">
-                <i class="fas fa-exclamation-triangle"></i>
-                <strong>Schedule Comparison Disabled</strong>
-                <p class="mb-0">Enable schedule comparison in your <a href="{% url 'profile' user.username %}">profile preferences</a> to check classes with other people.</p>
+            <div class="card mb-3 atlas-people-card atlas-step-panel" data-atlas-panel="2">
+                <div class="card-body">
+                    <h5 class="card-title mb-1"><span class="atlas-inline-step">2</span>Friends to check <small class="text-muted">Optional</small></h5>
+                    <p class="text-muted small mb-0">You can’t compare schedules with friends while schedule comparison is turned off. Enable it in your <a href="{% url 'profile' user.username %}">settings</a>.</p>
+                </div>
             </div>
             {% endif %}
         </div>

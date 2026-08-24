@@ -1,0 +1,32 @@
+{% extends 'forum/base.html' %}
+
+{% block head %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'forum/css/course-page.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="course-page">
+    <section class="course-hero course-category-{{ course_category_class }}" style="--course-color: {{ course_color }};">
+        <a href="{% url 'all_posts' %}" class="course-back"><i class="bi bi-arrow-left"></i> Explore</a>
+        <div class="course-hero-orb orb-one"></div><div class="course-hero-orb orb-two"></div>
+        <div class="course-hero-content">
+            <span class="course-eyebrow">Class space · {{ course.category }}</span>
+            <h1>{{ course.name }}</h1>
+        </div>
+    </section>
+
+    <section class="course-access-card" aria-labelledby="course-access-title">
+        <i class="bi bi-calendar2-check course-access-icon" aria-hidden="true"></i>
+        <h2 id="course-access-title">Finish setting up your schedule</h2>
+        <p>To view classmates and teacher information for this course, add your schedule and allow schedule comparison.</p>
+        {% if not has_uploaded_schedule %}
+        <p class="course-access-status"><i class="bi bi-upload"></i> Your schedule has not been uploaded yet.</p>
+        {% endif %}
+        {% if not allow_schedule_comparison %}
+        <p class="course-access-status"><i class="bi bi-eye-slash"></i> Schedule comparison is turned off.</p>
+        {% endif %}
+        <a class="btn btn-primary" href="{% url 'profile' user.username %}#schedule">Update schedule settings</a>
+    </section>
+</div>
+{% endblock %}

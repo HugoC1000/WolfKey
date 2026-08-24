@@ -10,8 +10,31 @@ class Block(models.Model):
 
 
 class Course(models.Model):
+    class Category(models.TextChoices):
+        ART = 'Art', 'Art'
+        BIOLOGY = 'Biology', 'Biology'
+        CHEMISTRY = 'Chemistry', 'Chemistry'
+        DRAMA = 'Drama', 'Drama'
+        ENVIRONMENTAL_SCIENCE = 'Environmental Science', 'Environmental Science'
+        ENGLISH = 'English', 'English'
+        FRENCH = 'French', 'French'
+        HUMANITIES = 'Humanities', 'Humanities'
+        INFORMATION_TECHNOLOGY = 'Information Technology', 'Information Technology'
+        LANGUAGE = 'Language', 'Language'
+        MANDARIN = 'Mandarin', 'Mandarin'
+        DESIGN = 'Design', 'Design'
+        MATH = 'Math', 'Math'
+        MISC = 'Misc', 'Misc'
+        MUSIC = 'Music', 'Music'
+        PE = 'PE', 'Physical Education'
+        PHYSICS = 'Physics', 'Physics'
+        SCIENCE = 'Science', 'Science'
+        SOCIAL_STUDIES = 'Social Studies', 'Social Studies'
+        SPANISH = 'Spanish', 'Spanish'
+        STUDY_HALL = 'Study Hall', 'Study Hall'
+
     name = models.CharField(max_length=100)
-    category = models.CharField(max_length=100, default="Misc")
+    category = models.CharField(max_length=100, choices=Category.choices, default=Category.MISC)
     description = models.TextField(blank=True)
     # Maximum grade level eligible for this course (e.g., 12). If null, course is available to all grades.
     max_grade = models.IntegerField(null=True, blank=True)
@@ -24,6 +47,25 @@ class Course(models.Model):
 class CourseAlias(models.Model):
     name = models.CharField(max_length=100)
     course = models.ForeignKey(Course, related_name='aliases', on_delete=models.CASCADE)
+
+
+class CourseTeacher(models.Model):
+    """A community-reported teacher assignment for one course and timetable block."""
+    course = models.ForeignKey(Course, related_name='teacher_reports', on_delete=models.CASCADE)
+    block = models.CharField(max_length=8)
+    teacher_name = models.CharField(max_length=100)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['course', 'block', 'teacher_name'],
+                name='unique_course_teacher_report',
+            )
+        ]
+        ordering = ['block', 'teacher_name']
+
+    def __str__(self):
+        return f"{self.course} — {self.block}: {self.teacher_name}"
 
 
 class UserCourseExperience(models.Model):

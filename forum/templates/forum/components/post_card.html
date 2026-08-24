@@ -1,12 +1,7 @@
-<head>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
-    {% load custom_filters %}
-</head>
+{% load custom_filters %}
 
 <div class="card clickable post {% if post.accepted_solution %}highlighted-card-green{% endif %}" 
-     data-post-url="{% url 'post_detail' post.id %}"
-     data-post-id="{{ post.id }}">
+     data-post-url="{% url 'post_detail' post.id %}">
     {% if post.accepted_solution %}
         <div class="banner">Solved</div>
     {% endif %}
@@ -65,14 +60,14 @@
             <!-- Recommendation Context -->
             <div class="recommendation-context mb-2 mt-2">
                 {% for course in post.course_context %}
-                <span class="badge {% if course.is_experienced %} bg-success {% elif course.needs_help %} bg-info {% else %} bg-secondary {% endif %} me-2">
+                <a href="{% url 'course_page' course.id %}" class="badge course-context-link course-category-{{ course.category_class }} me-2" style="--course-color: {{ course.color }};">
                     {{ course.name }}
                     {% if course.is_experienced %}
                     (You're experienced)
                     {% elif course.needs_help %}
                     (You need help)
                     {% endif %}
-                </span>
+                </a>
                 {% endfor %}
             </div>
             
@@ -82,13 +77,11 @@
                 <span> <strong>Responses:</strong> {{ post.total_response_count }}</span>
             </div>
             
-        </a>
         <!-- Interactions Row -->
         <div class="post-interactions">
             {% if user.is_authenticated %}
                 <button type="button"
                     class="button like-button d-inline {% if post.is_liked_by_user %}active{% endif %}"
-                    data-post-id="{{ post.id }}"
                     data-liked="{{ post.is_liked_by_user|yesno:'true,false' }}"
                     data-like-url="{% url 'like_post' post.id %}"
                     data-unlike-url="{% url 'unlike_post' post.id %}"
@@ -108,7 +101,6 @@
                 </button>
                 <button type="button"
                     class="button follow-button d-inline {% if post.is_following %}active{% endif %}"
-                    data-post-id="{{ post.id }}"
                     data-followed="{{ post.is_following|yesno:'true,false' }}"
                     data-follow-url="{% url 'follow_post' post.id %}"
                     data-unfollow-url="{% url 'unfollow_post' post.id %}"
@@ -133,136 +125,3 @@
         </div>
     </div>
 </div>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-
-        // Handle copy functionality
-        document.querySelectorAll('.copy-link-button').forEach(button => {
-            button.addEventListener('click', function() {
-                const linkInput = this.previousElementSibling;
-                linkInput.select();
-                document.execCommand('copy');
-                
-                // Show feedback
-                const originalText = this.textContent;
-                this.textContent = 'Copied!';
-                setTimeout(() => {
-                    this.textContent = originalText;
-                }, 2000);
-            });
-        });
-
-        // Follow Button AJAX Handler
-        document.querySelectorAll('.follow-button').forEach(button => {
-            button.addEventListener('click', function () {
-                const postId = this.dataset.postId;
-                const isFollowing = this.dataset.followed === 'true';
-                const url = isFollowing ? this.dataset.unfollowUrl : this.dataset.followUrl;
-                const csrfToken = this.dataset.csrf;
-
-
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Content-Type': 'application/json',
-                    },
-                    credentials: 'same-origin'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Update icon
-                        const icon = this.querySelector('.follow-icon');
-                        const count = this.querySelector('.follow-count');
-
-                        this.dataset.followed = data.followed.toString();
-                        count.textContent = data.followers_count;
-
-                        if (data.followed) {
-                            icon.classList.remove('bi-bell');
-                            icon.classList.add('bi-bell-fill');
-                            this.classList.add('active');
-                        } else {
-                            icon.classList.remove('bi-bell-fill');
-                            icon.classList.add('bi-bell');
-                            this.classList.remove('active');
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Follow toggle failed:', error);
-                });
-            });
-        });
-
-        // Like button AJAX
-        document.querySelectorAll('.like-button').forEach(button => {
-            button.addEventListener('click', function () {
-                const postId = this.dataset.postId;
-                const isLiked = this.dataset.liked === 'true';
-                const url = isLiked ? this.dataset.unlikeUrl : this.dataset.likeUrl;
-                const csrfToken = this.dataset.csrf;
-                const likeIcon = this.querySelector('.like-icon');
-                const likeCount = this.querySelector('.like-count');
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Content-Type': 'application/json',
-                    },
-                    credentials: 'same-origin'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        this.dataset.liked = data.liked.toString();
-                        likeCount.textContent = data.like_count;
-                        if (data.liked) {
-                            this.classList.add('active');
-                            likeIcon.innerHTML = `<svg aria-label="Unlike" fill="currentColor" height="24" viewBox="0 0 48 48" width="24"><path d="M34.6 3.1c-4.5 0-7.9 1.8-10.6 5.6-2.7-3.7-6.1-5.5-10.6-5.5C6 3.1 0 9.6 0 17.6c0 7.3 5.4 12 10.6 16.5.6.5 1.3 1.1 1.9 1.7l2.3 2c4.4 3.9 6.6 5.9 7.6 6.5.5.3 1.1.5 1.6.5s1.1-.2 1.6-.5c1-.6 2.8-2.2 7.8-6.8l2-1.8c.7-.6 1.3-1.2 2-1.7C42.7 29.6 48 25 48 17.6c0-8-6-14.5-13.4-14.5z"></path></svg>`;
-                        } else {
-                            this.classList.remove('active');
-                            likeIcon.innerHTML = `<svg aria-label="Like" fill="currentColor" height="24" viewBox="0 0 24 24" width="24"><path d="M16.792 3.904A4.989 4.989 0 0 1 21.5 9.122c0 3.072-2.652 4.959-5.197 7.222-2.512 2.243-3.865 3.469-4.303 3.752-.477-.309-2.143-1.823-4.303-3.752C5.141 14.072 2.5 12.167 2.5 9.122a4.989 4.989 0 0 1 4.708-5.218 4.21 4.21 0 0 1 3.675 1.941c.84 1.175.98 1.763 1.12 1.763s.278-.588 1.11-1.766a4.17 4.17 0 0 1 3.679-1.938m0-2a6.04 6.04 0 0 0-4.797 2.127 6.052 6.052 0 0 0-4.787-2.127A6.985 6.985 0 0 0 .5 9.122c0 3.61 2.55 5.827 5.015 7.97.283.246.569.494.853.747l1.027.918a44.998 44.998 0 0 0 3.518 3.018 2 2 0 0 0 2.174 0 45.263 45.263 0 0 0 3.626-3.115l.922-.824c.293-.26.59-.519.885-.774 2.334-2.025 4.98-4.32 4.98-7.94a6.985 6.985 0 0 0-6.708-7.218Z"></path></svg>`;
-                        }
-                    }
-                });
-            });
-        });
-    });
-
-
-    document.addEventListener('click', function (e) {
-        const card = e.target.closest('.card.clickable');
-        if (!card) return;
-
-        // Ignore clicks on interactive elements and poll areas
-        if (e.target.closest('button, input, textarea, select, .poll-display, .poll-container')) return;
-
-        // Ignore if user is selecting text
-        if (window.getSelection && window.getSelection().toString()) return;
-
-        const url = card.dataset.postUrl;
-        if (url) {
-            // Extract post ID from URL for scroll-back functionality
-            const postIdMatch = url.match(/post\/(\d+)\//);
-            if (postIdMatch) {
-                const postId = postIdMatch[1];
-                
-                // Store current page information for the go-back button
-                const currentPath = window.location.pathname;
-                const currentSearch = window.location.search;
-                sessionStorage.setItem('goBackUrl', currentPath + currentSearch);
-                
-                // Also store the clicked post ID (this is used when coming back)
-                sessionStorage.setItem('lastClickedPostId', postId);
-            }
-            
-            window.location.href = url;
-        }
-    });
-
-</script>

@@ -89,6 +89,9 @@ from forum.views.comments_views import (
 from forum.views.course_comparer_views import (
     course_comparer
 )
+from forum.views.course_views import (
+    course_page, contribute_course_teacher, edit_course_teacher,
+)
 from forum.views.timetable_assigner_views import (
     timetable_assigner
 )
@@ -284,6 +287,9 @@ urlpatterns = [
     path('courses/help/add/', add_help_request, name='add_help_request'),
     path('courses/help/remove/<int:help_id>/', remove_help_request, name='remove_help_request'),
     path('api/courses/', course_search, name='course-search'),
+    path('classes/<int:course_id>/', course_page, name='course_page'),
+    path('classes/<int:course_id>/teachers/', contribute_course_teacher, name='contribute_course_teacher'),
+    path('classes/<int:course_id>/teachers/<int:report_id>/edit/', edit_course_teacher, name='edit_course_teacher'),
     
     # Course comparer URLs
     path('match/', course_comparer, name='course_comparer'),
