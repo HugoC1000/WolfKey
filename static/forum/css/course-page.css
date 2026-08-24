@@ -225,7 +225,7 @@
 .course-page .roster-tab.active {
     background: #634db0;
     box-shadow: 0 5px 12px rgba(99, 77, 176, 0.22);
-    color: #fff;
+    color: #fff !important;
 }
 
 .course-page .roster-tab-panel {
