@@ -158,10 +158,44 @@ admin.site.register(User, UserAdmin)
 
 class CourseAliasInline(admin.TabularInline):
     model = CourseAlias
-    extra = 1  # Number of empty aliases to display by default
+    extra = 1
+
+
+class CourseTeacherInline(admin.TabularInline):
+    model = CourseTeacher
+    extra = 0
+    fields = ('block', 'teacher_name')
+
 
 class CourseAdmin(admin.ModelAdmin):
-    inlines = [CourseAliasInline]
+    inlines = [CourseAliasInline, CourseTeacherInline]
+    list_display = ('name', 'category', 'max_grade', 'display_blocks', 'display_aliases')
+    list_editable = ('category', 'max_grade')
+    list_filter = ('category', 'max_grade', 'blocks')
+    search_fields = ('name', 'aliases__name')
+    ordering = ('name',)
+    filter_horizontal = ('blocks',)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('blocks', 'aliases')
+
+    def get_paginator(self, request, queryset, per_page, orphans=0, allow_empty_first_page=True):
+        """Keep every matching course on the same admin changelist page."""
+        return super().get_paginator(
+            request,
+            queryset,
+            max(queryset.count(), 1),
+            orphans=orphans,
+            allow_empty_first_page=allow_empty_first_page,
+        )
+
+    @admin.display(description='Blocks')
+    def display_blocks(self, obj):
+        return ', '.join(block.code for block in sorted(obj.blocks.all(), key=lambda block: block.code)) or '—'
+
+    @admin.display(description='Aliases')
+    def display_aliases(self, obj):
+        return ', '.join(alias.name for alias in sorted(obj.aliases.all(), key=lambda alias: alias.name)) or '—'
 
 admin.site.register(Course, CourseAdmin)
 admin.site.register(CourseTeacher)
