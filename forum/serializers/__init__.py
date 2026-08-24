@@ -10,6 +10,7 @@ from .user import (
     FeedUserSerializer,
     FeedUserProfileSerializer,
     UserScheduleSerializer,
+    CourseRosterStudentSerializer,
 )
 from .post import (
     PostListSerializer,
@@ -44,6 +45,7 @@ __all__ = [
     'FeedUserSerializer',
     'FeedUserProfileSerializer',
     'UserScheduleSerializer',
+    'CourseRosterStudentSerializer',
     # Post serializers
     'PostListSerializer',
     'PostDetailSerializer',

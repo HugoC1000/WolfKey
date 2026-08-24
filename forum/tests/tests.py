@@ -23,6 +23,7 @@ from forum.serializers import (
     UserProfileSerializer,
     UserSummarySerializer,
 )
+from forum.serializers.user import safe_file_url
 import json
 
 class GeneralURLTests(TestCase):
@@ -162,7 +163,7 @@ class CoursePageTests(TestCase):
                         'username': self.user.username,
                         'full_name': 'Course Member',
                         'initials': 'CM',
-                        'profile_picture_url': None,
+                        'profile_picture_url': safe_file_url(self.user.userprofile.profile_picture),
                     }],
                 },
                 {
