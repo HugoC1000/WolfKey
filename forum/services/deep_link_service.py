@@ -114,16 +114,6 @@ class WolfKeyDeepLink:
         return data
     
     @staticmethod
-    def saved_solutions() -> Dict:
-        """Create deep link data for saved solutions screen"""
-        return {
-            'type': 'saved_solutions',
-            'screen': 'SavedSolutions',
-            'params': {},
-            'web_url': f"{getattr(settings, 'SITE_URL', '')}/saved-solutions/"
-        }
-    
-    @staticmethod
     def grade_update() -> Dict:
         """Create deep link data for grade update notifications - links to notifications screen"""
         return {

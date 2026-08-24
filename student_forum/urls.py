@@ -71,8 +71,6 @@ from forum.services.course_services import (
 )
 from forum.views.save_views import (
     followed_posts,
-    save_solution,
-    saved_solutions,
 )
 from forum.views.notification_views import (
     all_notifications,
@@ -90,6 +88,9 @@ from forum.views.comments_views import (
 )
 from forum.views.course_comparer_views import (
     course_comparer
+)
+from forum.views.course_views import (
+    course_page, contribute_course_teacher, edit_course_teacher,
 )
 from forum.views.timetable_assigner_views import (
     timetable_assigner
@@ -286,6 +287,9 @@ urlpatterns = [
     path('courses/help/add/', add_help_request, name='add_help_request'),
     path('courses/help/remove/<int:help_id>/', remove_help_request, name='remove_help_request'),
     path('api/courses/', course_search, name='course-search'),
+    path('classes/<int:course_id>/', course_page, name='course_page'),
+    path('classes/<int:course_id>/teachers/', contribute_course_teacher, name='contribute_course_teacher'),
+    path('classes/<int:course_id>/teachers/<int:report_id>/edit/', edit_course_teacher, name='edit_course_teacher'),
     
     # Course comparer URLs
     path('match/', course_comparer, name='course_comparer'),
@@ -294,13 +298,11 @@ urlpatterns = [
     path('mentions/search/', mention_search, name='mention_search'),
     path('api/mentions/autocomplete/', mentions_autocomplete_api, name='api_mentions_autocomplete'),
 
-    # Saved posts URLs
+    # Post follow URLs
     path('followed-posts/', followed_posts, name='followed_posts'),
     path('my-posts/', my_posts, name='my_posts'),
     path('follow-post/<int:post_id>/', follow_post, name='follow_post'),
     path('unfollow-post/<int:post_id>/', unfollow_post, name='unfollow_post'),
-    path('save-solution/<int:solution_id>/', save_solution, name='save_solution'),
-    path('saved-solutions/', saved_solutions, name='saved_solutions'),
 
     # API URLs
     path('api/acknowledge-update/', acknowledge_update, name='acknowledge_update'),

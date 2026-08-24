@@ -5,7 +5,7 @@ from django.http import HttpResponseForbidden, JsonResponse
 import json
 import logging
 from django.utils.html import escape
-from forum.models import Post, Solution, FollowedPost, SavedSolution, Notification, PostLike
+from forum.models import Post, Solution, FollowedPost, Notification, PostLike
 from ..services.utils import selective_quote_replace, detect_bad_words
 from forum.forms import SolutionForm, CommentForm, PostForm
 from forum.serializers import PostDetailSerializer, serialize_poll_display_data

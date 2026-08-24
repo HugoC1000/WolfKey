@@ -7,6 +7,45 @@ from functools import reduce
 from operator import or_
 
 
+# Category colors are hex values so every course in the same category is shown
+# consistently, while the Course model remains the source of the category itself.
+COURSE_CATEGORY_COLORS = {
+    Course.Category.ART: '#B64C8A',
+    Course.Category.BIOLOGY: '#2E9B52',
+    Course.Category.CHEMISTRY: '#168A8A',
+    Course.Category.DRAMA: '#8E4FB4',
+    Course.Category.ENGLISH: '#3E73BF',
+    Course.Category.FRENCH: '#E06B43',
+    Course.Category.HUMANITIES: '#7664A8',
+    Course.Category.INFORMATION_TECHNOLOGY: '#5367B8',
+    Course.Category.LANGUAGE: '#CC6D39',
+    Course.Category.MANDARIN: '#C44A4A',
+    Course.Category.DESIGN: '#B86636',
+    Course.Category.MATH: "#E2C440",
+    Course.Category.MISC: '#59636D',
+    Course.Category.MUSIC: '#9C4F99',
+    Course.Category.PE: '#668530',
+    Course.Category.PHYSICS: '#D64545',
+    Course.Category.SCIENCE: '#1E3A5F',
+    Course.Category.ENVIRONMENTAL_SCIENCE: '#5EA64D',
+    Course.Category.SOCIAL_STUDIES: '#A86D14',
+    Course.Category.SPANISH: '#D6574C',
+    Course.Category.STUDY_HALL: '#68737D',
+}
+
+
+def course_category_color(category):
+    """Return the shared hex color for a course category."""
+    return COURSE_CATEGORY_COLORS.get(category, COURSE_CATEGORY_COLORS[Course.Category.MISC])
+
+
+def course_category_class(category):
+    return {
+        Course.Category.FRENCH: 'french',
+        Course.Category.MATH: 'math',
+    }.get(category, '')
+
+
 def filter_courses_for_grade(courses, grade_level):
     """Keep courses available to a grade; an unset maximum is unrestricted."""
     if grade_level is None:

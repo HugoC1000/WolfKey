@@ -1,10 +1,11 @@
 from django.shortcuts import render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 import json
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from forum.serializers.user import USER_SCHEDULE_BLOCKS
-from forum.services.course_services import filter_courses_for_grade
+from forum.services.course_services import course_category_class, course_category_color, filter_courses_for_grade
 from forum.services.timetable_services import generate_possible_schedules
 
 
@@ -49,6 +50,7 @@ def all_courses_blocks_view(request):
         # Reuse the API logic but return JsonResponse for session users
         from forum.models import Course
         blocks_data = {block_code: [] for block_code in USER_SCHEDULE_BLOCKS}
+        course_links = {block_code: [] for block_code in USER_SCHEDULE_BLOCKS}
 
         courses_qs = Course.objects.prefetch_related('blocks').all()
         if request.GET.get('eligible_only') == '1':
@@ -61,8 +63,17 @@ def all_courses_blocks_view(request):
             for block in course.blocks.all():
                 if block.code in blocks_data:
                     blocks_data[block.code].append(course.name)
+                    course_links[block.code].append({
+                        'id': course.id,
+                        'name': course.name,
+                        'url': reverse('course_page', args=[course.id]),
+                        'color': course_category_color(course.category),
+                        'category_class': course_category_class(course.category),
+                    })
 
-        return JsonResponse({'success': True, 'blocks': blocks_data})
+        # Keep the established ``blocks`` string-list contract; Atlas uses the
+        # parallel link metadata to make its course pills navigable.
+        return JsonResponse({'success': True, 'blocks': blocks_data, 'course_links': course_links})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 

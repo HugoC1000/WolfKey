@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from forum.models import Post, Solution, SolutionUpvote, SolutionDownvote, SavedSolution
+from forum.models import Post, Solution, SolutionUpvote, SolutionDownvote
 from forum.services.utils import detect_bad_words, extract_and_delete_files_from_content
 from forum.services.notification_services import send_solution_notification_service
 from forum.services.mention_service import update_mentions
@@ -190,31 +190,6 @@ def accept_solution_service(user, solution_id):
         return {
             'error': str(e),
             'messages': [{'message': f'Error accepting solution: {str(e)}', 'tags': 'error'}]
-        }
-
-def save_solution_service(user, solution_id):
-    try:
-        solution = get_object_or_404(Solution, id=solution_id)
-        
-        if SavedSolution.objects.filter(solution=solution, user=user).exists():
-            SavedSolution.objects.filter(solution=solution, user=user).delete()
-            return {
-                'success': True,
-                'saved': False,
-                'messages': [{'message': 'Solution removed from saved items', 'tags': 'success'}]
-            }
-        else:
-            SavedSolution.objects.create(solution=solution, user=user)
-            return {
-                'success': True,
-                'saved': True,
-                'messages': [{'message': 'Solution saved successfully', 'tags': 'success'}]
-            }
-            
-    except Exception as e:
-        return {
-            'error': str(e),
-            'messages': [{'message': f'Error saving solution: {str(e)}', 'tags': 'error'}]
         }
 
 def get_sorted_solutions_service(post_id, sort_by='votes'):

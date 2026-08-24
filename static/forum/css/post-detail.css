@@ -332,11 +332,6 @@
   text-align: center;
 }
 
-.vote-cell .save-solution-form {
-  margin-top: 8px;
-  text-align: center;
-}
-
 .vote-button {
   background: none;
   border: none;
@@ -438,120 +433,6 @@
   transform: scale(1.05);
 }
 
-
-/* =============================================================================
-   BOOKMARK & SAVE FUNCTIONALITY
-   ============================================================================= */
-
-.star-button {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  outline: none;
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 2px;
-  transition: background-color 0.1s ease;
-}
-
-.star-button:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.star-button svg {
-  fill: #878A8C;
-  transition: fill 0.1s ease;
-}
-
-.star-button:hover svg {
-  fill: #1c1c1c;
-}
-
-.star-button.active svg {
-  fill: #FFB000;
-}
-
-.star-button.active:hover {
-  background-color: rgba(255, 176, 0, 0.1);
-}
-
-.star-button.active:hover svg {
-  fill: #FFB000;
-}
-
-.star-button:active {
-  transform: scale(0.95);
-}
-
-.bookmark-button {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  outline: none;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 2px;
-  transition: background-color 0.1s ease;
-}
-
-.bookmark-button:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.bookmark-button i {
-  font-size: 16px;
-  color: #878A8C;
-  transition: color 0.1s ease;
-}
-
-.bookmark-button:hover i {
-  color: #1c1c1c;
-}
-
-.bookmark-button.active i {
-  color: #0079D3;
-}
-
-.bookmark-button.active:hover {
-  background-color: rgba(0, 121, 211, 0.1);
-}
-
-.bookmark-button.active:hover i {
-  color: #0079D3;
-}
-
-.bookmark-button:active {
-  transform: scale(0.95);
-}
-
-.vote-cell .fa-bookmark {
-  font-size: 18px;
-}
-
-.vote-cell .save-solution-form button {
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0;
-}
-
-.save-solution-form {
-  margin-left: 0px;
-}
-
-.custom-save-position {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-}
 
 
 /* =============================================================================
@@ -909,9 +790,7 @@ div[id^="comment-form-"][id$="-root"] {
   color: #1c1c1c !important;
 }
 
-/* Make bookmark icon and follow buttons more visible */
-button .fa-bookmark,
-button .fa-bookmark-slash,
+/* Make follow buttons more visible */
 button .fa-bell,
 button .fa-bell-slash {
   font-size: 0.875rem;

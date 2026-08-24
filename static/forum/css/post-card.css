@@ -282,21 +282,31 @@
 .card.clickable {
   cursor: pointer;
 }
-.card.clickable * {
-  pointer-events: auto;
-}
-.card.clickable .post-card-link {
-  display: block;
-  color: inherit;
+.course-context-link {
+  color: #fff;
+  background: var(--course-color, #59636d) !important;
   text-decoration: none;
 }
-.card.clickable .post-interactions,
-.card.clickable .post-interactions *,
-.card.clickable .share-container,
-.card.clickable .share-container *,
-.card.clickable button,
-.card.clickable input,
-.card.clickable select,
-.card.clickable textarea {
-  pointer-events: auto;
+
+.course-context-link:hover,
+.course-context-link:focus-visible {
+  color: #fff;
+  filter: brightness(0.92);
+  text-decoration: underline;
+}
+
+.course-context-link.course-category-french:hover,
+.course-context-link.course-category-french:focus-visible,
+.course-context-link.course-category-math:hover,
+.course-context-link.course-category-math:focus-visible {
+  color: #17233b;
+}
+
+.course-context-link.course-category-french {
+  color: #17233b;
+  background: linear-gradient(110deg, #0055a4 0%, #6f9dcc 28%, #fff 50%, #e98a87 72%, #ef4135 100%) !important;
+}
+
+.course-context-link.course-category-math {
+  color: #17233b;
 }

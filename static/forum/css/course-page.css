@@ -1,0 +1,452 @@
+.course-page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 8px 0 40px;
+}
+
+.course-page .course-hero {
+    position: relative;
+    min-height: 250px;
+    overflow: hidden;
+    padding: 30px 36px;
+    border-radius: 24px;
+    background: linear-gradient(
+        128deg,
+        color-mix(in srgb, var(--course-color, #59636d), #000 42%),
+        var(--course-color, #59636d) 55%,
+        color-mix(in srgb, var(--course-color, #59636d), #fff 28%)
+    );
+    box-shadow: 0 18px 42px rgba(61, 42, 128, 0.24);
+    color: #fff;
+}
+
+.course-page .course-hero.course-category-french {
+    background: linear-gradient(110deg, #0055a4 0%, #6f9dcc 28%, #fff 50%, #e98a87 72%, #ef4135 100%);
+    color: #17233b;
+}
+
+.course-page .course-hero.course-category-math {
+    color: #17233b;
+}
+
+.course-page .course-hero-content,
+.course-page .course-back {
+    position: relative;
+    z-index: 1;
+}
+
+.course-page .course-hero-content {
+    max-width: 690px;
+}
+
+.course-page .course-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 31px;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.course-page .course-back:hover,
+.course-page .course-back:focus-visible {
+    color: #fff;
+}
+
+.course-page .course-eyebrow,
+.course-page .section-kicker {
+    display: block;
+    color: #8069c7;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.course-page .course-eyebrow {
+    color: #d9ceff;
+}
+
+.course-page .course-hero h1 {
+    margin: 5px 0 10px;
+    font-size: clamp(2rem, 5vw, 3.35rem);
+    font-weight: 750;
+    letter-spacing: -0.05em;
+}
+
+.course-page .course-hero p {
+    max-width: 570px;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.83);
+    font-size: 1.02rem;
+}
+
+.course-page .course-hero.course-category-french .course-back,
+.course-page .course-hero.course-category-french .course-eyebrow,
+.course-page .course-hero.course-category-french p,
+.course-page .course-hero.course-category-math .course-back,
+.course-page .course-hero.course-category-math .course-eyebrow,
+.course-page .course-hero.course-category-math p {
+    color: rgba(23, 35, 59, 0.82);
+}
+
+.course-page .course-hero-orb {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.13);
+    filter: blur(1px);
+}
+
+.course-page .orb-one {
+    top: -100px;
+    right: -75px;
+    width: 260px;
+    height: 260px;
+}
+
+.course-page .orb-two {
+    right: 135px;
+    bottom: -100px;
+    width: 155px;
+    height: 155px;
+}
+
+.course-page .course-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+    align-items: start;
+    gap: 24px;
+    margin-top: 25px;
+}
+
+.course-page .teacher-panel,
+.course-page .course-posts,
+.course-page .course-access-card {
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.93);
+    box-shadow: 0 10px 30px rgba(24, 17, 53, 0.08);
+}
+
+.course-page .teacher-panel,
+.course-page .course-posts {
+    padding: 26px;
+}
+
+.course-page .course-access-card {
+    max-width: 620px;
+    margin: 25px auto 0;
+    padding: 38px 30px;
+    text-align: center;
+}
+
+.course-page .course-access-icon {
+    display: block;
+    margin-bottom: 12px;
+    color: #634db0;
+    font-size: 2rem;
+}
+
+.course-page .course-access-card h2 {
+    margin: 0 0 10px;
+    font-size: 1.35rem;
+}
+
+.course-page .course-access-card p {
+    color: #6c6d7b;
+    font-size: 0.92rem;
+}
+
+.course-page .course-access-status {
+    margin: 8px 0;
+    color: #4f4b61;
+    font-size: 0.82rem;
+}
+
+.course-page .course-access-status i {
+    margin-right: 4px;
+    color: #634db0;
+}
+
+.course-page .section-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.course-page .section-heading h2 {
+    margin: 4px 0 0;
+    font-size: 1.25rem;
+    font-weight: 750;
+    letter-spacing: -0.03em;
+}
+
+.course-page .section-copy {
+    margin: 11px 0 20px;
+    color: #6c6d7b;
+    font-size: 0.9rem;
+}
+
+.course-page .post-count {
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: #f2f2f6;
+    color: #70707e;
+    font-size: 0.74rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.course-page .roster-tabs {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #edeaf5;
+}
+
+.course-page .roster-tab {
+    flex: 0 0 auto;
+    padding: 7px 11px;
+    border: 0;
+    border-radius: 9px;
+    background: #f3f1f7;
+    color: #777485;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.course-page .roster-tab:hover,
+.course-page .roster-tab:focus-visible {
+    color: #584495;
+}
+
+.course-page .roster-tab.active {
+    background: #634db0;
+    box-shadow: 0 5px 12px rgba(99, 77, 176, 0.22);
+    color: #fff;
+}
+
+.course-page .roster-tab-panel {
+    padding-top: 15px;
+}
+
+.course-page .roster-subheading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 18px;
+    color: #5d586d;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.course-page .students-heading {
+    margin-top: 12px;
+}
+
+.course-page .teacher-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px 18px;
+    margin: 10px 0 8px;
+}
+
+.course-page .teacher-report {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+}
+
+.course-page .teacher-name {
+    font-size: 0.85rem;
+    font-weight: 650;
+}
+
+.course-page .teacher-edit-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+}
+
+.course-page .teacher-edit-trigger i {
+    color: #9995a5;
+    font-size: 0.72rem;
+}
+
+.course-page .teacher-empty {
+    margin-bottom: 1px;
+    color: #aaa9b5;
+    font-size: 0.82rem;
+    line-height: 1.25;
+}
+
+.course-page .teacher-add {
+    margin-top: 4px;
+}
+
+.course-page .teacher-add summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #6049ad;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.course-page .teacher-add summary:hover,
+.course-page .teacher-add summary:focus-visible {
+    color: #49358f;
+}
+
+.course-page .teacher-form {
+    display: flex;
+    gap: 5px;
+    margin-top: 9px;
+}
+
+.course-page .teacher-form input {
+    width: 100%;
+    min-width: 0;
+    padding: 7px 8px;
+    border: 1px solid #ddd7ea;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 0.8rem;
+}
+
+.course-page .teacher-form button {
+    padding: 5px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: #634db0;
+    color: #fff;
+    font-size: 0.78rem;
+}
+
+.course-page .student-list {
+    margin: 10px 0 8px;
+}
+
+.course-page .student-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 38px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0eef5;
+    color: inherit;
+    text-decoration: none;
+}
+
+.course-page .student-row:hover .student-name,
+.course-page .student-row:focus-visible .student-name {
+    color: #6049ad;
+}
+
+.course-page .student-avatar {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border-radius: 50%;
+    background: #7864bf;
+    color: #fff;
+    font-size: 0.63rem;
+    font-weight: 800;
+}
+
+.course-page .student-avatar[src] {
+    border: 0;
+    background: transparent;
+    object-fit: cover;
+}
+
+.course-page .student-name {
+    overflow: hidden;
+    font-size: 0.85rem;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.course-page .roster-empty,
+.course-page .course-empty {
+    color: #777583;
+    text-align: center;
+}
+
+.course-page .roster-empty {
+    padding: 25px 0 8px;
+}
+
+.course-page .roster-empty i {
+    font-size: 1.35rem;
+}
+
+.course-page .course-post-card {
+    margin-top: 14px;
+}
+
+.course-page .course-posts .post {
+    border: 0;
+    background: #fff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.course-page .course-empty {
+    padding: 55px 15px;
+}
+
+.course-page .course-empty i {
+    color: #7963ca;
+    font-size: 2rem;
+}
+
+.course-page .course-empty h3 {
+    margin-top: 11px;
+    color: #30303d;
+    font-size: 1.1rem;
+}
+
+.course-page .course-empty p {
+    font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+    .course-page .course-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 560px) {
+    .course-page {
+        padding-top: 0;
+    }
+
+    .course-page .course-hero,
+    .course-page .teacher-panel,
+    .course-page .course-posts {
+        border-radius: 16px;
+    }
+
+    .course-page .course-hero {
+        padding: 22px;
+    }
+
+    .course-page .teacher-panel,
+    .course-page .course-posts {
+        padding: 18px;
+    }
+}

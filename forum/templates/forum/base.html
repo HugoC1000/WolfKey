@@ -277,9 +277,6 @@
                     </a>
                 </li>
                 <li>
-                    <a href="{% url 'saved_solutions' %}" class="sidebar-item{% if request.resolver_match.url_name == 'saved_solutions' %} active{% endif %}" data-title="Saved Solutions">
-                        <i class="bi {% if request.resolver_match.url_name == 'saved_solutions' %}bi-bookmark-star-fill{% else %}bi-bookmark-star{% endif %}"></i> <span class="sidebar-text">Saved Solutions</span>
-                    </a>
                 </li>
                 <li>
                     <a href="{% url 'my_posts'%}" class="sidebar-item{% if request.resolver_match.url_name == 'my_posts' %} active{% endif %}" data-title="My Posts">

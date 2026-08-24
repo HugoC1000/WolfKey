@@ -57,14 +57,15 @@ class AtlasClassmateMatchingTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('login'), response.url)
 
-    def test_disabled_viewer_sees_preference_warning(self):
+    def test_disabled_viewer_sees_comparison_settings_message(self):
         self.viewer.userprofile.allow_schedule_comparison = False
         self.viewer.userprofile.save()
 
         response = self.client.get(reverse('timetable_assigner'))
 
-        self.assertContains(response, 'Schedule Comparison Disabled')
+        self.assertContains(response, 'You can’t compare schedules with friends')
         self.assertNotContains(response, 'id="user-selector-container"')
+        self.assertContains(response, 'window.atlasClassmateMatchingEnabled = false;')
 
     def test_atlas_renders_inline_three_step_panels(self):
         response = self.client.get(reverse('timetable_assigner'))
@@ -81,7 +82,7 @@ class AtlasClassmateMatchingTests(TestCase):
     def test_block_course_reference_can_filter_by_maximum_taking_grade(self):
         self.viewer.userprofile.grade_level = 11
         self.viewer.userprofile.save()
-        eligible_course = Course.objects.create(name='Grade 11 Eligible', max_grade=12)
+        eligible_course = Course.objects.create(name='Grade 11 Eligible', category='Math', max_grade=12)
         eligible_course.blocks.add(self.block_1a)
         ineligible_course = Course.objects.create(name='Grade 10 Maximum', max_grade=10)
         ineligible_course.blocks.add(self.block_1a)
@@ -100,6 +101,11 @@ class AtlasClassmateMatchingTests(TestCase):
         all_courses = all_response.json()['blocks']['1A']
         self.assertIn(eligible_course.name, all_courses)
         self.assertIn(ineligible_course.name, all_courses)
+        course_links = all_response.json()['course_links']['1A']
+        self.assertIn(
+            {'id': eligible_course.id, 'name': eligible_course.name, 'url': reverse('course_page', args=[eligible_course.id]), 'color': '#E2C440', 'category_class': 'math'},
+            course_links,
+        )
 
         atlas_response = self.client.get(reverse('timetable_assigner'))
         self.assertContains(atlas_response, 'window.atlasHasGradeLevel = true;')

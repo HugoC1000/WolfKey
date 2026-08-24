@@ -308,13 +308,25 @@ async function loadBlockCourseRows(container, eligibleOnly) {
 
             const coursesContainer = document.createElement('div');
             coursesContainer.className = 'courses-container flex-grow-1 ml-3';
-            const coursesInBlock = blockCoursesData[block] || [];
+            const coursesInBlock = blockCoursesData.blocks[block] || [];
+            const courseLinks = blockCoursesData.courseLinks[block] || [];
 
             if (coursesInBlock.length > 0) {
-                coursesInBlock.forEach(courseName => {
-                    const courseBadge = document.createElement('span');
+                coursesInBlock.forEach((courseName, index) => {
+                    const courseLink = courseLinks[index];
+                    const courseBadge = document.createElement(courseLink?.url ? 'a' : 'span');
                     courseBadge.className = 'atlas-course-pill';
                     courseBadge.textContent = courseName;
+                    if (courseLink?.url) {
+                        courseBadge.href = courseLink.url;
+                        courseBadge.title = `Open ${courseName}'s class page`;
+                    }
+                    if (courseLink?.color) {
+                        courseBadge.style.setProperty('--course-color', courseLink.color);
+                    }
+                    if (courseLink?.category_class) {
+                        courseBadge.classList.add(`course-category-${courseLink.category_class}`);
+                    }
                     coursesContainer.appendChild(courseBadge);
                 });
             } else {
@@ -535,7 +547,10 @@ async function fetchAllCoursesAndBlocks(eligibleOnly = false) {
     }
 
     const data = await response.json();
-    return data.blocks || {};
+    return {
+        blocks: data.blocks || {},
+        courseLinks: data.course_links || {},
+    };
 }
 
 function getAssignmentForBlock(schedule, block) {

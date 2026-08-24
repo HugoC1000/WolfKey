@@ -1,6 +1,9 @@
 # Re-export all models for backward compatibility
 from .user import User, UserManager, UserProfile
-from .course import Block, Course, CourseAlias, UserCourseExperience, UserCourseHelp
+from .course import (
+    Block, Course, CourseAlias, CourseTeacher,
+    UserCourseExperience, UserCourseHelp,
+)
 from .post import Post, StandardPost, SavedPost, FollowedPost, PostLike
 from .poll import Poll, PollOption, PollVote
 from .solution import Solution, SavedSolution, Comment, SolutionUpvote, SolutionDownvote, CommentUpvote
@@ -22,6 +25,7 @@ __all__ = [
     'Block',
     'Course',
     'CourseAlias',
+    'CourseTeacher',
     'UserCourseExperience',
     'UserCourseHelp',
     # Post models
