@@ -3,8 +3,10 @@
 {% block head %}
     {% load static %}
     <link rel="stylesheet" href="{% static 'forum/css/profile.css' %}">
+    <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/course-selector.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/schedule-import-profile.css' %}">
+    <script src="{% static 'forum/js/post-card.js' %}" defer></script>
     <script type="module" src="{% static 'forum/js/schedule-import-profile.js' %}"></script>
 
 {% endblock %}
@@ -177,9 +179,8 @@
                             </div>
                             <div class="card-body">
                                 {% for post in recent_posts %}
-                                <div class="mb-3">
-                                    <h6><a href="{% url 'post_detail' post.id %}">{{ post.title }}</a></h6>
-                                    <small class="text-muted">Posted {{ post.created_at|smart_timesince }}</small>
+                                <div class="post-card-container mb-3">
+                                    {% include 'forum/components/post_card.html' with post=post %}
                                 </div>
                                 {% empty %}
                                 <p>No recent activity.</p>
