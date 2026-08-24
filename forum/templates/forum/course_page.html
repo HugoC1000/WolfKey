@@ -1,0 +1,98 @@
+{% extends 'forum/base.html' %}
+
+{% block head %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
+<script src="{% static 'forum/js/post-card.js' %}" defer></script>
+<link rel="stylesheet" href="{% static 'forum/css/course-page.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="course-page">
+    <section class="course-hero course-category-{{ course_category_class }}" style="--course-color: {{ course_color }};">
+        <a href="{% url 'all_posts' %}" class="course-back"><i class="bi bi-arrow-left"></i> Explore</a>
+        <div class="course-hero-orb orb-one"></div><div class="course-hero-orb orb-two"></div>
+        <div class="course-hero-content">
+            <span class="course-eyebrow">Class space · {{ course.category }}</span>
+            <h1>{{ course.name }}</h1>
+            <p>{{ course.description|default:"" }}</p>
+        </div>
+    </section>
+
+    <div class="course-layout">
+        <section class="teacher-panel">
+            <div class="section-heading">
+                <div><span class="section-kicker">Class roster</span><h2>Students &amp; teachers by block</h2></div>
+            </div>
+            <p class="section-copy">Students are matched from their saved timetable. Only members who allow schedule comparison appear here.</p>
+
+            {% if roster_blocks %}
+            <div class="roster-tabs nav" role="tablist" aria-label="Class roster by course block">
+                {% for roster_block in roster_blocks %}
+                <button class="roster-tab nav-link {% if forloop.first %}active{% endif %}" id="students-{{ roster_block.code }}-tab" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#students-{{ roster_block.code }}" aria-controls="students-{{ roster_block.code }}" aria-selected="{{ forloop.first|yesno:'true,false' }}">{{ roster_block.code }}</button>
+                {% endfor %}
+            </div>
+            <div class="tab-content">
+                {% for roster_block in roster_blocks %}
+                <article id="students-{{ roster_block.code }}" class="roster-tab-panel tab-pane fade {% if forloop.first %}show active{% endif %}" role="tabpanel" aria-labelledby="students-{{ roster_block.code }}-tab">
+                    <div class="roster-subheading"><span>Teachers</span></div>
+                    <div class="teacher-list">
+                    {% for report in roster_block.reports %}
+                        <div class="teacher-report">
+                            {% if report.can_manage %}
+                            <button type="button" class="teacher-edit-trigger" data-edit-url="{% url 'edit_course_teacher' course.id report.id %}" data-teacher-name="{{ report.teacher_name }}"><span class="teacher-name">{{ report.teacher_name }}</span> <i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Edit teacher</span></button>
+                            {% else %}
+                            <span class="teacher-name">{{ report.teacher_name }}</span>
+                            {% endif %}
+                        </div>
+                    {% empty %}<p class="teacher-empty">No teacher confirmed yet.</p>{% endfor %}
+                    </div>
+                    {% if roster_block.can_contribute %}
+                    <details class="teacher-add" id="teacher-add-{{ roster_block.code }}"><summary><i class="bi bi-plus-lg"></i> Add a teacher</summary>
+                        <form class="teacher-form" id="teacher-form-{{ roster_block.code }}" method="post" action="{% url 'contribute_course_teacher' course.id %}">{% csrf_token %}<input type="hidden" name="block" value="{{ roster_block.code }}"><input name="teacher_name" maxlength="100" placeholder="Teacher name" required><button type="submit">Add</button></form>
+                    </details>
+                    {% endif %}
+                    <div class="roster-subheading students-heading"><span>Students ({{ roster_block.students|length }})</span></div>
+                    <div class="student-list">
+                    {% for student in roster_block.students %}
+                        <a class="student-row" href="{% url 'profile' student.username %}">
+                            {% if student.profile_picture_url %}<img class="student-avatar" src="{{ student.profile_picture_url }}" alt="{{ student.full_name }}">{% else %}<span class="student-avatar">{{ student.initials }}</span>{% endif %}
+                            <span class="student-name">{{ student.full_name }}</span>
+                        </a>
+                    {% empty %}<p class="teacher-empty">No students have shared this class yet.</p>{% endfor %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+                <div class="roster-empty"><i class="bi bi-calendar-x"></i><p>This course has no block mapping yet.</p></div>
+            {% endif %}
+
+        </section>
+
+        <section class="course-posts">
+            <div class="section-heading"><div><span class="section-kicker">Course conversation</span><h2>Posts about {{ course.name }}</h2></div><span class="post-count">{{ posts|length }} posts</span></div>
+            {% for post in posts %}
+                <div class="post-card-container course-post-card animate-visible">{% include 'forum/components/post_card.html' with post=post %}</div>
+            {% empty %}
+                <div class="course-empty"><i class="bi bi-chat-square-heart"></i><h3>Start the conversation</h3><p>No posts have mentioned this course yet.</p><a class="btn btn-primary" href="{% url 'create_post' %}">Ask about this class</a></div>
+            {% endfor %}
+        </section>
+    </div>
+</div>
+<script>
+document.querySelectorAll('.teacher-edit-trigger').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+        const panel = trigger.closest('.roster-tab-panel');
+        const details = panel.querySelector('.teacher-add');
+        const form = details.querySelector('.teacher-form');
+        const input = form.querySelector('[name="teacher_name"]');
+        input.value = trigger.dataset.teacherName || '';
+        form.action = trigger.dataset.editUrl;
+        form.querySelector('button[type="submit"]').textContent = 'Save';
+        details.open = true;
+        input.focus();
+    });
+});
+</script>
+{% endblock %}

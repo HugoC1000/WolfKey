@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
 from django.utils.html import format_html
-from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, SavedPost, Solution, Course, CourseAlias, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, SavedSolution, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource
+from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, SavedPost, Solution, Course, CourseAlias, CourseTeacher, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, SavedSolution, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource
 
 
 class StandardPostInline(admin.StackedInline):
@@ -166,3 +166,4 @@ class CourseAdmin(admin.ModelAdmin):
     inlines = [CourseAliasInline]
 
 admin.site.register(Course, CourseAdmin)
+admin.site.register(CourseTeacher)
