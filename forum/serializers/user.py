@@ -393,3 +393,24 @@ class UserScheduleSerializer(serializers.ModelSerializer):
                 'course_id': course.id if course else None,
             }
         return schedule
+
+
+class CourseRosterStudentSerializer(serializers.ModelSerializer):
+    """Public, minimal identity data for a course roster entry."""
+    username = serializers.CharField(source='user.username', read_only=True)
+    full_name = serializers.SerializerMethodField()
+    initials = serializers.SerializerMethodField()
+    profile_picture_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserProfile
+        fields = ['username', 'full_name', 'initials', 'profile_picture_url']
+
+    def get_full_name(self, obj):
+        return obj.user.get_full_name().strip() or obj.user.username
+
+    def get_initials(self, obj):
+        return ''.join(part[0] for part in self.get_full_name(obj).split()[:2]).upper()
+
+    def get_profile_picture_url(self, obj):
+        return safe_file_url(obj.profile_picture)

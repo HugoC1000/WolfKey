@@ -9,8 +9,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from forum.models import Course, CourseTeacher, Post, UserProfile
-from forum.serializers import PostListSerializer
-from forum.serializers.user import USER_SCHEDULE_BLOCKS, safe_file_url
+from forum.serializers import CourseRosterStudentSerializer, PostListSerializer
+from forum.serializers.user import USER_SCHEDULE_BLOCKS
 from forum.services.course_services import course_category_class, course_category_color
 from forum.services.poll_display_service import attach_poll_data_to_posts
 from forum.services.utils import annotate_post_card_context
@@ -39,23 +39,6 @@ def _can_manage_block_teacher(user, course, block):
     if not _can_access_course_hub(user):
         return False
     return getattr(user.userprofile, f'block_{block}_id', None) == course.id
-
-
-def _serialize_roster_student(profile):
-    """Return only the public identity fields needed by the course roster."""
-    user = profile.user
-    full_name = user.get_full_name().strip() or user.username
-    initials = ''.join(part[0] for part in full_name.split()[:2]).upper()
-    picture = profile.profile_picture
-    picture_url = None
-    if picture and picture.name != 'profile_pictures/default.png':
-        picture_url = safe_file_url(picture)
-    return {
-        'username': user.username,
-        'full_name': full_name,
-        'initials': initials,
-        'profile_picture_url': picture_url,
-    }
 
 
 @login_required
@@ -124,10 +107,10 @@ def course_page(request, course_id):
             'code': block.code,
             'reports': reports_by_block[block.code],
             'can_contribute': _can_manage_block_teacher(request.user, course, block.code),
-            'students': [
-                _serialize_roster_student(student)
-                for student in students_by_block[block.code]
-            ],
+            'students': CourseRosterStudentSerializer(
+                students_by_block[block.code],
+                many=True,
+            ).data,
         }
         for block in course_blocks
     ]
