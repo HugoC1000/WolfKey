@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
 from django.utils.html import format_html
-from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, SavedPost, Solution, Course, CourseAlias, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, SavedSolution, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource
+from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, Solution, Course, CourseAlias, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource
 
 
 class StandardPostInline(admin.StackedInline):
@@ -83,10 +83,8 @@ class PostAdmin(admin.ModelAdmin):
 admin.site.register(Post, PostAdmin)
 admin.site.register(Poll, PollAdmin)
 admin.site.register(File)
-admin.site.register(SavedPost)
 admin.site.register(FollowedPost)
 admin.site.register(Solution)
-admin.site.register(SavedSolution)
 admin.site.register(UserCourseExperience)
 admin.site.register(UserCourseHelp)
 admin.site.register(UpdateAnnouncement)

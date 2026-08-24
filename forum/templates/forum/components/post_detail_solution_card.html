@@ -38,15 +38,6 @@
         </button>
         {% endif %}
         
-        <!-- Solution Saving-->
-        {% if user.is_authenticated %}
-        <button type="button" 
-                class="bookmark-button {% if solution|is_saved_solution:user %}active{% endif %}" 
-                onclick="solutionInteractions.toggleSaveSolution('{{ solution.id }}')"
-                title="{% if solution|is_saved_solution:user %}Unsave{% else %}Save{% endif %}">
-            <i class="{% if solution|is_saved_solution:user %}fas{% else %}far{% endif %} fa-bookmark mt-2"></i>
-        </button>
-        {% endif %}
     </div>
 
     <!-- Solution Content -->

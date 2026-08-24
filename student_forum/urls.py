@@ -71,8 +71,6 @@ from forum.services.course_services import (
 )
 from forum.views.save_views import (
     followed_posts,
-    save_solution,
-    saved_solutions,
 )
 from forum.views.notification_views import (
     all_notifications,
@@ -294,13 +292,11 @@ urlpatterns = [
     path('mentions/search/', mention_search, name='mention_search'),
     path('api/mentions/autocomplete/', mentions_autocomplete_api, name='api_mentions_autocomplete'),
 
-    # Saved posts URLs
+    # Post follow URLs
     path('followed-posts/', followed_posts, name='followed_posts'),
     path('my-posts/', my_posts, name='my_posts'),
     path('follow-post/<int:post_id>/', follow_post, name='follow_post'),
     path('unfollow-post/<int:post_id>/', unfollow_post, name='unfollow_post'),
-    path('save-solution/<int:solution_id>/', save_solution, name='save_solution'),
-    path('saved-solutions/', saved_solutions, name='saved_solutions'),
 
     # API URLs
     path('api/acknowledge-update/', acknowledge_update, name='acknowledge_update'),

@@ -51,7 +51,6 @@ class SolutionSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
     is_accepted = serializers.SerializerMethodField()
-    is_saved = serializers.SerializerMethodField()
     processed_content = serializers.SerializerMethodField()
     mentions = serializers.SerializerMethodField()
     
@@ -59,7 +58,7 @@ class SolutionSerializer(serializers.ModelSerializer):
         model = Solution
         fields = [
             'id', 'content', 'processed_content', 'author', 'created_at', 
-            'upvotes', 'downvotes', 'comments', 'is_accepted', 'is_saved', 'mentions'
+            'upvotes', 'downvotes', 'comments', 'is_accepted', 'mentions'
         ]
     
     def get_author(self, obj):
@@ -99,14 +98,6 @@ class SolutionSerializer(serializers.ModelSerializer):
     def get_is_accepted(self, obj):
         return hasattr(obj, 'accepted_for') and obj.accepted_for is not None
     
-    def get_is_saved(self, obj):
-        """Check if the current user has saved this solution"""
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            from forum.models import SavedSolution
-            return SavedSolution.objects.filter(user=request.user, solution=obj).exists()
-        return False
-
     def get_mentions(self, obj):
         """Get all mentions in this solution"""
         from forum.services.mention_service import fetch_mentions_for_content

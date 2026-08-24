@@ -159,49 +159,4 @@ export class SolutionInteractions {
         }
     }
 
-    async toggleSaveSolution(solutionId) {
-        try {
-            const response = await fetch(`/save-solution/${solutionId}/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': this.csrfToken,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            const data = await response.json();
-            
-            // Handle messages from server
-            if (data.messages) {
-                data.messages.forEach(messageData => {
-                    showMessage(messageData.message, messageData.tags);
-                });
-            }
-
-            if (response.ok) {
-                this.updateSaveUI(solutionId, data);
-            }
-            
-            return data;
-        } catch (error) {
-            console.error('Save solution error:', error);
-            showMessage('Failed to save solution', 'error');
-            // Don't rethrow - error is handled
-        }
-    }
-
-    updateSaveUI(solutionId, data) {
-        const solutionContainer = document.querySelector(`[data-solution-id="${solutionId}"]`);
-        if (!solutionContainer) return;
-
-        const saveButton = solutionContainer.querySelector('.bookmark-button');
-        if (saveButton) {
-            saveButton.classList.toggle('active', data.saved);
-            const icon = saveButton.querySelector('i');
-            if (icon) {
-                icon.className = data.saved ? 'fas fa-bookmark' : 'far fa-bookmark';
-            }
-            saveButton.title = data.saved ? 'Unsave' : 'Save';
-        }
-    }
 }
