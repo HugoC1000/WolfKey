@@ -6,8 +6,9 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from forum.models import (
     User, Post, Course, Solution, Comment, Notification,
-    FollowedPost, Poll, PollOption, PollVote, PostLike,
+    Block, CourseTeacher, FollowedPost, Poll, PollOption, PollVote, PostLike,
 )
+from forum.services.course_services import course_category_color
 from forum.services.utils import process_post_preview
 from forum.services.notification_services import all_notifications_service
 from forum.serializers import (
@@ -101,6 +102,157 @@ class GeneralURLTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Hidden From Anonymous')
         self.assertNotContains(response, 'Visible To Anonymous')
+
+    def test_courses_use_their_category_hex_color(self):
+        self.assertEqual(course_category_color('Math'), '#E2C440')
+        self.assertNotEqual(course_category_color('Humanities'), course_category_color('Misc'))
+        self.assertNotEqual(course_category_color('Study Hall'), course_category_color('Misc'))
+
+
+class CoursePageTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            password='coursepass', school_email='course@wpga.ca', first_name='Course', last_name='Member',
+        )
+        self.course = Course.objects.create(name='Physics 12', category='Science')
+        self.block_1a = Block.objects.create(code='1A')
+        self.block_2e = Block.objects.create(code='2E')
+        self.course.blocks.add(self.block_1a, self.block_2e)
+        self.user.userprofile.block_1A = self.course
+        self.user.userprofile.save(update_fields=['block_1A'])
+        self.post = Post.objects.create(title='Lab help', content={'blocks': []}, author=self.user)
+        self.post.courses.add(self.course)
+        self.client.login(school_email='course@wpga.ca', password='coursepass')
+
+    def test_course_page_prompts_for_schedule_when_none_is_saved(self):
+        self.user.userprofile.block_1A = None
+        self.user.userprofile.save(update_fields=['block_1A'])
+
+        response = self.client.get(reverse('course_page', kwargs={'course_id': self.course.id}))
+
+        self.assertContains(response, 'Your schedule has not been uploaded yet.')
+        self.assertNotContains(response, 'Students &amp; teachers by block')
+
+    def test_course_page_prompts_to_enable_schedule_comparison(self):
+        self.user.userprofile.allow_schedule_comparison = False
+        self.user.userprofile.save(update_fields=['allow_schedule_comparison'])
+
+        response = self.client.get(reverse('course_page', kwargs={'course_id': self.course.id}))
+
+        self.assertContains(response, 'Schedule comparison is turned off.')
+        self.assertNotContains(response, 'Students &amp; teachers by block')
+
+    def test_course_page_shows_related_posts_and_block_grid(self):
+        response = self.client.get(reverse('course_page', kwargs={'course_id': self.course.id}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Physics 12')
+        self.assertContains(response, 'Lab help')
+        self.assertContains(response, '1A')
+        self.assertContains(response, '2E')
+        self.assertNotContains(response, '1B')
+        self.assertEqual(
+            response.context['roster_blocks'],
+            [
+                {
+                    'code': '1A',
+                    'reports': [],
+                    'can_contribute': True,
+                    'students': [{
+                        'username': self.user.username,
+                        'full_name': 'Course Member',
+                        'initials': 'CM',
+                        'profile_picture_url': None,
+                    }],
+                },
+                {
+                    'code': '2E',
+                    'reports': [],
+                    'can_contribute': False,
+                    'students': [],
+                },
+            ],
+        )
+
+    def test_add_teacher_report_without_creating_duplicates(self):
+        response = self.client.post(
+            reverse('contribute_course_teacher', kwargs={'course_id': self.course.id}),
+            {'block': '1A', 'teacher_name': 'Ms. Rivera'},
+        )
+        self.assertRedirects(response, reverse('course_page', kwargs={'course_id': self.course.id}))
+        report = CourseTeacher.objects.get(course=self.course, block='1A')
+        self.assertEqual(report.teacher_name, 'Ms. Rivera')
+
+        response = self.client.post(
+            reverse('contribute_course_teacher', kwargs={'course_id': self.course.id}),
+            {'block': '1A', 'teacher_name': 'Ms. Rivera'},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(CourseTeacher.objects.filter(course=self.course, block='1A').count(), 1)
+
+    def test_course_page_renders_teacher_edit_control(self):
+        report = CourseTeacher.objects.create(
+            course=self.course,
+            block='1A',
+            teacher_name="Ms. O'Connor",
+        )
+
+        response = self.client.get(reverse('course_page', kwargs={'course_id': self.course.id}))
+
+        self.assertContains(
+            response,
+            reverse('edit_course_teacher', kwargs={
+                'course_id': self.course.id,
+                'report_id': report.id,
+            }),
+        )
+        self.assertContains(response, 'data-teacher-name="Ms. O&#x27;Connor"')
+        self.assertNotContains(response, 'endorse-button')
+
+    def test_non_class_member_cannot_change_teacher_information(self):
+        outsider = User.objects.create_user(
+            password='outsiderpass',
+            school_email='outsider@wpga.ca',
+            first_name='Outside',
+            last_name='Member',
+        )
+        other_course = Course.objects.create(name='Other Course')
+        outsider.userprofile.block_1A = other_course
+        outsider.userprofile.save(update_fields=['block_1A'])
+        self.client.login(school_email='outsider@wpga.ca', password='outsiderpass')
+
+        add_response = self.client.post(
+            reverse('contribute_course_teacher', kwargs={'course_id': self.course.id}),
+            {'block': '1A', 'teacher_name': 'Ms. Rivera'},
+        )
+        self.assertEqual(add_response.status_code, 403)
+
+        report = CourseTeacher.objects.create(
+            course=self.course,
+            block='1A',
+            teacher_name='Ms. Rivera',
+        )
+        edit_response = self.client.post(
+            reverse('edit_course_teacher', kwargs={
+                'course_id': self.course.id,
+                'report_id': report.id,
+            }),
+            {'teacher_name': 'Changed Name'},
+        )
+
+        self.assertEqual(edit_response.status_code, 403)
+        report.refresh_from_db()
+        self.assertEqual(report.teacher_name, 'Ms. Rivera')
+
+    def test_teacher_name_can_be_corrected_without_losing_the_report(self):
+        report = CourseTeacher.objects.create(course=self.course, block='1A', teacher_name='Ms River')
+        response = self.client.post(
+            reverse('edit_course_teacher', kwargs={'course_id': self.course.id, 'report_id': report.id}),
+            {'teacher_name': 'Ms. Rivera'},
+        )
+        self.assertRedirects(response, reverse('course_page', kwargs={'course_id': self.course.id}))
+        report.refresh_from_db()
+        self.assertEqual(report.teacher_name, 'Ms. Rivera')
 
 
 class SolutionFeatureTests(TestCase):

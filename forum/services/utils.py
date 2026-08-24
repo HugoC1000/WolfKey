@@ -10,7 +10,7 @@ from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
-from forum.services.course_services import get_user_courses
+from forum.services.course_services import course_category_class, course_category_color, get_user_courses
 from PIL import Image
 from io import BytesIO
 from urllib.parse import urlparse
@@ -511,7 +511,10 @@ def add_course_context(post, experienced_courses=None, help_needed_courses=None)
     post.course_context = []
     for course in post.courses.all():
         post.course_context.append({
+            'id': course.id,
             'name': course.name,
+            'color': course_category_color(course.category),
+            'category_class': course_category_class(course.category),
             'is_experienced': course in (experienced_courses or []),
             'needs_help': course in (help_needed_courses or [])
         })
