@@ -10,7 +10,7 @@
 {% block content %}
 <div class="course-page">
     <section class="course-hero course-category-{{ course_category_class }}" style="--course-color: {{ course_color }};">
-        <a href="{% url 'all_posts' %}" class="course-back"><i class="bi bi-arrow-left"></i> Explore</a>
+        <a href="{% url 'timetable_assigner' %}" class="course-back"><i class="bi bi-arrow-left"></i> Back to Atlas</a>
         <div class="course-hero-orb orb-one"></div><div class="course-hero-orb orb-two"></div>
         <div class="course-hero-content">
             <span class="course-eyebrow">Class space · {{ course.category }}</span>
