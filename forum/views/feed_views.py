@@ -26,7 +26,7 @@ def for_you(request):
     page = request.GET.get('page', 1)
     query = request.GET.get('q', '')
 
-    page_obj = get_all_posts(request.user, query, page)
+    page_obj = get_all_posts(request.user, query, page) if query else get_for_you_posts(request.user, page)
     posts = list(page_obj.object_list)
     posts_data = PostListSerializer(posts, many=True, context={'request': request}).data
     attach_poll_data_to_posts(posts, posts_data)

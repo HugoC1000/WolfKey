@@ -244,7 +244,7 @@ class UserSummarySerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'first_name', 'last_name', 'full_name',
             'school_email', 'profile_picture_url', 'grade_level', 'is_teacher',
-            'userprofile',
+            'is_community_account', 'userprofile',
         ]
     
     def get_full_name(self, obj):
@@ -276,21 +276,37 @@ class UserSerializer(UserSummarySerializer):
 
 class FeedUserSerializer(UserSummarySerializer):
     """Small author representation for post cards and feed responses."""
+    class Meta(UserSummarySerializer.Meta):
+        fields = ['id', 'username', 'first_name', 'last_name', 'full_name',
+                  'profile_picture_url', 'userprofile', 'is_teacher', 'is_community_account']
+
+
+class CommunityAccountSerializer(serializers.ModelSerializer):
+    """Public Community-directory data plus viewer-specific membership state."""
     full_name = serializers.SerializerMethodField()
+    bio = serializers.CharField(source='userprofile.bio', read_only=True)
     profile_picture_url = serializers.SerializerMethodField()
-    userprofile = FeedUserProfileSerializer(read_only=True)
+    is_following = serializers.SerializerMethodField()
+    email_updates_enabled = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'full_name',
-                  'profile_picture_url', 'userprofile', 'is_teacher']
+        fields = [
+            'id', 'username', 'full_name', 'bio', 'profile_picture_url',
+            'is_following', 'email_updates_enabled',
+        ]
 
     def get_full_name(self, obj):
         return obj.get_full_name()
 
     def get_profile_picture_url(self, obj):
-        profile = getattr(obj, 'userprofile', None)
-        return safe_file_url(profile.profile_picture if profile else None)
+        return safe_file_url(obj.userprofile.profile_picture)
+
+    def get_is_following(self, obj):
+        return obj.id in self.context.get('followed_community_ids', set())
+
+    def get_email_updates_enabled(self, obj):
+        return obj.id in self.context.get('subscribed_community_ids', set())
 
 
 class PrivateUserProfileSerializer(UserProfileSerializer):

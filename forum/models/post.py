@@ -12,10 +12,19 @@ class Post(models.Model):
         ('standard', 'Standard Post'),
         ('poll', 'Poll'),
     ]
+    SCOPE_CHOICES = [
+        ('school', 'School'),
+        ('community', 'Community'),
+    ]
     
     title = models.CharField(max_length=200)
     content = models.JSONField()
     post_type = models.CharField(max_length=20, choices=POST_TYPE_CHOICES, default='standard')
+    scope = models.CharField(max_length=20, choices=SCOPE_CHOICES, default='school')
+    is_pinned_in_community = models.BooleanField(
+        default=False,
+        help_text="Show this community post before unpinned posts on the Community page only."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     last_activity_at = models.DateTimeField(null=True, blank=True)
     author = models.ForeignKey('forum.User', on_delete=models.CASCADE, null=True, blank=True)

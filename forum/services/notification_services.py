@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.db.models import Q
-from forum.models import UserCourseExperience, UserProfile, Notification, Post, Solution, Comment, User
+from forum.models import UserCourseExperience, UserProfile, Notification, Post, Solution, Comment, User, CommunityFollow, CommunitySubscription
 from forum.services.utils import process_post_preview
 import logging
 from pathlib import Path
@@ -113,6 +113,37 @@ def send_course_notifications_service(post, courses):
             )
     
     logger.info(f"Sent notifications for post {post.id} to {len(notified_users)} users (experienced + current students)")
+
+
+def send_community_post_notifications_service(post):
+    """Notify people who follow a community and email its mailing-list subscribers."""
+    community = post.author
+    follower_user_ids = set(CommunityFollow.objects.filter(community=community).values_list('user_id', flat=True))
+    mailing_list_user_ids = set(
+        CommunitySubscription.objects.filter(community=community, is_active=True)
+        .values_list('user_id', flat=True)
+    )
+    recipients = User.objects.filter(id__in=follower_user_ids | mailing_list_user_ids)
+    for recipient in recipients:
+        if recipient == community:
+            continue
+        receives_email = recipient.id in mailing_list_user_ids and bool(recipient.personal_email)
+        email_subject = f'New post from {community.get_full_name()}: {post.title}' if receives_email else None
+        email_message = (
+            f"Hi {recipient.get_full_name()},\n\n{community.get_full_name()} posted in WolfKey Community:\n"
+            f"{post.title}\n\nView it: {settings.SITE_URL}{post.get_absolute_url()}\n\n"
+            "You can turn off mailing-list emails from the Community page."
+        ) if receives_email else None
+        send_notification_service(
+            recipient=recipient,
+            sender=community,
+            notification_type='community',
+            message=f'{community.get_full_name()} posted: {post.title}',
+            url=post.get_absolute_url(),
+            post=post,
+            email_subject=email_subject,
+            email_message=email_message,
+        )
 
 def send_solution_notification_service(solution):
     post = solution.post
@@ -235,7 +266,7 @@ def send_notification_service(
         
         # Create push notification title and body
         push_title = f"New {notification_type.title()}"
-        if notification_type == 'post':
+        if notification_type in ('post', 'community'):
             push_title = post.title
         elif notification_type == 'solution':
             push_title = "New Solution for your question"

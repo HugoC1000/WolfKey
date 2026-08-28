@@ -9,6 +9,9 @@ def authenticate_user(request, school_email, password):
     except User.DoesNotExist:
         return None, "No account found with this school email"
 
+    if not user.is_active:
+        return None, "This account is inactive. Contact WolfKey support."
+
     if not user.check_password(password):
         return None, "Invalid password"
 

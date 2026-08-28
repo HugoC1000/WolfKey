@@ -18,6 +18,7 @@ from forum.services.post_services import (
     unlike_post_service,
     follow_post_service,
     unfollow_post_service,
+    toggle_community_post_pin_service,
     get_post_share_info_service
 )
 from forum.serializers import (
@@ -187,6 +188,16 @@ def delete_post_api(request, post_id):
         return Response({'message': 'Post deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def toggle_community_post_pin_api(request, post_id):
+    result = toggle_community_post_pin_service(request.user, post_id)
+    if 'error' in result:
+        return Response(result, status=status.HTTP_403_FORBIDDEN)
+    return Response(result)
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])

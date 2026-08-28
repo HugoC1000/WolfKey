@@ -13,6 +13,7 @@ class Notification(models.Model):
         ('mention', 'Mention'),
         ('channel', 'Channel Mention'),
         ('everyone', 'Everyone Mention'),
+        ('community', 'Community Post'),
     )
     
     recipient = models.ForeignKey('forum.User', on_delete=models.CASCADE, related_name='notifications')

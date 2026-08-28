@@ -17,7 +17,8 @@ from forum.services.post_services import (
     like_post_service,
     unlike_post_service,
     follow_post_service,
-    unfollow_post_service
+    unfollow_post_service,
+    toggle_community_post_pin_service,
 )
 from forum.services.notification_services import mark_notifications_by_post_service
 
@@ -235,6 +236,17 @@ def delete_post(request, post_id):
         return redirect('all_posts')
         
     return render(request, 'forum/delete_confirm.html', {'post': post})
+
+
+@login_required
+def toggle_community_post_pin(request, post_id):
+    if request.method != 'POST':
+        return HttpResponseForbidden('POST required')
+    result = toggle_community_post_pin_service(request.user, post_id)
+    if 'error' in result:
+        return HttpResponseForbidden(result['error'])
+    messages.success(request, 'Post pinned in Community.' if result['pinned'] else 'Post unpinned from Community.')
+    return redirect('post_detail', post_id=post_id)
 
 @login_required
 def like_post(request, post_id):

@@ -187,6 +187,7 @@ def api_verify_token(request):
                     'full_name': user.get_full_name(),
                     'username': user.username,
                     'school_email': user.school_email,
+                    'is_community_account': user.is_community_account,
                     'profile': {
                         'is_moderator': profile.is_moderator,
                         'points': profile.points,

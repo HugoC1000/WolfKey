@@ -2,7 +2,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import F, Case, When, IntegerField
 from forum.models import Post, Course, PostLike, FollowedPost, Poll, PollOption
 from forum.services.utils import detect_bad_words, selective_quote_replace
-from forum.services.notification_services import send_course_notifications_service
+from forum.services.notification_services import send_course_notifications_service, send_community_post_notifications_service
 from forum.services.mention_service import update_mentions
 import json
 import logging
@@ -97,6 +97,8 @@ def get_post_detail_service(post_id, user=None):
 
 def create_post_service(user, data):
     try:
+        if not user.is_active:
+            return {'error': 'This account is inactive and cannot create posts.'}
         # Check if this is a poll
         poll_data = data.get('poll_data')
         if poll_data and isinstance(poll_data, dict) and poll_data.get('isPoll'):
@@ -115,13 +117,15 @@ def create_post_service(user, data):
 
         detect_bad_words(content)
         
+        is_community_post = user.is_community_account
         post = Post(
             author=user,
             title=data.get('title'),
             content=content,
             post_type='standard',
-            is_anonymous=data.get("is_anonymous"),
-            allow_teacher=data.get("allow_teacher", False),
+            scope='community' if is_community_post else 'school',
+            is_anonymous=False if is_community_post else data.get("is_anonymous"),
+            allow_teacher=True if is_community_post else data.get("allow_teacher", False),
         )
         post.save()
 
@@ -132,6 +136,9 @@ def create_post_service(user, data):
             courses = Course.objects.filter(id__in=course_ids)
             post.courses.set(courses)
             send_course_notifications_service(post, courses)
+
+        if is_community_post:
+            send_community_post_notifications_service(post)
 
         return {
             'id': post.id,
@@ -172,6 +179,14 @@ def update_post_service(user, post_id, data):
             courses = Course.objects.filter(id__in=course_ids)
             post.courses.set(courses)
 
+        # Community posts keep the same invariants on edits as on creation,
+        # regardless of which web or API client submitted the update.
+        if user.is_community_account:
+            post.scope = 'community'
+            post.is_anonymous = False
+            post.allow_teacher = True
+            post.courses.clear()
+
         post.save()
 
         # Update mentions if content was updated
@@ -195,6 +210,16 @@ def delete_post_service(user, post_id):
         return {'message': 'Post deleted successfully'}
     except Exception as e:
         return {'error': str(e)}
+
+
+def toggle_community_post_pin_service(user, post_id):
+    """Pin only the author's community post; Home ordering never reads this flag."""
+    post = get_object_or_404(Post, id=post_id)
+    if post.author != user or not user.is_community_account or post.scope != 'community':
+        return {'error': 'Only the owning community account can pin this post.'}
+    post.is_pinned_in_community = not post.is_pinned_in_community
+    post.save(update_fields=['is_pinned_in_community'])
+    return {'pinned': post.is_pinned_in_community}
 
 def like_post_service(user, post_id):
     """
@@ -286,17 +311,19 @@ def unfollow_post_service(user, post_id):
 
 def get_post_share_info_service(post_id, request):
     """
-    Service to get post share information
+    Service to get post share information, enforcing normal post visibility.
     """
     try:
         post = get_object_or_404(Post, id=post_id)
-        
+
         # Check teacher visibility
-        _check_teacher_visibility(request.user if request.user.is_authenticated else None, post)
-        
-        # Build absolute URL for the post
-        post_url = request.build_absolute_uri(f'/post/{post_id}/')
-        
+        request_user = request.user if request and request.user.is_authenticated else None
+        _check_teacher_visibility(request_user, post)
+
+        relative_url = post.get_absolute_url()
+        post_url = request.build_absolute_uri(relative_url) if request else relative_url
+        preview_text = getattr(post, 'preview_text', '') or post.title or ''
+
         return {
             'success': True,
             'post_id': post.id,
@@ -304,34 +331,7 @@ def get_post_share_info_service(post_id, request):
             'post_url': post_url,
             'author': post.author.get_full_name() if not post.is_anonymous else 'Anonymous',
             'created_at': post.created_at.isoformat(),
-            'preview_text': post.preview_text[:250] if hasattr(post, 'preview_text') else (post.title[:250] if post.title else '')
-        }
-    except Exception as e:
-        logger.error(f"Error getting share info for post {post_id}: {str(e)}")
-        return {'error': str(e)}
-
-def get_post_share_info_service(post_id, request):
-    """
-    Service to get post share information including URL
-    """
-    try:
-        post = get_object_or_404(Post, id=post_id)
-        
-        # Build absolute URL for sharing
-        if request:
-            base_url = request.build_absolute_uri('/').rstrip('/')
-            post_url = f"{base_url}/posts/{post_id}/"
-        else:
-            post_url = f"/posts/{post_id}/"
-        
-        return {
-            'success': True,
-            'post_id': post_id,
-            'post_title': post.title,
-            'post_url': post_url,
-            'author': post.author.get_full_name() if not post.is_anonymous else 'Anonymous',
-            'created_at': post.created_at.isoformat(),
-            'preview_text': post.preview_text[:200] + '...' if len(post.preview_text) > 200 else post.preview_text
+            'preview_text': preview_text[:250],
         }
     except Exception as e:
         logger.error(f"Error getting share info for post {post_id}: {str(e)}")
@@ -356,13 +356,15 @@ def create_poll_service(user, data):
             return {'error': 'At least 2 answers are required for a poll'}
 
         # Create poll
+        is_community_post = user.is_community_account
         poll = Poll(
             author=user,
             title=title,
             content=content,
             post_type='poll',
-            is_anonymous=data.get('is_anonymous', False),
-            allow_teacher=data.get('allow_teacher', False),
+            scope='community' if is_community_post else 'school',
+            is_anonymous=False if is_community_post else data.get('is_anonymous', False),
+            allow_teacher=True if is_community_post else data.get('allow_teacher', False),
             allow_multiple_choice=data.get('allowMultiple', False),
             is_public_voting=data.get('isPublicVoting', True)
         )
@@ -379,6 +381,9 @@ def create_poll_service(user, data):
             courses = Course.objects.filter(id__in=course_ids)
             poll.courses.set(courses)
             send_course_notifications_service(poll, courses)
+
+        if is_community_post:
+            send_community_post_notifications_service(poll)
 
         return {
             'id': poll.id,

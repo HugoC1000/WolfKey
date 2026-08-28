@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
 from django.utils.html import format_html
-from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, Solution, Course, CourseAlias, CourseTeacher, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource
+from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, Solution, Course, CourseAlias, CourseTeacher, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource, CommunityFollow, CommunitySubscription
 
 
 class StandardPostInline(admin.StackedInline):
@@ -19,8 +19,8 @@ class PollOptionInline(admin.TabularInline):
 
 class PollAdmin(admin.ModelAdmin):
     inlines = [PollOptionInline]
-    list_display = ('title', 'author', 'created_at', 'is_public_voting', 'allow_multiple_choice')
-    list_filter = ('is_public_voting', 'allow_multiple_choice', 'created_at')
+    list_display = ('title', 'author', 'scope', 'is_pinned_in_community', 'created_at', 'is_public_voting', 'allow_multiple_choice')
+    list_filter = ('scope', 'is_pinned_in_community', 'is_public_voting', 'allow_multiple_choice', 'created_at')
     search_fields = ('title', 'author__school_email', 'author__first_name', 'author__last_name')
     readonly_fields = ('created_at',)
 
@@ -32,7 +32,7 @@ class PollAdmin(admin.ModelAdmin):
             'fields': ('is_public_voting', 'allow_multiple_choice')
         }),
         ('Post Settings', {
-            'fields': ('is_anonymous', 'allow_teacher', 'solved')
+            'fields': ('scope', 'is_pinned_in_community', 'is_anonymous', 'allow_teacher', 'solved')
         }),
         ('Metadata', {
             'fields': ('created_at', 'last_activity_at', 'views', 'courses', 'accepted_solution'),
@@ -51,8 +51,8 @@ class PollInline(admin.StackedInline):
 
 class PostAdmin(admin.ModelAdmin):
     inlines = [StandardPostInline, PollInline]
-    list_display = ('title', 'author', 'created_at', 'get_post_type')
-    list_filter = ('created_at', 'is_anonymous', 'allow_teacher')
+    list_display = ('title', 'author', 'scope', 'is_pinned_in_community', 'created_at', 'get_post_type')
+    list_filter = ('scope', 'is_pinned_in_community', 'created_at', 'is_anonymous', 'allow_teacher')
     search_fields = ('title', 'author__school_email', 'author__first_name', 'author__last_name')
     readonly_fields = ('created_at', 'search_vector')
     
@@ -61,7 +61,7 @@ class PostAdmin(admin.ModelAdmin):
             'fields': ('title', 'content', 'author')
         }),
         ('Post Settings', {
-            'fields': ('is_anonymous', 'allow_teacher', 'solved')
+            'fields': ('scope', 'is_pinned_in_community', 'is_anonymous', 'allow_teacher', 'solved')
         }),
         ('Metadata', {
             'fields': ('created_at', 'last_activity_at', 'views', 'courses', 'accepted_solution'),
@@ -126,7 +126,7 @@ class UserProfileInline(admin.StackedInline):
 
 class UserAdmin(admin.ModelAdmin):
     inlines = [UserProfileInline]
-    list_display = ('school_email', 'first_name', 'last_name', 'is_teacher', 'volunteer_coordinator', 'is_staff', 'is_superuser')
+    list_display = ('school_email', 'first_name', 'last_name', 'is_community_account', 'is_active', 'is_teacher', 'volunteer_coordinator', 'is_staff', 'is_superuser')
     search_fields = ('school_email', 'first_name', 'last_name')
     ordering = ('school_email',)
     
@@ -135,7 +135,7 @@ class UserAdmin(admin.ModelAdmin):
             'fields': ('school_email', 'password')
         }),
         ('Personal info', {
-            'fields': ('first_name', 'last_name', 'personal_email', 'student_id', 'volunteer_coordinator', 'phone_number', 'is_teacher')
+            'fields': ('first_name', 'last_name', 'personal_email', 'student_id', 'volunteer_coordinator', 'phone_number', 'is_teacher', 'is_community_account')
         }),
         ('Permissions', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')
@@ -155,6 +155,8 @@ class UserAdmin(admin.ModelAdmin):
         return super().get_inline_instances(request, obj)
 
 admin.site.register(User, UserAdmin)
+admin.site.register(CommunityFollow)
+admin.site.register(CommunitySubscription)
 
 class CourseAliasInline(admin.TabularInline):
     model = CourseAlias

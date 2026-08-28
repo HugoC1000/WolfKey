@@ -24,6 +24,15 @@
             <button class="button add-answer-button"><a href="#solution-form-container">Add answer</a></button>
             {% endif %}
             {% if user.is_authenticated and post.author == user %}
+            {% if post.scope == 'community' and post.author == user and user.is_community_account %}
+            <form method="post" action="{% url 'toggle_community_post_pin' post.id %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm px-3">
+                    <i class="bi bi-pin-angle{% if post.is_pinned_in_community %}-fill{% endif %}"></i>
+                    {% if post.is_pinned_in_community %}Unpin from Community{% else %}Pin in Community{% endif %}
+                </button>
+            </form>
+            {% endif %}
             <a href="{% url 'edit_post' post.id %}" class="btn btn-primary btn-sm rounded-pill shadow-sm px-3">
                 <i class="fas fa-edit"></i> Edit
             </a>

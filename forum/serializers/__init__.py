@@ -9,6 +9,7 @@ from .user import (
     AnonymousAuthorSerializer,
     FeedUserSerializer,
     FeedUserProfileSerializer,
+    CommunityAccountSerializer,
     UserScheduleSerializer,
     CourseRosterStudentSerializer,
 )
@@ -44,6 +45,7 @@ __all__ = [
     'AnonymousAuthorSerializer',
     'FeedUserSerializer',
     'FeedUserProfileSerializer',
+    'CommunityAccountSerializer',
     'UserScheduleSerializer',
     'CourseRosterStudentSerializer',
     # Post serializers
