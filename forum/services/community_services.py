@@ -1,7 +1,9 @@
+from datetime import date
+
 from django.db import transaction
 from django.utils import timezone
 
-from forum.models import CommunityFollow, CommunitySubscription, User
+from forum.models import CommunityFollow, CommunityLunch, CommunitySubscription, User
 
 
 def get_community_directory(user):
@@ -30,6 +32,124 @@ def _get_available_community(community_id):
         is_community_account=True,
         is_active=True,
     ).first()
+
+
+def _get_owned_active_community(user):
+    if not user.is_active or not user.is_community_account:
+        return None
+    return user
+
+
+def is_following_community(user, community):
+    return bool(
+        user.is_authenticated
+        and user != community
+        and community.is_community_account
+        and community.is_active
+        and CommunityFollow.objects.filter(user=user, community=community).exists()
+    )
+
+
+def _parse_lunch_date(value):
+    if isinstance(value, date):
+        lunch_date = value
+    elif isinstance(value, str):
+        try:
+            lunch_date = date.fromisoformat(value)
+        except ValueError:
+            return None
+    else:
+        return None
+    return lunch_date if lunch_date >= timezone.localdate() else None
+
+
+def cleanup_expired_community_lunches():
+    """Delete lunch entries whose Vancouver calendar date has passed."""
+    deleted, _ = CommunityLunch.objects.filter(date__lt=timezone.localdate()).delete()
+    return deleted
+
+
+def _normalize_location(value, required=True):
+    location = str(value or '').strip()
+    if (required and not location) or len(location) > 120:
+        return None
+    return location
+
+
+def get_community_lunches_for_date(target_date, is_school_day):
+    """Return active communities meeting on a school date, ready for serialization."""
+    if not is_school_day or target_date < timezone.localdate():
+        return CommunityLunch.objects.none()
+    return CommunityLunch.objects.filter(
+        date=target_date,
+        community__is_community_account=True,
+        community__is_active=True,
+    ).select_related('community', 'community__userprofile')
+
+
+def get_owned_community_lunches(user):
+    community = _get_owned_active_community(user)
+    if not community:
+        return {'error': 'Only active community accounts can manage lunch dates.'}
+    lunches = CommunityLunch.objects.filter(
+        community=community,
+        date__gte=timezone.localdate(),
+    ).select_related(
+        'community', 'community__userprofile'
+    )
+    return {'community': community, 'lunches': lunches}
+
+
+@transaction.atomic
+def add_community_lunch_service(user, date_value, location):
+    community = _get_owned_active_community(user)
+    if not community:
+        return {'error': 'Only active community accounts can manage lunch dates.'}
+    lunch_date = _parse_lunch_date(date_value)
+    if not lunch_date:
+        return {'error': 'Choose today or a future date in YYYY-MM-DD format.'}
+    location = _normalize_location(location)
+    if location is None:
+        return {'error': 'Enter a location of 120 characters or fewer.'}
+    lunch, created = CommunityLunch.objects.get_or_create(
+        community=community,
+        date=lunch_date,
+        defaults={'location': location},
+    )
+    if not created and lunch.location != location:
+        lunch.location = location
+        lunch.save(update_fields=['location'])
+    return {'lunch': lunch, 'created': created}
+
+
+@transaction.atomic
+def update_community_lunch_service(user, lunch_id, location):
+    community = _get_owned_active_community(user)
+    if not community:
+        return {'error': 'Only active community accounts can manage lunch dates.'}
+    location = _normalize_location(location)
+    if location is None:
+        return {'error': 'Enter a location of 120 characters or fewer.'}
+    lunch = CommunityLunch.objects.filter(id=lunch_id, community=community).first()
+    if not lunch:
+        return {'error': 'Lunch date not found.'}
+    lunch.location = location
+    lunch.save(update_fields=['location'])
+    return {'lunch': lunch}
+
+
+@transaction.atomic
+def delete_community_lunch_service(user, lunch_id):
+    community = _get_owned_active_community(user)
+    if not community:
+        return {'error': 'Only active community accounts can manage lunch dates.'}
+    deleted, _ = CommunityLunch.objects.filter(
+        id=lunch_id,
+        community=community,
+    ).delete()
+    if not deleted:
+        return {'error': 'Lunch date not found.'}
+    return {'deleted': True}
 
 
 @transaction.atomic

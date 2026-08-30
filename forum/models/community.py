@@ -37,3 +37,28 @@ class CommunitySubscription(models.Model):
 
     def __str__(self):
         return f"{self.user} mailing-list subscription to {self.community}"
+
+
+class CommunityLunch(models.Model):
+    """A date on which a community account meets during lunch."""
+    community = models.ForeignKey(
+        'forum.User',
+        on_delete=models.CASCADE,
+        related_name='community_lunches',
+        limit_choices_to={'is_community_account': True},
+    )
+    date = models.DateField(db_index=True)
+    location = models.CharField(max_length=120)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=('community', 'date'),
+                name='unique_community_lunch_date',
+            ),
+        ]
+        ordering = ['date', 'community__first_name', 'community__last_name', 'community__username']
+
+    def __str__(self):
+        return f"{self.community.get_full_name()} lunch on {self.date.isoformat()}"

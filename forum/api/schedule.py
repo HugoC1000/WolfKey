@@ -12,6 +12,7 @@ from forum.services.schedule_services import (
     is_ceremonial_uniform_required,
     process_schedule_for_user,
 )
+from forum.serializers import serialize_community_lunches_for_schedule
 
 
 @api_view(['GET'])
@@ -82,7 +83,8 @@ def get_daily_schedule(request, target_date):
             'blocks': schedule['blocks'],
             'times': schedule['times'],
             'early_dismissal': schedule.get('early_dismissal', False),
-            'late_start': schedule.get('late_start', False)
+            'late_start': schedule.get('late_start', False),
+            'community_lunches': serialize_community_lunches_for_schedule(date_obj, schedule['blocks']),
         }, status=status.HTTP_200_OK)
     except ValueError as e:
         return Response({
@@ -221,7 +223,8 @@ def get_and_process_schedule(request, user_id):
             'processed_schedule': processed,
             'ceremonial_uniform_required': is_required,
             'early_dismissal': raw_schedule.get('early_dismissal', False),
-            'late_start': raw_schedule.get('late_start', False)
+            'late_start': raw_schedule.get('late_start', False),
+            'community_lunches': serialize_community_lunches_for_schedule(date_obj, raw_schedule['blocks']),
         }, status=status.HTTP_200_OK)
     except ValueError as e:
         return Response({'error': 'Invalid date format', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)

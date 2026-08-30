@@ -3,6 +3,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+@shared_task(queue='low', routing_key='low.community_cleanup')
+def cleanup_expired_community_lunches_task():
+    from forum.services.community_services import cleanup_expired_community_lunches
+    return cleanup_expired_community_lunches()
+
 @shared_task(bind=True, queue='general', routing_key='general.email')
 def send_email_notification(self, recipient_email, subject, message):
     """

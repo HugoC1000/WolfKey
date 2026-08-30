@@ -1,6 +1,6 @@
 # Re-export all models for backward compatibility
 from .user import User, UserManager, UserProfile
-from .community import CommunityFollow, CommunitySubscription
+from .community import CommunityFollow, CommunityLunch, CommunitySubscription
 from .course import (
     Block, Course, CourseAlias, CourseTeacher,
     UserCourseExperience, UserCourseHelp,
@@ -23,6 +23,7 @@ __all__ = [
     'UserManager',
     'UserProfile',
     'CommunityFollow',
+    'CommunityLunch',
     'CommunitySubscription',
     # Course models
     'Block',

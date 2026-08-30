@@ -46,7 +46,14 @@ from forum.views.feed_views import (
     for_you,
     my_posts
 )
-from forum.views.community_views import community, toggle_community_follow, toggle_community_subscription
+from forum.views.community_views import (
+    add_community_lunch,
+    community,
+    delete_community_lunch,
+    toggle_community_follow,
+    toggle_community_subscription,
+    update_community_lunch,
+)
 from forum.views.solution_views import (
     create_solution,
     delete_solution,
@@ -220,6 +227,8 @@ from forum.api.schedule_import import apply_schedule_import, preview_schedule_im
 from forum.api.community import (
     community_accounts_api,
     community_posts_api,
+    community_lunches_api,
+    community_lunch_detail_api,
     toggle_community_follow_api,
     toggle_community_subscription_api,
 )
@@ -233,6 +242,9 @@ urlpatterns = [
     path('community/', community, name='community'),
     path('community/<int:community_id>/follow/', toggle_community_follow, name='toggle_community_follow'),
     path('community/<int:community_id>/mailing-list/', toggle_community_subscription, name='toggle_community_subscription'),
+    path('community/lunches/add/', add_community_lunch, name='add_community_lunch'),
+    path('community/lunches/<int:lunch_id>/delete/', delete_community_lunch, name='delete_community_lunch'),
+    path('community/lunches/<int:lunch_id>/update/', update_community_lunch, name='update_community_lunch'),
     path('post/<int:post_id>/', post_detail, name='post_detail'),
     path('post/<int:post_id>/edit/', edit_post, name='edit_post'),
     path('post/<int:post_id>/delete/', delete_post, name='delete_post'),
@@ -390,6 +402,8 @@ urlpatterns = [
     path('api/all-posts/', all_posts_api, name='all_posts_api'),
     path('api/community/accounts/', community_accounts_api, name='api_community_accounts'),
     path('api/community/posts/', community_posts_api, name='api_community_posts'),
+    path('api/community/lunches/', community_lunches_api, name='api_community_lunches'),
+    path('api/community/lunches/<int:lunch_id>/', community_lunch_detail_api, name='api_community_lunch_detail'),
     path('api/community/<int:community_id>/follow/', toggle_community_follow_api, name='api_toggle_community_follow'),
     path('api/community/<int:community_id>/mailing-list/', toggle_community_subscription_api, name='api_toggle_community_subscription'),
     

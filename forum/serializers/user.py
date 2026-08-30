@@ -269,9 +269,17 @@ class UserSummarySerializer(serializers.ModelSerializer):
 class UserSerializer(UserSummarySerializer):
     """Complete public profile representation."""
     userprofile = UserProfileSerializer(read_only=True)
+    is_following_community = serializers.SerializerMethodField()
 
     class Meta(UserSummarySerializer.Meta):
-        fields = UserSummarySerializer.Meta.fields + ['date_joined']
+        fields = UserSummarySerializer.Meta.fields + ['date_joined', 'is_active', 'is_following_community']
+
+    def get_is_following_community(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return False
+        from forum.services.community_services import is_following_community
+        return is_following_community(request.user, obj)
 
 
 class FeedUserSerializer(UserSummarySerializer):

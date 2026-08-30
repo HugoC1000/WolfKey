@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
 from django.utils.html import format_html
-from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, Solution, Course, CourseAlias, CourseTeacher, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource, CommunityFollow, CommunitySubscription
+from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, Solution, Course, CourseAlias, CourseTeacher, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource, CommunityFollow, CommunityLunch, CommunitySubscription
 
 
 class StandardPostInline(admin.StackedInline):
@@ -92,6 +92,7 @@ admin.site.register(DailySchedule)
 admin.site.register(GradebookSnapshot)
 admin.site.register(VolunteerPinMilestone)
 admin.site.register(VolunteerResource)
+admin.site.register(CommunityLunch)
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile

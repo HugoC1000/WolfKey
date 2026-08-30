@@ -99,6 +99,8 @@ document.addEventListener('DOMContentLoaded', function () {
             scheduleTitle.textContent = data.date;
         }
 
+        const lunches = Array.isArray(data.community_lunches) ? data.community_lunches : [];
+
         // Build badges
         let badgesHTML = '';
         if (data.ceremonial_required) {
@@ -120,7 +122,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.schedule[0] === "no school") {
                 scheduleHTML += '<li class="list-group-item"><p style="margin-bottom: 0px;">No School</p></li>';
             } else {
-                data.schedule.forEach(item => {
+                let clubsRendered = false;
+                data.schedule.forEach((item, index) => {
                     scheduleHTML += `
                         <li class="list-group-item">
                             <div class="d-flex justify-content-between align-items-center mb-1">
@@ -129,13 +132,37 @@ document.addEventListener('DOMContentLoaded', function () {
                             </div>
                         </li>
                     `;
+                    if (index === 2 && lunches.length) {
+                        scheduleHTML += buildClubsRow(lunches);
+                        clubsRendered = true;
+                    }
                 });
+                if (lunches.length && !clubsRendered) {
+                    scheduleHTML += buildClubsRow(lunches);
+                }
             }
         } else {
             scheduleHTML += '<li class="list-group-item"><p style="margin-bottom: 0px;">Schedule unavailable</p></li>';
         }
         
         scheduleContainer.innerHTML = scheduleHTML;
+    }
+
+    function buildClubsRow(lunches) {
+        const pills = lunches.map(lunch => {
+            const community = lunch.community || {};
+            const name = escapeHtml(community.full_name || community.username || 'Community');
+            const location = escapeHtml(lunch.location || 'Location TBD');
+            const profileUrl = escapeHtml(lunch.profile_url || `/profile/${encodeURIComponent(community.username || '')}/`);
+            return `<a class="badge rounded-pill schedule-badge-lunch text-decoration-none" href="${profileUrl}">${name} · ${location}</a>`;
+        }).join('');
+        return `<li class="list-group-item schedule-clubs-row"><span class="schedule-clubs-label">Clubs:</span>${pills}</li>`;
+    }
+
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>'"]/g, character => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+        }[character]));
     }
 
     // Date picker change event

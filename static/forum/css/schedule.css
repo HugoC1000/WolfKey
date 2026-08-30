@@ -68,6 +68,32 @@
   border: none;
 }
 
+.schedule-badge-lunch {
+  background: #6f42c1;
+  color: white;
+}
+
+.schedule-badge-lunch:hover,
+.schedule-badge-lunch:focus {
+  background: #59359b;
+  color: white;
+}
+
+.schedule-clubs-label {
+  align-self: center;
+  margin-right: .5rem;
+  color: #495057;
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+.schedule-clubs-row {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+
 #prev-day:hover, #next-day:hover {
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
   background: white;
