@@ -89,7 +89,7 @@
                     </div>
                     <div>
                         <div class="text-muted">asked {{ post.created_at|date:"M d, Y" }}</div>
-                        <div class="fw-bold"><a href = "{% if post.is_anonymous %}#{% else %}{{post.author.get_absolute_url}}{% endif %}">{% if post.is_anonymous %} Anonymous {% else %} {{post.author.get_full_name}} {% endif %}</a></div>
+                        <div class="fw-bold"><a href = "{% if post.is_anonymous %}#{% else %}{{post.author.get_absolute_url}}{% endif %}">{% if post.is_anonymous %} Anonymous {% else %} {{post.author.get_full_name}} {% endif %}</a>{% include 'forum/components/verified_badge.html' with account=post.author is_anonymous=post.is_anonymous %}</div>
                     </div>
                 </div>
             </div>

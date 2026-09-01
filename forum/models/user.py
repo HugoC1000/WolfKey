@@ -121,6 +121,11 @@ class User(AbstractUser):
         default=False,
         help_text="Allows this account to publish on the Community page."
     )
+
+    is_paid_user = models.BooleanField(
+        default=False,
+        help_text="Shows the verified badge for a paid account."
+    )
     
     volunteer_coordinator = models.BooleanField(
         default=False,

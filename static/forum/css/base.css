@@ -69,3 +69,13 @@ body, html {
   margin: 0;
   padding: 0;
 }
+
+/* Verified community and paid-account badge. */
+.verified-badge {
+  width: 1.55em;
+  height: 1.55em;
+  display: inline-block;
+  margin-left: .2rem;
+  object-fit: contain;
+  vertical-align: middle;
+}

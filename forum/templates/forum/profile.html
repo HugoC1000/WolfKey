@@ -47,7 +47,7 @@
                         </div>
                         <!-- Name and Bio Section -->
                         <div class="ms-4">
-                            <h2>{{ profile_user.get_full_name }}</h2>
+                            <h2 class="d-flex align-items-center gap-1">{{ profile_user.get_full_name }}{% include 'forum/components/verified_badge.html' with account=profile_user %}</h2>
                             <span class="text-muted">Joined: {{ profile_user.date_joined|date:"F j, Y" }}</span>
                             <p class="text-muted">Grade: {{ profile_user.userprofile.grade_level}}</p>
                             {% if profile_user.userprofile.display_email %}

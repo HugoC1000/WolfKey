@@ -36,6 +36,7 @@
                             <a href="{% url 'profile' post.author.username %}" style="text-decoration: none; color: inherit;">
                                 <strong>{{ post.author.first_name }} {{ post.author.last_name }}</strong>
                             </a>
+                            {% include 'forum/components/verified_badge.html' with account=post.author is_anonymous=post.is_anonymous %}
                         {% endif %}
                         <span class="text-muted">
                             {{ post.created_at|smart_timesince }}

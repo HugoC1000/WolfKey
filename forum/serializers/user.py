@@ -244,7 +244,7 @@ class UserSummarySerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'first_name', 'last_name', 'full_name',
             'school_email', 'profile_picture_url', 'grade_level', 'is_teacher',
-            'is_community_account', 'userprofile',
+            'is_community_account', 'is_paid_user', 'userprofile',
         ]
     
     def get_full_name(self, obj):
@@ -286,7 +286,8 @@ class FeedUserSerializer(UserSummarySerializer):
     """Small author representation for post cards and feed responses."""
     class Meta(UserSummarySerializer.Meta):
         fields = ['id', 'username', 'first_name', 'last_name', 'full_name',
-                  'profile_picture_url', 'userprofile', 'is_teacher', 'is_community_account']
+                  'profile_picture_url', 'userprofile', 'is_teacher', 'is_community_account',
+                  'is_paid_user']
 
 
 class CommunityAccountSerializer(serializers.ModelSerializer):
