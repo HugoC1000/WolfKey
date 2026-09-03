@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             {% if user.is_authenticated and user != account %}
                             <form method="post" action="{% url 'toggle_community_follow' account.id %}">{% csrf_token %}
                                 <button class="btn btn-sm py-0 px-2 {% if account.id in followed_community_ids %}btn-outline-secondary{% else %}btn-primary{% endif %}">
-                                    {% if account.id in followed_community_ids %}Following{% else %}Follow{% endif %}
+                                    {% if account.id in followed_community_ids %}Joined{% else %}Join{% endif %}
                                 </button>
                             </form>
                             {% endif %}

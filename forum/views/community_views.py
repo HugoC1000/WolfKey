@@ -57,10 +57,10 @@ def toggle_community_follow(request, community_id):
     elif result['following']:
         messages.success(
             request,
-            f"You are following {result['community'].get_full_name()} and joined its mailing list.",
+            f"You joined {result['community'].get_full_name()} and its mailing list.",
         )
     else:
-        messages.success(request, f"You unfollowed {result['community'].get_full_name()}.")
+        messages.success(request, f"You left {result['community'].get_full_name()}.")
     return _community_action_redirect(request)
 
 
@@ -101,11 +101,14 @@ def add_community_lunch(request):
 @login_required
 @require_POST
 def update_community_lunch(request, lunch_id):
-    result = update_community_lunch_service(request.user, lunch_id, request.POST.get('location'))
+    update_values = {'location': request.POST.get('location')}
+    if 'date' in request.POST:
+        update_values['date_value'] = request.POST.get('date')
+    result = update_community_lunch_service(request.user, lunch_id, **update_values)
     if 'error' in result:
         messages.error(request, result['error'])
     else:
-        messages.success(request, 'Lunch location updated.')
+        messages.success(request, 'Lunch updated.')
     return _community_action_redirect(request)
 
 

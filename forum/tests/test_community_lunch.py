@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.conf import settings
+from django.db import IntegrityError
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
@@ -70,11 +71,12 @@ class CommunityLunchTests(TestCase):
 
         response = self.client.patch(
             reverse('api_community_lunch_detail', args=[lunch_id]),
-            {'location': 'Library'},
+            {'date': (self.today + timedelta(days=1)).isoformat(), 'location': 'Library'},
             content_type='application/json',
             HTTP_AUTHORIZATION=f'Token {token.key}',
         )
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['lunch']['date'], (self.today + timedelta(days=1)).isoformat())
         self.assertEqual(response.json()['lunch']['location'], 'Library')
 
         response = self.client.delete(
@@ -83,6 +85,22 @@ class CommunityLunchTests(TestCase):
         )
         self.assertEqual(response.status_code, 204)
         self.assertFalse(CommunityLunch.objects.filter(id=lunch_id).exists())
+
+    def test_date_update_converts_unique_constraint_race_to_validation_error(self):
+        lunch = CommunityLunch.objects.create(
+            community=self.community,
+            date=self.today,
+            location='Room 101',
+        )
+
+        with patch.object(CommunityLunch, 'save', side_effect=IntegrityError):
+            result = update_community_lunch_service(
+                self.community,
+                lunch.id,
+                date_value=self.today + timedelta(days=1),
+            )
+
+        self.assertEqual(result, {'error': 'That lunch date is already listed.'})
 
     def test_lunch_api_rejects_non_community_accounts_and_blank_locations(self):
         member_token = Token.objects.create(user=self.member)
@@ -132,24 +150,59 @@ class CommunityLunchTests(TestCase):
     @patch('forum.api.schedule.is_ceremonial_uniform_required', return_value=False)
     @patch('forum.api.schedule.process_schedule_for_user', return_value=[])
     @patch('forum.api.schedule.get_block_order_for_day')
-    def test_mobile_schedule_api_returns_matching_lunches(self, mock_schedule, _mock_processed, _mock_uniform):
+    def test_mobile_schedule_apis_do_not_return_lunches(self, mock_schedule, _mock_processed, _mock_uniform):
         CommunityLunch.objects.create(community=self.community, date=self.today, location='Room 101')
         token = Token.objects.create(user=self.member)
         mock_schedule.return_value = {
             'blocks': ['1A'], 'times': ['8:30'], 'early_dismissal': False, 'late_start': False,
         }
+        daily_response = self.client.get(
+            reverse('api_get_daily_schedule', args=[self.today.isoformat()]),
+            HTTP_AUTHORIZATION=f'Token {token.key}',
+        )
         response = self.client.get(
             reverse('api_get_and_process_schedule', args=[self.member.id]),
             {'date': self.today.isoformat()},
             HTTP_AUTHORIZATION=f'Token {token.key}',
         )
+
+        self.assertEqual(daily_response.status_code, 200)
+        self.assertNotIn('community_lunches', daily_response.json())
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['community_lunches'][0]['community']['id'], self.community.id)
+        self.assertNotIn('community_lunches', response.json())
+
+    @patch('forum.api.community.get_block_order_for_day')
+    def test_date_lunch_api_returns_multiple_communities_after_schedule(self, mock_schedule):
+        second_community = User.objects.create_user(
+            school_email='math@wpga.ca', password='password', first_name='Math', last_name='Club',
+            is_community_account=True,
+        )
+        first_lunch = CommunityLunch.objects.create(
+            community=self.community, date=self.today, location='Room 101'
+        )
+        second_lunch = CommunityLunch.objects.create(
+            community=second_community, date=self.today, location='Library'
+        )
+        token = Token.objects.create(user=self.member)
+        mock_schedule.return_value = {
+            'blocks': ['1A'], 'times': ['8:30'], 'early_dismissal': False, 'late_start': False,
+        }
+
+        response = self.client.get(
+            reverse('api_community_lunches_for_date', args=[self.today.isoformat()]),
+            HTTP_AUTHORIZATION=f'Token {token.key}',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            {lunch['id'] for lunch in response.json()['lunches']},
+            {first_lunch.id, second_lunch.id},
+        )
 
     def test_profile_follow_sets_profile_state_and_mailing_list(self):
         self.client.login(school_email='member@wpga.ca', password='password')
         response = self.client.get(reverse('profile', args=[self.community.username]))
-        self.assertContains(response, 'Follow')
+        self.assertContains(response, 'Join')
 
         response = self.client.post(reverse('toggle_community_follow', args=[self.community.id]), {
             'next': reverse('profile', args=[self.community.username]),
@@ -159,4 +212,4 @@ class CommunityLunchTests(TestCase):
         self.assertTrue(CommunitySubscription.objects.filter(user=self.member, community=self.community, is_active=True).exists())
 
         response = self.client.get(reverse('profile', args=[self.community.username]))
-        self.assertContains(response, 'Following')
+        self.assertContains(response, 'Joined')

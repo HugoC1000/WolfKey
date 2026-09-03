@@ -1,9 +1,11 @@
 from datetime import date
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from forum.models import CommunityFollow, CommunityLunch, CommunitySubscription, User
+
+_MISSING = object()
 
 
 def get_community_directory(user):
@@ -123,18 +125,43 @@ def add_community_lunch_service(user, date_value, location):
 
 
 @transaction.atomic
-def update_community_lunch_service(user, lunch_id, location):
+def update_community_lunch_service(user, lunch_id, location=_MISSING, date_value=_MISSING):
     community = _get_owned_active_community(user)
     if not community:
         return {'error': 'Only active community accounts can manage lunch dates.'}
-    location = _normalize_location(location)
-    if location is None:
-        return {'error': 'Enter a location of 120 characters or fewer.'}
     lunch = CommunityLunch.objects.filter(id=lunch_id, community=community).first()
     if not lunch:
         return {'error': 'Lunch date not found.'}
-    lunch.location = location
-    lunch.save(update_fields=['location'])
+    if location is _MISSING and date_value is _MISSING:
+        return {'error': 'Provide a date or location to update.'}
+
+    update_fields = []
+    if location is not _MISSING:
+        location = _normalize_location(location)
+        if location is None:
+            return {'error': 'Enter a location of 120 characters or fewer.'}
+        if lunch.location != location:
+            lunch.location = location
+            update_fields.append('location')
+
+    if date_value is not _MISSING:
+        lunch_date = _parse_lunch_date(date_value)
+        if not lunch_date:
+            return {'error': 'Choose today or a future date in YYYY-MM-DD format.'}
+        if lunch.date != lunch_date:
+            if CommunityLunch.objects.filter(community=community, date=lunch_date).exclude(id=lunch.id).exists():
+                return {'error': 'That lunch date is already listed.'}
+            lunch.date = lunch_date
+            update_fields.append('date')
+
+    if update_fields:
+        try:
+            with transaction.atomic():
+                lunch.save(update_fields=update_fields)
+        except IntegrityError:
+            if 'date' in update_fields:
+                return {'error': 'That lunch date is already listed.'}
+            raise
     return {'lunch': lunch}
 
 

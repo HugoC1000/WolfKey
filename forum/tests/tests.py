@@ -14,7 +14,7 @@ from forum.services.course_services import course_category_color
 from forum.services.utils import process_post_preview
 from forum.services.notification_services import all_notifications_service
 from forum.services.feed_services import get_community_posts
-from forum.services.post_services import get_post_share_info_service, update_post_service
+from forum.services.post_services import create_post_service, get_post_share_info_service, update_post_service
 from forum.serializers import (
     AnonymousAuthorSerializer,
     CommentSerializer,
@@ -1128,6 +1128,42 @@ class CommunityFeatureTests(TestCase):
         page = get_community_posts(self.user)
 
         self.assertEqual([post.id for post in page.object_list], [community_post.id])
+
+    def test_community_account_cannot_create_anonymous_post(self):
+        result = create_post_service(self.community, {
+            'title': 'Community update',
+            'content': {'blocks': [{'type': 'paragraph', 'data': {'text': 'Update'}}]},
+            'is_anonymous': True,
+        })
+
+        self.assertNotIn('error', result)
+        post = Post.objects.get(id=result['id'])
+        self.assertFalse(post.is_anonymous)
+
+    def test_community_post_form_hides_anonymous_option(self):
+        self.client.login(school_email=self.community.school_email, password='clubpass')
+
+        response = self.client.get(reverse('create_post'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'name="is_anonymous"')
+        self.assertNotContains(response, 'Post Anonymously')
+
+    def test_community_account_cannot_create_anonymous_poll(self):
+        result = create_post_service(self.community, {
+            'title': 'Community poll',
+            'content': {'blocks': []},
+            'is_anonymous': True,
+            'poll_data': {
+                'isPoll': True,
+                'question': 'Which activity?',
+                'answers': ['Painting', 'Drawing'],
+            },
+        })
+
+        self.assertNotIn('error', result)
+        poll = Poll.objects.get(id=result['id'])
+        self.assertFalse(poll.is_anonymous)
 
     def test_community_post_edit_preserves_visibility_invariants(self):
         course = Course.objects.create(name='Community Test Course')

@@ -1,3 +1,5 @@
+from datetime import date
+
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -8,6 +10,7 @@ from forum.serializers import CommunityAccountSerializer, CommunityLunchSerializ
 from forum.services.community_services import (
     add_community_lunch_service,
     delete_community_lunch_service,
+    get_community_lunches_for_date,
     get_owned_community_lunches,
     get_community_directory,
     toggle_community_follow_service,
@@ -16,6 +19,7 @@ from forum.services.community_services import (
 )
 from forum.services.feed_services import get_community_posts
 from forum.services.poll_display_service import attach_poll_data_to_posts
+from forum.services.schedule_services import get_block_order_for_day
 
 
 @api_view(['GET'])
@@ -82,12 +86,35 @@ def community_lunches_api(request):
     return Response({'lunches': CommunityLunchSerializer(result['lunches'], many=True).data})
 
 
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def community_lunches_for_date_api(request, target_date):
+    """Return active community lunches for a date when it is a school day."""
+    try:
+        date_obj = date.fromisoformat(target_date)
+        schedule = get_block_order_for_day(target_date)
+    except ValueError as exc:
+        return Response(
+            {'error': 'Invalid date format. Expected YYYY-MM-DD', 'details': str(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    lunches = get_community_lunches_for_date(date_obj, any(schedule.get('blocks', [])))
+    return Response({'lunches': CommunityLunchSerializer(lunches, many=True).data})
+
+
 @api_view(['PATCH', 'DELETE'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def community_lunch_detail_api(request, lunch_id):
     if request.method == 'PATCH':
-        result = update_community_lunch_service(request.user, lunch_id, request.data.get('location'))
+        update_values = {}
+        if 'location' in request.data:
+            update_values['location'] = request.data.get('location')
+        if 'date' in request.data:
+            update_values['date_value'] = request.data.get('date')
+        result = update_community_lunch_service(request.user, lunch_id, **update_values)
     else:
         result = delete_community_lunch_service(request.user, lunch_id)
     if 'error' in result:

@@ -85,7 +85,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
                         <button type="submit" class="btn {% if is_following_community %}btn-outline-primary{% else %}btn-primary{% endif %}">
-                            {% if is_following_community %}Following{% else %}Follow{% endif %}
+                            {% if is_following_community %}Joined{% else %}Join{% endif %}
                         </button>
                     </form>
                     {% endif %}
