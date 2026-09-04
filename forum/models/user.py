@@ -3,7 +3,6 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.validators import RegexValidator
 from django.contrib.postgres.search import SearchVectorField, SearchVector
 from django.urls import reverse
-from django.utils import timezone
 from django.conf import settings
 from cryptography.fernet import Fernet
 import base64
@@ -116,6 +115,16 @@ class User(AbstractUser):
     is_teacher = models.BooleanField(
         default=False,
         help_text="Indicates if this user is a teacher"
+    )
+
+    is_community_account = models.BooleanField(
+        default=False,
+        help_text="Allows this account to publish on the Community page."
+    )
+
+    is_paid_user = models.BooleanField(
+        default=False,
+        help_text="Shows the verified badge for a paid account."
     )
     
     volunteer_coordinator = models.BooleanField(

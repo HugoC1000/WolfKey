@@ -1,0 +1,107 @@
+{% extends 'forum/base.html' %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
+<script src="{% static 'forum/js/post-card.js' %}" defer></script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.community-card').forEach(card => {
+        const openProfile = event => {
+            if (event.target.closest('form, button, a')) return;
+            window.location.href = card.dataset.communityUrl;
+        };
+        card.addEventListener('click', openProfile);
+        card.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openProfile(event);
+            }
+        });
+    });
+
+    const cards = document.querySelectorAll('#post-list [data-animate]');
+    if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.02 });
+        cards.forEach(card => observer.observe(card));
+    } else {
+        cards.forEach(card => card.classList.add('animate-visible'));
+    }
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h1 class="h3 mb-1">Community</h1>
+            <p class="text-muted mb-0">Updates from school clubs, teams, and community groups.</p>
+        </div>
+    </div>
+
+    {% if community_accounts %}
+    <div class="row g-3 mb-4 mx-0" style="max-width: 760px;">
+        {% for account in community_accounts %}
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm community-card" role="link" tabindex="0"
+                 data-community-url="{% url 'profile' account.username %}" style="cursor: pointer; width: min(100%, 360px);">
+                <div class="card-body d-flex gap-2">
+                    <img src="{{ account.userprofile.profile_picture.url }}" alt="{{ account.get_full_name }}" class="rounded-circle" style="width:28px;height:28px;object-fit:cover;flex:0 0 32px;">
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <h2 class="h6 mb-0">{{ account.get_full_name }}</h2>
+                            {% if user.is_authenticated and user != account %}
+                            <form method="post" action="{% url 'toggle_community_follow' account.id %}">{% csrf_token %}
+                                <button class="btn btn-sm py-0 px-2 {% if account.id in followed_community_ids %}btn-outline-secondary{% else %}btn-primary{% endif %}">
+                                    {% if account.id in followed_community_ids %}Joined{% else %}Join{% endif %}
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        {% if account.userprofile.bio %}<p class="small text-muted mb-0">{{ account.userprofile.bio|truncatechars:120 }}</p>{% endif %}
+                        {% if user.is_authenticated and account.id in followed_community_ids %}
+                        <form method="post" action="{% url 'toggle_community_subscription' account.id %}" class="mt-1">{% csrf_token %}
+                            <button class="btn btn-link btn-sm p-0 text-decoration-none">
+                                Email updates: {% if account.id in subscription_community_ids %}On{% else %}Off{% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <h2 class="h4 mb-3">Latest posts</h2>
+    <div class="row" id="post-list">
+        {% include 'forum/components/post_list.html' %}
+    </div>
+    {% if not posts %}<p class="text-muted">No community posts yet.</p>{% endif %}
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav aria-label="Community post pages" class="mt-3" style="max-width: 800px; margin: 0 auto;">
+        <ul class="pagination pagination-sm justify-content-center mb-0">
+            <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                <a class="page-link" href="{% if page_obj.has_previous %}?page={{ page_obj.previous_page_number }}{% else %}#{% endif %}">Previous</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+            <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{% if page_obj.has_next %}?page={{ page_obj.next_page_number }}{% else %}#{% endif %}">Next</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

@@ -15,7 +15,7 @@
             <form id="postForm" method="post" action="{% if post %}{% url 'edit_post' post.id %}{% else %}{% url 'create_post' %}{% endif %}" enctype="multipart/form-data">
                 {% csrf_token %}
                 
-                <h3>Title:</h3>
+                <h3>{% if user.is_community_account %}Post title:{% else %}Title:{% endif %}</h3>
                 <input type="text" id="id_title" name="title" class="form-control"
                     value="{% if post %}{{ post.title }}{% else %}{{ form.title.value|default_if_none:'' }}{% endif %}">
 
@@ -28,10 +28,12 @@
                 {% include 'forum/poll_editing_component.html' %}
                 {% endif %}
 
-                <h3 class="mt-4">Select a Course:</h3>
-                <div id="postCoursesSelector"></div>
+                {% if not user.is_community_account %}
+                    <h3 class="mt-4">Select a Course:</h3>
+                    <div id="postCoursesSelector"></div>
+                {% endif %}
 
-                <div class="form-check mt-2 mb-2">
+                {% if not user.is_community_account %}<div class="form-check mt-2 mb-2">
                     <input class="form-check-input" type="checkbox" name="is_anonymous" id="id_is_anonymous"
                         {% if post and post.is_anonymous %}checked{% endif %}>
                     <label class="form-check-label" for="id_is_anonymous">
@@ -42,9 +44,9 @@
                         data-bs-placement="right" 
                         title="Your name and profile picture will not be shown publicly. Staff may still see it.">
                     </i>
-                </div>
+                </div>{% endif %}
                 
-                {% if not user.is_teacher %}
+                {% if not user.is_teacher and not user.is_community_account %}
                 <div class="form-check mt-2 mb-2">
                     <input class="form-check-input" type="checkbox" name="allow_teacher" id="id_allow_teacher"
                         {% if post %}{% if post.allow_teacher %}checked{% endif %}{% else %}checked{% endif %}>
@@ -215,7 +217,8 @@
                     const formData = new FormData(form);
                     formData.set('content', JSON.stringify(content));
                     formData.set('title', document.querySelector('#id_title').value);
-                    formData.set('is_anonymous', document.getElementById('id_is_anonymous').checked ? 'on' : 'off');
+                    const anonymousCheckbox = document.getElementById('id_is_anonymous');
+                    formData.set('is_anonymous', anonymousCheckbox ? (anonymousCheckbox.checked ? 'on' : 'off') : 'off');
                     
                     const allowTeacherCheckbox = document.getElementById('id_allow_teacher');
                     if (allowTeacherCheckbox) {
@@ -249,9 +252,11 @@
                     formData.set('poll_data', JSON.stringify({ isPoll: false }));
                     {% endif %}
 
-                    courseSelector.selectedCourses.forEach(course => {
-                        formData.append('courses', course.id);
-                    });
+                    if (courseSelector) {
+                        courseSelector.selectedCourses.forEach(course => {
+                            formData.append('courses', course.id);
+                        });
+                    }
 
                     const response = await fetch(form.action, {
                         method: 'POST',
@@ -285,13 +290,13 @@
 
         await editor.isReady;
 
-        // Initialize course selector
-        const courseSelector = new CourseSelector({
+        // Community posts do not use course tags.
+        const courseSelector = {% if user.is_community_account %}null{% else %}new CourseSelector({
             containerId: 'postCoursesSelector',
             maxCourses: 5,
             initialSelection: selectedCourses,
             formName: "postForm"
-        });
+        }){% endif %};
     });
 </script>
 {% endblock %}

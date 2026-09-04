@@ -207,7 +207,7 @@ def create_notification_deep_link(notification_type: str, **kwargs) -> Dict:
         if comment and not comment_id:
             comment_id = comment.id
             
-        if notification_type == 'post':
+        if notification_type in ('post', 'community'):
             # New post in course - link to post detail
             return WolfKeyDeepLink.post_detail(post_id=post_id)
             

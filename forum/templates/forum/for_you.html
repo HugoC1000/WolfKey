@@ -5,7 +5,7 @@
     <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
     <script src="{% static 'forum/js/post-card.js' %}" defer></script>
     <link rel="stylesheet" href="{% static 'forum/css/schedule.css' %}">
-    <script src="{% static 'forum/js/schedule.js' %}" defer></script>
+    <script src="{% static 'forum/js/schedule.js' %}?v=community-lunch-fixes-1" defer></script>
     <style>
         .home-schedule-cta {
             display: inline-flex;
@@ -127,8 +127,8 @@
     <div class="text-center mt-4">
         <div class="card" style="margin: auto; max-width: 776px;">
             <p> You've reached the end. </p>
-            <a href="{% url 'all_posts' %}" class="btn btn-primary">
-                <i class="fas fa-search me-2"></i> Explore
+            <a href="{% url 'community' %}" class="btn btn-primary">
+                <i class="bi bi-people me-2"></i> Community
             </a>
         </div>
     </div>

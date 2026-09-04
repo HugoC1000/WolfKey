@@ -38,13 +38,22 @@ def get_for_you_posts(user, page=1, per_page=8):
     except Course.DoesNotExist:
         school_life_course = None
 
-    base_qs = Post.objects.filter(
-        Q(courses__in=experienced_courses) | 
-        Q(courses__in=help_needed_courses) | 
+    school_posts = Q(scope='school') & (
+        Q(courses__in=experienced_courses) |
+        Q(courses__in=help_needed_courses) |
         Q(author=user) |
         Q(courses__in=current_courses) |
         Q(courses__isnull=True) |
         (Q(courses=school_life_course) if school_life_course else Q())
+    )
+    followed_community_posts = Q(
+        scope='community',
+        author__community_followers__user=user,
+    )
+    base_qs = Post.objects.filter(
+        school_posts |
+        followed_community_posts |
+        Q(author=user)
     ).distinct()
     
     if user.is_authenticated and user.is_teacher:
@@ -126,6 +135,30 @@ def get_all_posts(user, query='', page=1, per_page=8):
     # Replace page_obj's object_list with annotated posts
     page_obj.object_list = ordered_posts
 
+    return page_obj
+
+
+def get_community_posts(user, page=1, per_page=8):
+    """Return community posts, with pins affecting only this Community feed."""
+    page = int(page)
+    base_qs = Post.objects.filter(scope='community')
+    if not user.is_authenticated or user.is_teacher:
+        base_qs = base_qs.filter(allow_teacher=True)
+    base_qs = base_qs.annotate(
+        recent_updated_at=Coalesce('last_activity_at', 'created_at')
+    ).order_by('-is_pinned_in_community', '-recent_updated_at', '-created_at')
+    paginator = Paginator(base_qs, per_page)
+    page_obj = paginator.get_page(page)
+    post_ids = [post.id for post in page_obj.object_list]
+    posts = Post.objects.filter(id__in=post_ids).annotate(
+        solution_count=Count('solutions', distinct=True),
+        comment_count=Count('solutions__comments', distinct=True),
+        total_response_count=Count('solutions', distinct=True) + Count('solutions__comments', distinct=True),
+    ).select_related('author', 'author__userprofile').prefetch_related('courses')
+    posts_by_id = {post.id: post for post in posts}
+    page_obj.object_list = annotate_post_card_context(
+        [posts_by_id[post_id] for post_id in post_ids if post_id in posts_by_id], user
+    )
     return page_obj
 
 def paginate_posts(posts_queryset, page=1, limit=10):

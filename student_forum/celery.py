@@ -42,6 +42,11 @@ app.conf.task_reject_on_worker_lost = True
 
 # Celery Beat Schedule for periodic tasks
 app.conf.beat_schedule = {
+    'cleanup-expired-community-lunches': {
+        'task': 'forum.tasks.cleanup_expired_community_lunches_task',
+        'schedule': 60.0 * 60,
+        'options': {'queue': 'low', 'routing_key': 'low.community_cleanup'},
+    },
     'check-all-user-grades': {
         'task': 'forum.tasks.periodic_grade_check_trigger',
         'schedule': 60.0 * 60,  # Every 60 minutes

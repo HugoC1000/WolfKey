@@ -25,6 +25,14 @@ def save_user_profile(sender, instance, **kwargs):
         UserProfile.objects.create(user=instance)
 
 
+@receiver(post_save, sender=User)
+def revoke_tokens_for_inactive_user(sender, instance, **kwargs):
+    """An inactive account must not keep an already-issued mobile API token."""
+    if not instance.is_active:
+        from rest_framework.authtoken.models import Token
+        Token.objects.filter(user=instance).delete()
+
+
 @receiver(pre_delete, sender=Solution)
 def delete_solution_files(sender, instance, **kwargs):
     """Delete files referenced in solution content before deleting the solution"""

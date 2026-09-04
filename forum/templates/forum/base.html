@@ -247,8 +247,8 @@
                     </a>
                 </li>
                 <li>
-                    <a href="{% url 'all_posts'%}" class="sidebar-item{% if request.resolver_match.url_name == 'all_posts' %} active{% endif %}" data-title="All Posts">
-                        <i class="bi {% if request.resolver_match.url_name == 'all_posts' %}bi-compass-fill{% else %}bi-compass{% endif %}"></i> <span class="sidebar-text">Explore</span>
+                    <a href="{% url 'community' %}" class="sidebar-item{% if request.resolver_match.url_name == 'community' %} active{% endif %}" data-title="Community">
+                        <i class="bi {% if request.resolver_match.url_name == 'community' %}bi-people-fill{% else %}bi-people{% endif %}"></i> <span class="sidebar-text">Community</span>
                     </a>
                 </li>
                 <li>

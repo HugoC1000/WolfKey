@@ -36,6 +36,7 @@ from forum.views.post_views import (
     unlike_post,
     follow_post,
     unfollow_post,
+    toggle_community_post_pin,
     vote_on_poll,
     remove_poll_vote
 )
@@ -44,6 +45,14 @@ from forum.views.feed_views import (
     all_posts,
     for_you,
     my_posts
+)
+from forum.views.community_views import (
+    add_community_lunch,
+    community,
+    delete_community_lunch,
+    toggle_community_follow,
+    toggle_community_subscription,
+    update_community_lunch,
 )
 from forum.views.solution_views import (
     create_solution,
@@ -173,6 +182,7 @@ from forum.api.posts import (
     create_post_api,
     update_post_api,
     delete_post_api,
+    toggle_community_post_pin_api,
     like_post_api,
     unlike_post_api,
     follow_post_api,
@@ -214,6 +224,15 @@ from forum.api.profile import (
     update_privacy_preferences_api,
 )
 from forum.api.schedule_import import apply_schedule_import, preview_schedule_import
+from forum.api.community import (
+    community_accounts_api,
+    community_posts_api,
+    community_lunches_api,
+    community_lunches_for_date_api,
+    community_lunch_detail_api,
+    toggle_community_follow_api,
+    toggle_community_subscription_api,
+)
 
 urlpatterns = [
 
@@ -221,9 +240,16 @@ urlpatterns = [
     # Post related URLs
     path('', for_you, name='for_you'),
     path('all-posts/', all_posts, name='all_posts'),
+    path('community/', community, name='community'),
+    path('community/<int:community_id>/follow/', toggle_community_follow, name='toggle_community_follow'),
+    path('community/<int:community_id>/mailing-list/', toggle_community_subscription, name='toggle_community_subscription'),
+    path('community/lunches/add/', add_community_lunch, name='add_community_lunch'),
+    path('community/lunches/<int:lunch_id>/delete/', delete_community_lunch, name='delete_community_lunch'),
+    path('community/lunches/<int:lunch_id>/update/', update_community_lunch, name='update_community_lunch'),
     path('post/<int:post_id>/', post_detail, name='post_detail'),
     path('post/<int:post_id>/edit/', edit_post, name='edit_post'),
     path('post/<int:post_id>/delete/', delete_post, name='delete_post'),
+    path('post/<int:post_id>/pin-community/', toggle_community_post_pin, name='toggle_community_post_pin'),
     path('post/create/', create_post, name='create_post'),
     path('posts/<int:post_id>/like/', like_post, name='like_post'),
     path('posts/<int:post_id>/unlike/', unlike_post, name='unlike_post'),
@@ -354,6 +380,7 @@ urlpatterns = [
     path('api/posts/<int:post_id>/', post_detail_api, name='api_post_detail'),
     path('api/posts/<int:post_id>/edit/', update_post_api, name='api_update_post'),
     path('api/posts/<int:post_id>/delete/', delete_post_api, name='api_delete_post'),
+    path('api/posts/<int:post_id>/pin-community/', toggle_community_post_pin_api, name='api_toggle_community_post_pin'),
     
     # Post interaction API endpoints
     path('api/posts/<int:post_id>/like/', like_post_api, name='api_like_post'),
@@ -374,6 +401,13 @@ urlpatterns = [
     path('api/solutions/<int:solution_id>/vote/', vote_solution_api, name='api_vote_solution'),
     path('api/solutions/<int:solution_id>/accept/', accept_solution_api, name='api_accept_solution'),
     path('api/all-posts/', all_posts_api, name='all_posts_api'),
+    path('api/community/accounts/', community_accounts_api, name='api_community_accounts'),
+    path('api/community/posts/', community_posts_api, name='api_community_posts'),
+    path('api/community/lunches/', community_lunches_api, name='api_community_lunches'),
+    path('api/community/lunches/date/<str:target_date>/', community_lunches_for_date_api, name='api_community_lunches_for_date'),
+    path('api/community/lunches/<int:lunch_id>/', community_lunch_detail_api, name='api_community_lunch_detail'),
+    path('api/community/<int:community_id>/follow/', toggle_community_follow_api, name='api_toggle_community_follow'),
+    path('api/community/<int:community_id>/mailing-list/', toggle_community_subscription_api, name='api_toggle_community_subscription'),
     
     # Comment API endpoints
     path('api/solutions/<int:solution_id>/comments/create/', create_comment_api, name='api_create_comment'),

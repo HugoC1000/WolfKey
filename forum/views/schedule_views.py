@@ -8,6 +8,7 @@ from forum.services.schedule_services import (
     process_schedule_for_user,
     is_ceremonial_uniform_required,
 )
+from forum.serializers import serialize_community_lunches_for_schedule
 
 
 @require_http_methods(["GET"])
@@ -39,7 +40,8 @@ def daily_schedule_view(request, target_date):
         response_data = {
             'date': formatted_date,
             'early_dismissal': schedule.get('early_dismissal', False),
-            'late_start': schedule.get('late_start', False)
+            'late_start': schedule.get('late_start', False),
+            'community_lunches': serialize_community_lunches_for_schedule(date_obj, schedule['blocks']),
         }
         
         # If user is authenticated, process schedule for them and include ceremonial uniform

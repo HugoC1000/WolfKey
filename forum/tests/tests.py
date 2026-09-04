@@ -4,16 +4,21 @@ from django.db.models import Count
 from django.test import TestCase, Client, RequestFactory
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from rest_framework.authtoken.models import Token
 from forum.models import (
     User, Post, Course, Solution, Comment, Notification,
-    Block, CourseTeacher, FollowedPost, Poll, PollOption, PollVote, PostLike,
+    Block, CommunityFollow, CommunitySubscription, CourseTeacher, FollowedPost,
+    Poll, PollOption, PollVote, PostLike,
 )
 from forum.services.course_services import course_category_color
 from forum.services.utils import process_post_preview
 from forum.services.notification_services import all_notifications_service
+from forum.services.feed_services import get_community_posts
+from forum.services.post_services import create_post_service, get_post_share_info_service, update_post_service
 from forum.serializers import (
     AnonymousAuthorSerializer,
     CommentSerializer,
+    FeedUserSerializer,
     NotificationSerializer,
     PostDetailSerializer,
     PostListSerializer,
@@ -1087,3 +1092,229 @@ class PostPreviewFormattingTests(TestCase):
         preview = process_post_preview(self._build_post(content))
 
         self.assertEqual(preview, '')
+
+
+class CommunityFeatureTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            school_email='member@wpga.ca',
+            personal_email='member@example.com',
+            password='memberpass',
+            first_name='Community',
+            last_name='Member',
+        )
+        self.community = User.objects.create_user(
+            school_email='club@wpga.ca',
+            password='clubpass',
+            first_name='Chess',
+            last_name='Club',
+            is_community_account=True,
+        )
+
+    def test_community_feed_uses_post_scope(self):
+        community_post = Post.objects.create(
+            title='Community update',
+            content={'blocks': []},
+            author=self.community,
+            scope='community',
+        )
+        Post.objects.create(
+            title='School post',
+            content={'blocks': []},
+            author=self.community,
+            scope='school',
+        )
+
+        page = get_community_posts(self.user)
+
+        self.assertEqual([post.id for post in page.object_list], [community_post.id])
+
+    def test_community_account_cannot_create_anonymous_post(self):
+        result = create_post_service(self.community, {
+            'title': 'Community update',
+            'content': {'blocks': [{'type': 'paragraph', 'data': {'text': 'Update'}}]},
+            'is_anonymous': True,
+        })
+
+        self.assertNotIn('error', result)
+        post = Post.objects.get(id=result['id'])
+        self.assertFalse(post.is_anonymous)
+
+    def test_community_post_form_hides_anonymous_option(self):
+        self.client.login(school_email=self.community.school_email, password='clubpass')
+
+        response = self.client.get(reverse('create_post'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'name="is_anonymous"')
+        self.assertNotContains(response, 'Post Anonymously')
+
+    def test_community_account_cannot_create_anonymous_poll(self):
+        result = create_post_service(self.community, {
+            'title': 'Community poll',
+            'content': {'blocks': []},
+            'is_anonymous': True,
+            'poll_data': {
+                'isPoll': True,
+                'question': 'Which activity?',
+                'answers': ['Painting', 'Drawing'],
+            },
+        })
+
+        self.assertNotIn('error', result)
+        poll = Poll.objects.get(id=result['id'])
+        self.assertFalse(poll.is_anonymous)
+
+    def test_community_post_edit_preserves_visibility_invariants(self):
+        course = Course.objects.create(name='Community Test Course')
+        post = Post.objects.create(
+            title='Original',
+            content={'blocks': []},
+            author=self.community,
+            scope='community',
+            allow_teacher=True,
+        )
+
+        result = update_post_service(self.community, post.id, {
+            'title': 'Edited',
+            'is_anonymous': True,
+            'allow_teacher': False,
+            'courses': [course.id],
+        })
+        post.refresh_from_db()
+
+        self.assertNotIn('error', result)
+        self.assertEqual(post.scope, 'community')
+        self.assertFalse(post.is_anonymous)
+        self.assertTrue(post.allow_teacher)
+        self.assertFalse(post.courses.exists())
+
+    def test_email_updates_can_be_disabled_without_unfollowing(self):
+        self.client.login(school_email=self.user.school_email, password='memberpass')
+        self.client.post(reverse('toggle_community_follow', args=[self.community.id]))
+
+        response = self.client.post(
+            reverse('toggle_community_subscription', args=[self.community.id])
+        )
+
+        self.assertRedirects(response, reverse('community'))
+        self.assertTrue(CommunityFollow.objects.filter(user=self.user, community=self.community).exists())
+        self.assertFalse(CommunitySubscription.objects.get(
+            user=self.user,
+            community=self.community,
+        ).is_active)
+
+    def test_community_directory_api_returns_membership_state(self):
+        CommunityFollow.objects.create(user=self.user, community=self.community)
+        token = Token.objects.create(user=self.user)
+
+        response = self.client.get(
+            reverse('api_community_accounts'),
+            HTTP_AUTHORIZATION=f'Token {token.key}',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        account = response.json()['communities'][0]
+        self.assertEqual(account['id'], self.community.id)
+        self.assertTrue(account['is_following'])
+        self.assertFalse(account['email_updates_enabled'])
+
+    def test_community_follow_api_uses_shared_follow_and_subscription_behavior(self):
+        token = Token.objects.create(user=self.user)
+
+        response = self.client.post(
+            reverse('api_toggle_community_follow', args=[self.community.id]),
+            HTTP_AUTHORIZATION=f'Token {token.key}',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {
+            'following': True,
+            'mailing_list_joined': True,
+        })
+        self.assertTrue(CommunityFollow.objects.filter(
+            user=self.user,
+            community=self.community,
+        ).exists())
+        self.assertTrue(CommunitySubscription.objects.get(
+            user=self.user,
+            community=self.community,
+        ).is_active)
+
+    def test_unavailable_community_still_returns_404_on_web(self):
+        self.client.login(school_email=self.user.school_email, password='memberpass')
+
+        response = self.client.post(reverse('toggle_community_follow', args=[999999]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_private_user_payload_identifies_community_accounts(self):
+        self.assertTrue(PrivateUserSerializer(self.community).data['is_community_account'])
+
+    def test_feed_user_serializer_keeps_compact_inherited_fields(self):
+        data = FeedUserSerializer(self.community).data
+
+        self.assertEqual(data['full_name'], 'Chess Club')
+        self.assertIn('profile_picture_url', data)
+        self.assertNotIn('school_email', data)
+
+    def test_community_page_exposes_all_pages(self):
+        for index in range(9):
+            Post.objects.create(
+                title=f'Community post {index}',
+                content={'blocks': []},
+                author=self.community,
+                scope='community',
+            )
+
+        response = self.client.get(reverse('community'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['page_obj'].paginator.num_pages, 2)
+        self.assertContains(response, '?page=2')
+
+
+class PostShareInfoTests(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            school_email='share-author@wpga.ca',
+            password='authorpass',
+            first_name='Share',
+            last_name='Author',
+        )
+        self.post = Post.objects.create(
+            title='Shareable post',
+            content={'blocks': []},
+            author=self.author,
+            allow_teacher=True,
+        )
+        self.factory = RequestFactory()
+
+    def test_share_info_uses_the_real_post_detail_route(self):
+        request = self.factory.get('/')
+        request.user = self.author
+
+        result = get_post_share_info_service(self.post.id, request)
+
+        self.assertNotIn('error', result)
+        self.assertEqual(
+            result['post_url'],
+            f'http://testserver/post/{self.post.id}/',
+        )
+
+    def test_share_info_enforces_teacher_visibility(self):
+        teacher = User.objects.create_user(
+            school_email='share-teacher@wpga.ca',
+            password='teacherpass',
+            first_name='Share',
+            last_name='Teacher',
+            is_teacher=True,
+        )
+        self.post.allow_teacher = False
+        self.post.save(update_fields=['allow_teacher'])
+        request = self.factory.get('/')
+        request.user = teacher
+
+        result = get_post_share_info_service(self.post.id, request)
+
+        self.assertIn('error', result)

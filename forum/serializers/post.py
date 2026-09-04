@@ -27,7 +27,7 @@ class PostListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = [
-            'id', 'title', 'author', 'preview_text', 'preview_html',
+            'id', 'title', 'scope', 'is_pinned_in_community', 'author', 'preview_text', 'preview_html',
             'created_at', 'courses', 'reply_count', 'views', 'like_count', 
             'is_liked', 'solution_count', 'comment_count', 'solved', 'is_following',
             'first_image_url', 'is_anonymous', 'allow_teacher', 'poll_data',
@@ -126,7 +126,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = [
-            'id', 'title', 'content', 'author', 'courses', 'created_at',
+            'id', 'title', 'scope', 'is_pinned_in_community', 'content', 'author', 'courses', 'created_at',
             'solved', 'views', 'is_anonymous', 'allow_teacher', 'like_count', 'is_liked',
             'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
             'is_following', 'poll_options', 'poll_info', 'user_vote', 'mentions'

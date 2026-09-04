@@ -1,0 +1,4 @@
+{% load static %}
+{% if not is_anonymous and account.is_community_account or account.is_paid_user and not is_anonymous %}
+<img src="{% static 'forum/images/verified-badge-compact.png' %}" class="verified-badge" alt="Verified account" title="Verified account">
+{% endif %}

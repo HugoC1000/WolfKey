@@ -9,6 +9,7 @@ from .user import (
     AnonymousAuthorSerializer,
     FeedUserSerializer,
     FeedUserProfileSerializer,
+    CommunityAccountSerializer,
     UserScheduleSerializer,
     CourseRosterStudentSerializer,
 )
@@ -27,6 +28,7 @@ from .poll import (
     serialize_poll_display_data,
 )
 from .notification import NotificationSerializer
+from .community import CommunityLunchSerializer, serialize_community_lunches_for_schedule
 from .volunteer import (
     VolunteerPinMilestoneSerializer,
     VolunteerResourceSerializer,
@@ -44,6 +46,7 @@ __all__ = [
     'AnonymousAuthorSerializer',
     'FeedUserSerializer',
     'FeedUserProfileSerializer',
+    'CommunityAccountSerializer',
     'UserScheduleSerializer',
     'CourseRosterStudentSerializer',
     # Post serializers
@@ -60,6 +63,8 @@ __all__ = [
     'attach_poll_data_to_posts',
     # Notification serializers
     'NotificationSerializer',
+    'CommunityLunchSerializer',
+    'serialize_community_lunches_for_schedule',
     'VolunteerPinMilestoneSerializer',
     'VolunteerResourceSerializer',
 ]

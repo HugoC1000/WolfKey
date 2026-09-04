@@ -7,7 +7,7 @@
     {% endif %}
     <div class="card-body">
         <!-- Author and Date Section -->
-            <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="d-flex justify-content-between align-items-start mb-1">
                 <div style="margin-right: 8px;">
                     {% if post.is_anonymous %}
                         <img 
@@ -36,6 +36,7 @@
                             <a href="{% url 'profile' post.author.username %}" style="text-decoration: none; color: inherit;">
                                 <strong>{{ post.author.first_name }} {{ post.author.last_name }}</strong>
                             </a>
+                            {% include 'forum/components/verified_badge.html' with account=post.author is_anonymous=post.is_anonymous %}
                         {% endif %}
                         <span class="text-muted">
                             {{ post.created_at|smart_timesince }}
@@ -46,8 +47,13 @@
                     {% if post.post_type == 'poll' and post.poll_data %}
                         {% include 'forum/components/poll_display.html' with post_data=post.poll_data read_only=False %}
                     {% else %}
-                        <p class="card-text mt-2 post-card-text">{{ post.preview_html|truncatechars:700|linebreaksbr }}</p>
+                        <p class="card-text mt-2 post-card-text mb-0">{{ post.preview_html|truncatechars:700|linebreaksbr }}</p>
                     {% endif %}
+
+                    <div class="post-badges">
+                        {% if post.scope == 'community' %}<span class="badge bg-primary me-1">Community</span>{% endif %}
+                        {% if show_community_pins and post.is_pinned_in_community %}<span class="badge bg-warning text-dark"><i class="bi bi-pin-angle-fill me-1"></i>Pinned</span>{% endif %}
+                    </div>
 
                     {% if post.get_first_image_url %}
                         <div class="post-image-preview mt-2 mb-2 text-center">

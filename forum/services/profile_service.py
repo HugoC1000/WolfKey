@@ -123,6 +123,12 @@ def get_profile_context(request, username):
         'initial_courses_json': initial_courses_json,
         'all_courses': all_courses
     }
+
+    from forum.services.community_services import is_following_community
+    context['is_following_community'] = is_following_community(request.user, profile_user)
+    if request.user == profile_user and profile_user.is_community_account and profile_user.is_active:
+        from forum.services.community_services import get_owned_community_lunches
+        context['community_lunches'] = get_owned_community_lunches(profile_user)['lunches']
     
     # Add comparison data if viewing someone else's profile
     if request.user.is_authenticated and request.user != profile_user:
