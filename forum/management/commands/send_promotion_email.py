@@ -13,6 +13,7 @@ SUBJECTS = {
     'Announcement_New_Features': "What's New: Profiles, Polls & Volunteer Hours",
     'atlas_intro': 'Find a Better Schedule with Atlas',
     'atlas_schedule_upload': 'Upload Your Schedule to WolfKey',
+    'schedule_update_reminder': 'Changed Your Schedule? Update WolfKey',
 }
 
 
@@ -25,7 +26,7 @@ class Command(BaseCommand):
             default=DEFAULT_NEWSLETTER,
             help=(
                 'Newsletter template name without .html, for example '
-                'atlas_intro or atlas_schedule_upload.'
+                'atlas_intro, atlas_schedule_upload, or schedule_update_reminder.'
             ),
         )
         parser.add_argument(
