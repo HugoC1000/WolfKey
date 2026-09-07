@@ -603,9 +603,10 @@ def process_schedule_for_user(user, raw_schedule):
         "tfr": "Terry Fox Run",
         "g8 assm" : "Grade 8 Assembly ONLY",
         "ss assm" : "Senior School Assembly",
+        "1c" : "Advisory"
     }
 
-    regular_blocks = ["1a", "1b","1c","1d","1e","2a","2b","2c","2d","2e"]
+    regular_blocks = ["1a", "1b","1d","1e","2a","2b","2c","2d","2e"]
 
     if not any(raw_schedule['blocks']):
         return ["no school"]
