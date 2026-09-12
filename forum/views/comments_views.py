@@ -10,8 +10,10 @@ from forum.services.comment_services import (
     edit_comment_service,
     delete_comment_service,
     get_comments_service,
+    vote_comment_service,
 )
 
+@login_required
 def create_comment(request, solution_id):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -54,3 +56,13 @@ def get_comments(request, solution_id):
         'comments': result['comments'],
         'solution': result['solution']
     })
+
+
+@login_required
+def vote_comment(request, comment_id, vote_type):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    result = vote_comment_service(request.user, comment_id, vote_type)
+    if 'error' in result:
+        return JsonResponse(result, status=400)
+    return JsonResponse(result)

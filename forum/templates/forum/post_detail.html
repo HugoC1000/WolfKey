@@ -23,7 +23,6 @@
     <meta name="description" content="{{ post.preview_text|truncatewords:30|striptags }}">
     <meta name="author" content="{% if post.is_anonymous %}Anonymous{% else %}{{ post.author.first_name }} {{ post.author.last_name }}{% endif %}">
     <meta name="article:published_time" content="{{ post.created_at|date:'c' }}">
-    <meta name="article:modified_time" content="{{ post.updated_at|date:'c' }}">
     
     <link rel="stylesheet" href="{% static 'forum/css/post-detail.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/editorjs.css' %}">
@@ -127,6 +126,7 @@ import { EditorManager } from '{% static "forum/js/editor-manager.js" %}';
 import { SolutionEditor } from '{% static "forum/js/solution-editing.js" %}';
 import { SolutionSorter } from '{% static "forum/js/solution-sorting.js" %}';
 import { CommentEditor } from '{% static "forum/js/comment-editing.js" %}';
+import { CommentInteractions } from '{% static "forum/js/comment-interactions.js" %}';
 import { MathLiveBlock } from '{% static "forum/js/math-block.js" %}';
 import createEditor from '{% static "forum/js/editor-config.js" %}';
 import { SolutionInteractions } from '/static/forum/js/solution-interactions.js';
@@ -182,6 +182,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             const commentEditor = new CommentEditor(editorManager, '{{ csrf_token }}');
             new SolutionSorter();
+            new CommentInteractions('{{ csrf_token }}');
 
         } catch (error) {
             console.error("Error initializing post detail page:", error);

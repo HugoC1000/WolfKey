@@ -5,7 +5,6 @@ from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from forum.serializers import PostListSerializer
 from forum.services.community_services import (
     add_community_lunch_service,
     delete_community_lunch_service,
@@ -15,18 +14,14 @@ from forum.services.community_services import (
     update_community_lunch_service,
 )
 from forum.services.feed_services import get_community_posts
-from forum.services.poll_display_service import attach_poll_data_to_posts
 
 
 def community(request):
     page_obj = get_community_posts(request.user, request.GET.get('page', 1))
     posts = list(page_obj.object_list)
-    posts_data = PostListSerializer(posts, many=True, context={'request': request}).data
-    attach_poll_data_to_posts(posts, posts_data)
     accounts, followed_ids, subscription_ids = get_community_directory(request.user)
     return render(request, 'forum/community.html', {
         'posts': posts,
-        'posts_data': posts_data,
         'page_obj': page_obj,
         'community_accounts': accounts,
         'followed_community_ids': followed_ids,

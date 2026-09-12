@@ -16,7 +16,7 @@
                 {% csrf_token %}
                 
                 <h3>{% if user.is_community_account %}Post title:{% else %}Title:{% endif %}</h3>
-                <input type="text" id="id_title" name="title" class="form-control"
+                <input type="text" id="id_title" name="title" class="form-control" maxlength="200" required
                     value="{% if post %}{{ post.title }}{% else %}{{ form.title.value|default_if_none:'' }}{% endif %}">
 
                 <h3>Content:</h3>

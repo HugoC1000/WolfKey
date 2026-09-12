@@ -13,8 +13,8 @@
     </h1>
     {% if posts %}
     <div class="row" id="post-list">
-        {% for post in posts %}
-            {% include 'forum/components/post_card.html' with post=post %}
+        {% for post_data in posts %}
+            {% include 'forum/components/post_card.html' with post_data=post_data %}
 
         {% endfor %}
     </div>

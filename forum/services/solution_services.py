@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from forum.models import Post, Solution, SolutionUpvote, SolutionDownvote
-from forum.services.utils import detect_bad_words, extract_and_delete_files_from_content
+from forum.services.utils import detect_bad_words
 from forum.services.notification_services import send_solution_notification_service
 from forum.services.mention_service import update_mentions
 from forum.services.post_services import _check_teacher_visibility
@@ -81,10 +81,6 @@ def update_solution_service(user, solution_id, data):
 def delete_solution_service(user, solution_id):
     try:
         solution = get_object_or_404(Solution, id=solution_id, author=user)
-        
-        # Extract and delete any files referenced in the solution content
-        if solution.content:
-            extract_and_delete_files_from_content(solution.content)
         
         solution.delete()
         return {'message': 'Solution deleted successfully'}

@@ -72,8 +72,8 @@
 
         <section class="course-posts">
             <div class="section-heading"><div><span class="section-kicker">Course conversation</span><h2>Posts about {{ course.name }}</h2></div><span class="post-count">{{ posts|length }} posts</span></div>
-            {% for post in posts %}
-                <div class="post-card-container course-post-card animate-visible">{% include 'forum/components/post_card.html' with post=post %}</div>
+            {% for post_data in posts %}
+                <div class="post-card-container course-post-card animate-visible">{% include 'forum/components/post_card.html' with post_data=post_data %}</div>
             {% empty %}
                 <div class="course-empty"><i class="bi bi-chat-square-heart"></i><h3>Start the conversation</h3><p>No posts have mentioned this course yet.</p><a class="btn btn-primary" href="{% url 'create_post' %}">Ask about this class</a></div>
             {% endfor %}

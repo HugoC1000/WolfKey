@@ -2,6 +2,7 @@ from rest_framework import serializers
 from forum.models import Post
 from django.utils.timezone import localtime
 from forum.services.utils import process_post_preview, process_post_preview_html
+from forum.services.post_list_service import PostListItem
 from .user import AnonymousAuthorSerializer, FeedUserSerializer
 
 
@@ -18,7 +19,6 @@ class PostListSerializer(serializers.ModelSerializer):
     like_count = serializers.SerializerMethodField()
     solution_count = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
-    solved = serializers.SerializerMethodField()
     first_image_url = serializers.SerializerMethodField()
     poll_data = serializers.SerializerMethodField()
     followers_count = serializers.SerializerMethodField()
@@ -33,6 +33,17 @@ class PostListSerializer(serializers.ModelSerializer):
             'first_image_url', 'is_anonymous', 'allow_teacher', 'poll_data',
             'followers_count', 'mentions'
         ]
+
+    def to_representation(self, instance):
+        if isinstance(instance, PostListItem):
+            if not hasattr(self, '_items_by_post_id'):
+                self._items_by_post_id = {}
+            self._items_by_post_id[instance.post.id] = instance
+            instance = instance.post
+        return super().to_representation(instance)
+
+    def _item_for(self, post):
+        return getattr(self, '_items_by_post_id', {}).get(post.id)
     
     def get_author(self, obj):
         """Return author data with anonymous serializer if post is anonymous"""
@@ -41,10 +52,12 @@ class PostListSerializer(serializers.ModelSerializer):
         return FeedUserSerializer(obj.author, context=self.context).data
     
     def get_preview_text(self, obj):
-        return getattr(obj, 'preview_text', None) or process_post_preview(obj)
+        item = self._item_for(obj)
+        return item.preview_text if item else process_post_preview(obj)
     
     def get_preview_html(self, obj):
-        return getattr(obj, 'preview_html', None) or process_post_preview_html(obj)
+        item = self._item_for(obj)
+        return item.preview_html if item else process_post_preview_html(obj)
 
     def get_created_at(self, obj):
         return localtime(obj.created_at).isoformat()
@@ -54,13 +67,15 @@ class PostListSerializer(serializers.ModelSerializer):
         return CourseSerializer(obj.courses.all(), many=True, context=self.context).data
     
     def get_reply_count(self, obj):
-        return getattr(obj, 'total_response_count', 0)
+        item = self._item_for(obj)
+        return item.response_count if item else getattr(obj, 'total_response_count', 0)
     
     def get_is_liked(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            if hasattr(obj, 'is_liked_by_user'):
-                return obj.is_liked_by_user
+            item = self._item_for(obj)
+            if item:
+                return item.is_liked
             return obj.is_liked_by(request.user)
         return False
     
@@ -68,25 +83,28 @@ class PostListSerializer(serializers.ModelSerializer):
         """Check if the current user is following this post"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            if hasattr(obj, 'is_following'):
-                return obj.is_following
+            item = self._item_for(obj)
+            if item:
+                return item.is_following
             from forum.models import FollowedPost
             return FollowedPost.objects.filter(user=request.user, post=obj).exists()
         return False
     
     def get_like_count(self, obj):
-        return obj.like_count()
+        item = self._item_for(obj)
+        return item.like_count if item else obj.like_count()
     
     def get_solution_count(self, obj):
+        item = self._item_for(obj)
+        if item:
+            return item.solution_count
         if hasattr(obj, 'solution_count'):
             return obj.solution_count
         return obj.solutions.count()
     
     def get_comment_count(self, obj):
-        return getattr(obj, 'comment_count', 0)
-    
-    def get_solved(self, obj):
-        return obj.solved
+        item = self._item_for(obj)
+        return item.comment_count if item else getattr(obj, 'comment_count', 0)
     
     def get_first_image_url(self, obj):
         """Extract the first image URL from the post content JSON"""
@@ -94,12 +112,16 @@ class PostListSerializer(serializers.ModelSerializer):
 
     def get_poll_data(self, obj):
         """Get normalized poll payload for list/card display."""
+        item = self._item_for(obj)
+        if item:
+            return item.poll_data
         from .poll import serialize_poll_display_data
         request = self.context.get('request')
         return serialize_poll_display_data(obj, request=request)
 
     def get_followers_count(self, obj):
-        return obj.followers.count()
+        item = self._item_for(obj)
+        return item.followers_count if item else obj.followers.count()
 
     def get_mentions(self, obj):
         """Get all mentions in this post"""

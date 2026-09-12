@@ -3,9 +3,8 @@ from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db.models.functions import Coalesce
 from forum.models import Post, Course
 from forum.services.course_services import get_user_courses
-from forum.services.utils import process_post_preview, add_course_context, annotate_post_card_context
+from forum.services.post_list_service import prepare_posts
 from django.core.paginator import Paginator
-from django.utils.timezone import localtime
 
 
 def _order_by_recent_activity(queryset):
@@ -81,7 +80,7 @@ def get_for_you_posts(user, page=1, per_page=8):
 
     posts_dict = {post.id: post for post in posts}
     ordered_posts = [posts_dict[pid] for pid in post_ids if pid in posts_dict]
-    ordered_posts = annotate_post_card_context(ordered_posts, user)
+    ordered_posts = prepare_posts(ordered_posts, user)
     
     # Replace page_obj's object_list with annotated posts
     page_obj.object_list = ordered_posts
@@ -130,7 +129,7 @@ def get_all_posts(user, query='', page=1, per_page=8):
     post_dic = {post.id: post for post in posts_qs}
     ordered_posts = [post_dic[pid] for pid in post_ids if pid in post_dic]
 
-    ordered_posts = annotate_post_card_context(ordered_posts, user)
+    ordered_posts = prepare_posts(ordered_posts, user)
     
     # Replace page_obj's object_list with annotated posts
     page_obj.object_list = ordered_posts
@@ -156,33 +155,10 @@ def get_community_posts(user, page=1, per_page=8):
         total_response_count=Count('solutions', distinct=True) + Count('solutions__comments', distinct=True),
     ).select_related('author', 'author__userprofile').prefetch_related('courses')
     posts_by_id = {post.id: post for post in posts}
-    page_obj.object_list = annotate_post_card_context(
+    page_obj.object_list = prepare_posts(
         [posts_by_id[post_id] for post_id in post_ids if post_id in posts_by_id], user
     )
     return page_obj
-
-def paginate_posts(posts_queryset, page=1, limit=10):
-    """
-    Handles pagination of posts queryset and returns formatted post data
-    """
-    paginator = Paginator(posts_queryset, limit)
-    page_obj = paginator.get_page(page)
-
-    post_list = [{
-        "id": post.id,
-        "author_name": post.author.get_full_name(),
-        "title": post.title,
-        "preview_text": post.preview_text,
-        "created_at": localtime(post.created_at).isoformat(),
-        "tag": post.course_context,
-        "reply_count": post.replies.count() if hasattr(post, 'replies') else 0,
-    } for post in page_obj]
-
-    return {
-        "posts": post_list,
-        "page_obj": page_obj,
-        "has_next": page_obj.has_next()
-    }
 
 def get_user_posts(user, page=1, per_page=8):
     page = int(page)
@@ -192,7 +168,7 @@ def get_user_posts(user, page=1, per_page=8):
     page_obj = paginator.get_page(page)
     
     # Annotate the posts on this page
-    annotated_posts = annotate_post_card_context(list(page_obj.object_list), user)
+    annotated_posts = prepare_posts(list(page_obj.object_list), user)
     page_obj.object_list = annotated_posts
     
     return page_obj

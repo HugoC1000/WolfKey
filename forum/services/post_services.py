@@ -1,21 +1,11 @@
 from django.shortcuts import get_object_or_404
-from django.db.models import F, Case, When, IntegerField
 from forum.models import Post, Course, PostLike, FollowedPost, Poll, PollOption
-from forum.services.utils import detect_bad_words, selective_quote_replace
+from forum.services.utils import detect_bad_words
 from forum.services.notification_services import send_course_notifications_service, send_community_post_notifications_service
 from forum.services.mention_service import update_mentions
-import json
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-def _author_display_name(user, post):
-    """Return an author name without exposing an anonymous post's author."""
-    if post.is_anonymous and user.id == post.author_id:
-        from forum.serializers import AnonymousAuthorSerializer
-        return AnonymousAuthorSerializer(user).data['full_name']
-    return user.get_full_name()
 
 
 def _check_teacher_visibility(user, post):
@@ -26,74 +16,6 @@ def _check_teacher_visibility(user, post):
     if user and user.is_authenticated and user.is_teacher and not post.allow_teacher:
         raise ValueError("You don't have permission to view this post.")
     return True
-
-def get_post_detail_service(post_id, user=None):
-    try:
-        post = get_object_or_404(Post, id=post_id)
-        
-        # Check teacher visibility
-        _check_teacher_visibility(user, post)
-        
-        solutions = post.solutions.annotate(
-            vote_score=F('upvotes') - F('downvotes')
-        ).order_by(
-            Case(
-                When(id=post.accepted_solution_id, then=0),
-                default=1,
-                output_field=IntegerField(),
-            ),
-            '-vote_score',
-            '-created_at'
-        )
-
-        processed_solutions = []
-        for solution in solutions:
-            try:
-                solution_content = solution.content
-                if isinstance(solution_content, str):
-                    solution_content = selective_quote_replace(solution_content)
-                    solution_content = json.loads(solution_content)
-                
-                comments = solution.comments.select_related('author').order_by('created_at')
-                processed_comments = [{
-                    'id': comment.id,
-                    'content': comment.content,
-                    'author': _author_display_name(comment.author, post),
-                    'created_at': comment.created_at.isoformat(),
-                    'parent_id': comment.parent_id,
-                    'depth': comment.get_depth(),
-                } for comment in comments]
-
-                processed_solutions.append({
-                    'id': solution.id,
-                    'content': solution_content,
-                    'author': _author_display_name(solution.author, post),
-                    'created_at': solution.created_at.isoformat(),
-                    'upvotes': solution.upvotes,
-                    'downvotes': solution.downvotes,
-                    'comments': processed_comments,
-                })
-            except Exception as e:
-                logger.error(f"Error processing solution {solution.id}: {e}")
-
-        post = Post.objects.get(id=post_id)
-        post.views += 1
-        post.save()
-
-        return {
-            'id': post.id,
-            'title': post.title,
-            'solutions_object' : solutions,
-            'content': post.content,
-            'author': _author_display_name(post.author, post),
-            'created_at': post.created_at.isoformat(),
-            'solutions': processed_solutions,
-            'courses': [{'id': c.id, 'name': c.name} for c in post.courses.all()],
-            'like_count': post.like_count(),
-            'is_liked': post.is_liked_by(user) if user else False,
-        }
-    except Exception as e:
-        return {'error': str(e)}
 
 def create_post_service(user, data):
     try:

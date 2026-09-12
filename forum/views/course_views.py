@@ -9,11 +9,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from forum.models import Course, CourseTeacher, Post, UserProfile
-from forum.serializers import CourseRosterStudentSerializer, PostListSerializer
+from forum.serializers import CourseRosterStudentSerializer
 from forum.serializers.user import USER_SCHEDULE_BLOCKS
 from forum.services.course_services import course_category_class, course_category_color
-from forum.services.poll_display_service import attach_poll_data_to_posts
-from forum.services.utils import annotate_post_card_context
+from forum.services.post_list_service import prepare_posts
 
 
 def _has_uploaded_schedule(profile):
@@ -98,9 +97,7 @@ def course_page(request, course_id):
         .prefetch_related('courses')
         .order_by('-recent_updated_at', '-created_at')
     )
-    annotate_post_card_context(posts, request.user)
-    posts_data = PostListSerializer(posts, many=True, context={'request': request}).data
-    attach_poll_data_to_posts(posts, posts_data)
+    posts = prepare_posts(posts, request.user)
 
     roster_blocks = [
         {

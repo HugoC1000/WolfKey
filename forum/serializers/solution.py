@@ -10,12 +10,15 @@ class CommentSerializer(serializers.ModelSerializer):
     replies = serializers.SerializerMethodField()
     depth = serializers.SerializerMethodField()
     mentions = serializers.SerializerMethodField()
+    upvotes = serializers.SerializerMethodField()
+    downvotes = serializers.SerializerMethodField()
+    vote_state = serializers.SerializerMethodField()
     
     class Meta:
         model = Comment
         fields = [
             'id', 'content', 'author', 'created_at', 'parent',
-            'replies', 'depth', 'mentions'
+            'replies', 'depth', 'mentions', 'upvotes', 'downvotes', 'vote_state'
         ]
     
     def get_author(self, obj):
@@ -44,6 +47,22 @@ class CommentSerializer(serializers.ModelSerializer):
         """Get all mentions in this comment"""
         from forum.services.mention_service import fetch_mentions_for_content
         return fetch_mentions_for_content(obj)
+
+    def get_upvotes(self, obj):
+        return obj.commentupvote_set.count()
+
+    def get_downvotes(self, obj):
+        return obj.commentdownvote_set.count()
+
+    def get_vote_state(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return 'none'
+        if obj.commentupvote_set.filter(user=request.user).exists():
+            return 'upvoted'
+        if obj.commentdownvote_set.filter(user=request.user).exists():
+            return 'downvoted'
+        return 'none'
 
 
 class SolutionSerializer(serializers.ModelSerializer):

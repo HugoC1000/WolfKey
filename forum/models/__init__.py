@@ -7,7 +7,7 @@ from .course import (
 )
 from .post import Post, StandardPost, SavedPost, FollowedPost, PostLike
 from .poll import Poll, PollOption, PollVote
-from .solution import Solution, SavedSolution, Comment, SolutionUpvote, SolutionDownvote, CommentUpvote
+from .solution import Solution, SavedSolution, Comment, SolutionUpvote, SolutionDownvote, CommentUpvote, CommentDownvote
 from .schedule import GradebookSnapshot, DailySchedule
 from .notification import Notification, UpdateAnnouncement, UserUpdateView
 from .mention import Mention
@@ -49,6 +49,7 @@ __all__ = [
     'SolutionUpvote',
     'SolutionDownvote',
     'CommentUpvote',
+    'CommentDownvote',
     # Schedule models
     'GradebookSnapshot',
     'DailySchedule',

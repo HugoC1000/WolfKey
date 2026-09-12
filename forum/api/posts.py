@@ -7,13 +7,13 @@ from django.shortcuts import get_object_or_404
 import json
 
 from forum.models import Post, Course
-from forum.services.feed_services import get_for_you_posts, get_all_posts, paginate_posts
+from forum.services.feed_services import get_for_you_posts, get_all_posts
+from django.core.paginator import Paginator
 from forum.services.search_services import search_posts
 from forum.services.post_services import (
     create_post_service,
     update_post_service,
     delete_post_service,
-    get_post_detail_service,
     like_post_service,
     unlike_post_service,
     follow_post_service,
@@ -367,7 +367,7 @@ def search_posts_api(request):
         per_page = int(request.GET.get('limit', 8))
         
         posts = search_posts(request.user, query)
-        page_obj = paginate_posts(posts, page, per_page)
+        page_obj = Paginator(posts, per_page).get_page(page)
         
         serializer = PostListSerializer(page_obj.object_list, many=True, context={'request': request})
         

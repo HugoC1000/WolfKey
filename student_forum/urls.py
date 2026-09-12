@@ -93,7 +93,8 @@ from forum.views.comments_views import (
     create_comment,
     edit_comment,
     delete_comment,
-    get_comments
+    get_comments,
+    vote_comment,
 )
 from forum.views.course_comparer_views import (
     course_comparer
@@ -206,7 +207,8 @@ from forum.api.comment import (
     create_comment_api,
     edit_comment_api,
     delete_comment_api,
-    get_comments_api
+    get_comments_api,
+    vote_comment_api,
 )
 
 from forum.api.profile import (
@@ -292,6 +294,7 @@ urlpatterns = [
     # Voting URLs
     path('solution/<int:solution_id>/upvote/', upvote_solution, name='upvote_solution'),
     path('solution/<int:solution_id>/downvote/', downvote_solution, name='downvote_solution'),
+    path('comment/<int:comment_id>/<str:vote_type>/', vote_comment, name='vote_comment'),
     path('solution/<int:solution_id>/accept/', accept_solution, name='accept_solution'),
     
     # Search URLs
@@ -414,6 +417,7 @@ urlpatterns = [
     path('api/comments/<int:comment_id>/edit/', edit_comment_api, name='api_edit_comment'),
     path('api/comments/<int:comment_id>/delete/', delete_comment_api, name='api_delete_comment'),
     path('api/solutions/<int:solution_id>/comments/', get_comments_api, name='api_get_comments'),
+    path('api/comments/<int:comment_id>/vote/', vote_comment_api, name='api_vote_comment'),
     
     # Notification API endpoints
     path('api/notifications/', notifications_api, name='api_notifications'),

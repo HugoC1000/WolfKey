@@ -33,7 +33,6 @@ from .volunteer import (
     VolunteerPinMilestoneSerializer,
     VolunteerResourceSerializer,
 )
-from forum.services.poll_display_service import attach_poll_data_to_posts
 
 __all__ = [
     # User serializers
@@ -60,7 +59,6 @@ __all__ = [
     'PollVoterSerializer',
     'PollSerializer',
     'serialize_poll_display_data',
-    'attach_poll_data_to_posts',
     # Notification serializers
     'NotificationSerializer',
     'CommunityLunchSerializer',

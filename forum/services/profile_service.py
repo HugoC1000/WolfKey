@@ -10,8 +10,9 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from forum.models import User, Course, Post, Solution, UserCourseExperience, UserCourseHelp, UserProfile
 from forum.forms import UserCourseExperienceForm, UserCourseHelpForm
-from forum.services.utils import detect_bad_words, annotate_post_card_context
-from forum.serializers import UserScheduleSerializer
+from forum.services.utils import detect_bad_words
+from forum.services.post_list_service import prepare_posts
+from forum.serializers import UserProfileSerializer
 from forum.serializers.user import USER_SCHEDULE_BLOCKS
 from forum.services.schedule_import_service import ScheduleImportValidationError, replace_user_schedule
 
@@ -86,7 +87,7 @@ def get_profile_posts_page(viewing_user, profile_user, page=1, per_page=8):
 
     posts_dict = {post.id: post for post in posts_qs}
     ordered_posts = [posts_dict[pid] for pid in post_ids if pid in posts_dict]
-    ordered_posts = annotate_post_card_context(ordered_posts, viewing_user)
+    ordered_posts = prepare_posts(ordered_posts, viewing_user)
 
     page_obj.object_list = ordered_posts
     return page_obj
@@ -98,11 +99,11 @@ def get_profile_context(request, username):
     posts_count = Post.objects.filter(author=profile_user).count()
     solutions_count = Solution.objects.filter(author=profile_user).count()
 
-    # Use UserScheduleSerializer as the canonical source for profile schedule data.
-    serializer = UserScheduleSerializer(profile_user.userprofile)
-    initial_courses = serializer.data.get('schedule', {}) if serializer and serializer.data else {}
-    
-    initial_courses_json = json.dumps(initial_courses)
+    # Use the same public data and privacy rules for the website and API.
+    profile_data = UserProfileSerializer(
+        profile_user.userprofile, context={'request': request}
+    ).data
+    initial_courses_json = json.dumps(profile_data['schedule'] or {})
 
     experienced_courses = UserCourseExperience.objects.filter(user=profile_user)
     help_needed_courses = UserCourseHelp.objects.filter(user=profile_user, active=True)
@@ -113,6 +114,7 @@ def get_profile_context(request, username):
 
     context = {
         'profile_user': profile_user,
+        'profile_data': profile_data,
         'recent_posts': recent_posts,
         'posts_count': posts_count,
         'solutions_count': solutions_count,
@@ -130,33 +132,15 @@ def get_profile_context(request, username):
         from forum.services.community_services import get_owned_community_lunches
         context['community_lunches'] = get_owned_community_lunches(profile_user)['lunches']
     
-    # Add comparison data if viewing someone else's profile
-    if request.user.is_authenticated and request.user != profile_user:
-        initial_users = [
-            {
-                'id': request.user.id,
-                'username': request.user.username,
-                'full_name': request.user.get_full_name(),
-                'school_email': request.user.school_email,
-                'profile_picture_url': request.user.userprofile.profile_picture.url if request.user.userprofile.profile_picture else None,
-            },
-            {
-                'id': profile_user.id,
-                'username': profile_user.username,
-                'full_name': profile_user.get_full_name(),
-                'school_email': profile_user.school_email,
-                'profile_picture_url': profile_user.userprofile.profile_picture.url if profile_user.userprofile.profile_picture else None,
-            }
-        ]
-        context['initial_users'] = json.dumps(initial_users)
-        context['can_compare'] = True
-    else:
-        context['can_compare'] = False
-    
+    context['can_compare'] = profile_data['can_compare']
+    context['initial_users'] = json.dumps(profile_data['initial_users'])
+
     return context
 
 def update_profile_info(request, username):
     profile_user = get_object_or_404(User, username=username)
+    if request.user != profile_user:
+        return False, 'You can only update your own profile.'
     try:
         # Handle WolfNet settings form
         if request.POST.get('form_type') == 'wolfnet_settings':

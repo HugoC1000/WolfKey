@@ -4,13 +4,11 @@ import uuid
 import json
 from html import unescape, escape
 from django.utils.html import strip_tags
-from django.utils.safestring import mark_safe
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
-from forum.services.course_services import course_category_class, course_category_color, get_user_courses
 from PIL import Image
 from io import BytesIO
 from urllib.parse import urlparse
@@ -466,60 +464,6 @@ def process_post_preview_html(post):
 
     return _normalize_preview_text_with_links(content)
     
-def annotate_post_card_context(posts, user):
-    from forum.models import FollowedPost
-    
-    experienced_courses, help_needed_courses = get_user_courses(user)
-    
-    post_ids = [post.id for post in posts]
-    
-    liked_post_ids = set()
-    followed_post_ids = set()
-    
-    if user.is_authenticated:
-        liked_post_ids = set(
-            user.liked_posts.filter(post_id__in=post_ids).values_list('post_id', flat=True)
-        )
-        
-        followed_post_ids = set(
-            user.followed_posts.filter(post_id__in=post_ids).values_list('post_id', flat=True)
-        )
-    
-    for post in posts:
-        post.preview_text = process_post_preview(post)
-        post.preview_html = mark_safe(process_post_preview_html(post))
-        add_course_context(post, experienced_courses, help_needed_courses)
-        
-        post.is_liked_by_user = post.id in liked_post_ids
-        post.is_following = post.id in followed_post_ids
-    
-    return posts
-
-
-def add_course_context(post, experienced_courses=None, help_needed_courses=None):
-    """
-    Add course context information to a post object.
-
-    Args:
-        post: Post object with a courses relation.
-        experienced_courses: Optional list of Course objects the user has experience with.
-        help_needed_courses: Optional list of Course objects the user needs help with.
-
-    Returns:
-        post: The same post object with a 'course_context' attribute added.
-    """
-    post.course_context = []
-    for course in post.courses.all():
-        post.course_context.append({
-            'id': course.id,
-            'name': course.name,
-            'color': course_category_color(course.category),
-            'category_class': course_category_class(course.category),
-            'is_experienced': course in (experienced_courses or []),
-            'needs_help': course in (help_needed_courses or [])
-        })
-    return post
-
 @csrf_exempt
 def upload_image(request):
     """
