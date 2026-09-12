@@ -2,7 +2,7 @@ from django.db.models import Value, F, Count, Q
 from django.db.models.functions import Concat, Greatest
 from django.contrib.postgres.search import SearchQuery, SearchRank, TrigramSimilarity
 from forum.models import Post, User
-from forum.services.utils import process_post_preview, add_course_context, annotate_post_card_context
+from forum.services.post_list_service import prepare_posts
 from forum.services.course_services import get_user_courses
 
 def search_posts(user, query):
@@ -19,8 +19,7 @@ def search_posts(user, query):
     
     posts = posts.order_by('-rank')
 
-    posts = annotate_post_card_context(posts, user)
-    return posts
+    return prepare_posts(posts, user)
 
 def search_users(user, query):
     query = query.strip()

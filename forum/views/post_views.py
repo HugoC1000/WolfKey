@@ -13,7 +13,6 @@ from forum.services.post_services import (
     create_post_service,
     update_post_service,
     delete_post_service,
-    get_post_detail_service,
     like_post_service,
     unlike_post_service,
     follow_post_service,

@@ -47,10 +47,6 @@ class Comment(models.Model):
     def __str__(self):
         return f'Comment by {self.author.username}'
     
-    @property
-    def replies(self):
-        return Comment.objects.filter(parent=self).order_by('created_at')
-    
     def get_absolute_url(self):
         return f'#comment-{self.id}'
     
@@ -81,6 +77,14 @@ class SolutionDownvote(models.Model):
 
 
 class CommentUpvote(models.Model):
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
+    user = models.ForeignKey('forum.User', on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('comment', 'user')
+
+
+class CommentDownvote(models.Model):
     comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
     user = models.ForeignKey('forum.User', on_delete=models.CASCADE)
 

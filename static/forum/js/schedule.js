@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const profileUrl = escapeHtml(lunch.profile_url || `/profile/${encodeURIComponent(community.username || '')}/`);
             return `<a class="badge rounded-pill schedule-badge-lunch text-decoration-none" href="${profileUrl}">${name} · ${location}</a>`;
         }).join('');
-        return `<li class="list-group-item schedule-clubs-row"><span class="schedule-clubs-label">Clubs:</span>${pills}</li>`;
+        return `<li class="list-group-item schedule-clubs-row">${pills}</li>`;
     }
 
     function escapeHtml(value) {

@@ -228,9 +228,9 @@
                                 <h5 class="mb-0">Recent Activity</h5>
                             </div>
                             <div class="card-body">
-                                {% for post in recent_posts %}
+                                {% for post_data in recent_posts %}
                                 <div class="post-card-container animate-visible mb-3">
-                                    {% include 'forum/components/post_card.html' with post=post %}
+                                    {% include 'forum/components/post_card.html' with post_data=post_data %}
                                 </div>
                                 {% empty %}
                                 <p>No recent activity.</p>

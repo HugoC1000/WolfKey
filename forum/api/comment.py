@@ -11,6 +11,7 @@ from forum.services.comment_services import (
     edit_comment_service,
     delete_comment_service,
     get_comments_service,
+    vote_comment_service,
 )
 from forum.serializers import CommentSerializer
 
@@ -77,3 +78,13 @@ def get_comments_api(request, solution_id):
         })
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def vote_comment_api(request, comment_id):
+    result = vote_comment_service(request.user, comment_id, request.data.get('vote_type'))
+    if 'error' in result:
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+    return Response(result)

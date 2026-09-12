@@ -1,12 +1,6 @@
 from django import forms
-from .models import Post, Comment, Solution, File, UserProfile, UserCourseExperience, UserCourseHelp, Course, User
-from django.forms.widgets import ClearableFileInput
-from django.core.files.uploadedfile import UploadedFile
+from .models import Post, Comment, Solution, UserProfile, UserCourseExperience, UserCourseHelp, Course, User
 from django.contrib.auth.forms import UserCreationForm
-from django.db.models import F, Q
-import re
-import json
-import uuid
 from django.contrib.auth.forms import PasswordResetForm
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -15,30 +9,10 @@ from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.contrib.auth.hashers import make_password, check_password
-from cryptography.fernet import Fernet
-import base64
 import logging
 
 logger = logging.getLogger(__name__)
 
-class MultipleFileInput(forms.ClearableFileInput):
-    allow_multiple_selected = True
-
-class MultipleFileField(forms.FileField):
-    def __init__(self, *args, **kwargs):
-        kwargs.setdefault("widget", MultipleFileInput())
-        super().__init__(*args, **kwargs)
-
-    def clean(self, data, initial=None):
-        single_file_clean = super().clean
-        if isinstance(data, (list, tuple)):
-            result = [single_file_clean(d, initial) for d in data]
-        else:
-            result = single_file_clean(data, initial)
-        return result
-
-        
 class PostForm(forms.ModelForm):
 
     is_anonymous = forms.BooleanField(
@@ -57,34 +31,6 @@ class PostForm(forms.ModelForm):
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
         }
-
-    def clean_courses(self):
-        courses = self.cleaned_data.get('courses')
-        if not courses:
-            return []
-
-        course_ids = []
-        for course in courses:
-            try:
-                if isinstance(course, str):
-                    if course.startswith('[') and course.endswith(']'):
-                        parsed_ids = json.loads(course)
-                        course_ids.extend(parsed_ids)
-                    else:
-                        course_ids.append(int(course))
-                else:
-                    course_ids.append(course.id if hasattr(course, 'id') else int(course))
-            except (ValueError, json.JSONDecodeError):
-                continue
-
-        course_ids = list(set(course_ids))
-        return Course.objects.filter(id__in=course_ids)
-
-    def clean(self):
-        cleaned_data = super().clean()
-        if 'content' not in self.data:
-            raise forms.ValidationError("Content is required")
-        return cleaned_data
 
 class SolutionForm(forms.ModelForm):
     class Meta:

@@ -18,7 +18,6 @@ from forum.services.community_services import (
     update_community_lunch_service,
 )
 from forum.services.feed_services import get_community_posts
-from forum.services.poll_display_service import attach_poll_data_to_posts
 from forum.services.schedule_services import get_block_order_for_day
 
 
@@ -42,7 +41,6 @@ def community_posts_api(request):
     page_obj = get_community_posts(request.user, request.GET.get('page', 1), request.GET.get('limit', 8))
     posts = list(page_obj.object_list)
     posts_data = PostListSerializer(posts, many=True, context={'request': request}).data
-    attach_poll_data_to_posts(posts, posts_data)
     return Response({
         'posts': posts_data,
         'has_next': page_obj.has_next(),

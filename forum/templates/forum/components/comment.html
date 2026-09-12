@@ -48,16 +48,17 @@
 
             <div class="comment-metadata d-flex justify-content-between align-items-center mt-2">
 
-                <!-- Left: Reply Button -->
+                <div class="comment-actions d-flex align-items-center gap-2">
                 {% if user.is_authenticated %}
-                <div>
+                    <button type="button" class="comment-vote-button {% if comment.vote_state == 'upvoted' %}voted-up{% endif %}" data-comment-id="{{ comment.id }}" data-vote-type="upvote">▲ <span class="comment-upvotes">{{ comment.upvotes }}</span></button>
+                    <button type="button" class="comment-vote-button {% if comment.vote_state == 'downvoted' %}voted-down{% endif %}" data-comment-id="{{ comment.id }}" data-vote-type="downvote">▼ <span class="comment-downvotes">{{ comment.downvotes }}</span></button>
                     <button class="reply-button btn pill-btn btn-outline-secondary btn-sm" 
                             data-solution-id="{{ comment.solution.id }}"
                             data-parent-id="{{ comment.id }}">
                         <i class="bi bi-reply"></i> Reply
                     </button>
-                </div>
                 {% endif %}
+                </div>
 
                 <!-- Right: Edit/Delete (and Save/Cancel if editing) -->
                 {% if user == comment.author %}

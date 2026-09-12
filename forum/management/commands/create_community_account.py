@@ -16,8 +16,6 @@ class Command(BaseCommand):
         username = options['username'].strip().lower()
         if User.objects.filter(username=username).exists():
             raise CommandError(f'Username "{username}" is already in use.')
-        if User.objects.filter(personal_email__iexact=options['email']).exists():
-            raise CommandError('That recovery email is already attached to an account.')
         name_parts = options['name'].strip().split(maxsplit=1)
         first_name = name_parts[0]
         last_name = name_parts[1] if len(name_parts) > 1 else 'Community'

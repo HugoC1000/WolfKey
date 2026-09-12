@@ -1127,7 +1127,7 @@ class CommunityFeatureTests(TestCase):
 
         page = get_community_posts(self.user)
 
-        self.assertEqual([post.id for post in page.object_list], [community_post.id])
+        self.assertEqual([post_item.post.id for post_item in page.object_list], [community_post.id])
 
     def test_community_account_cannot_create_anonymous_post(self):
         result = create_post_service(self.community, {
