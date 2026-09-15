@@ -24,7 +24,9 @@ def for_you(request):
     page = request.GET.get('page', 1)
     query = request.GET.get('q', '')
 
-    page_obj = get_all_posts(request.user, query, page) if query else get_for_you_posts(request.user, page)
+    # Keep the web home feed aligned with the mobile Home screen, which uses
+    # the global all-posts feed rather than personalized course filtering.
+    page_obj = get_all_posts(request.user, query, page)
     posts = list(page_obj.object_list)
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return render(request, 'forum/components/post_list.html', {
