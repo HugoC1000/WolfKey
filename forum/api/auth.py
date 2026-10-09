@@ -2,7 +2,7 @@ from forum.services.auth_services import (
     authenticate_user,
     register_user,
 )
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import logout
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -14,7 +14,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from forum.forms import CustomUserCreationForm
-from forum.services.utils import upload_image
 from forum.services.search_services import search_users
 from forum.serializers import PrivateUserSerializer, UserSerializer, UserSummarySerializer
 import json
@@ -36,9 +35,10 @@ def api_login(request):
         if not school_email or not password:
             return JsonResponse({'error': 'Please provide both school email and password'}, status=400)
 
-        user, error = authenticate_user(request, school_email, password)
-        if error:
-            return JsonResponse({'error': error}, status=401)
+        result = authenticate_user(school_email, password)
+        if 'error' in result:
+            return JsonResponse({'error': result['error']}, status=result['status'])
+        user = result['user']
 
         token, _ = Token.objects.get_or_create(user=user)
         
@@ -80,15 +80,16 @@ def api_register(request):
         # Get preference settings (default to True if not provided)
         allow_schedule_comparison = data.get('allow_schedule_comparison', True)
 
-        user, error = register_user(
-            request, form, help_needed_courses, experienced_courses, 
+        result = register_user(
+            form.cleaned_data, help_needed_courses, experienced_courses,
             schedule_data=schedule,
             allow_schedule_comparison=allow_schedule_comparison
         )
 
-        if error:
-            logger.warning(f"Registration service error: {error}")
-            return JsonResponse({'error': error}, status=400)
+        if 'error' in result:
+            logger.warning(f"Registration service error: {result['error']}")
+            return JsonResponse({'error': result['error']}, status=result['status'])
+        user = result['user']
 
         token, _ = Token.objects.get_or_create(user=user)
 
@@ -138,12 +139,6 @@ def search_users_api(request):
         return Response({'users': serialized_users})
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-@api_view(['POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-def api_upload_image(request):
-    return upload_image(request)
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])

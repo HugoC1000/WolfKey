@@ -11,7 +11,11 @@ async function postCardRequest(button, url) {
         },
         credentials: 'same-origin',
     });
-    return response.json();
+    const envelope = await response.json();
+    if (!response.ok || !envelope.success) {
+        throw new Error(envelope.message || 'Post update failed');
+    }
+    return envelope.data;
 }
 
 document.addEventListener('click', async (event) => {
@@ -37,7 +41,7 @@ document.addEventListener('click', async (event) => {
         const url = isFollowing ? followButton.dataset.unfollowUrl : followButton.dataset.followUrl;
         try {
             const data = await postCardRequest(followButton, url);
-            if (data.success) {
+            if (data) {
                 followButton.dataset.followed = data.followed.toString();
                 followButton.querySelector('.follow-count').textContent = data.followers_count;
                 followButton.classList.toggle('active', data.followed);
@@ -58,7 +62,7 @@ document.addEventListener('click', async (event) => {
         const url = isLiked ? likeButton.dataset.unlikeUrl : likeButton.dataset.likeUrl;
         try {
             const data = await postCardRequest(likeButton, url);
-            if (data.success) {
+            if (data) {
                 likeButton.dataset.liked = data.liked.toString();
                 likeButton.classList.toggle('active', data.liked);
                 likeButton.querySelector('.like-count').textContent = data.like_count;

@@ -107,17 +107,11 @@ export class CommentEditor {
                 })
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                
-                if (data.messages) {
-                    data.messages.forEach(messageData => {
-                        showMessage(messageData.message, messageData.tags);
-                    });
-                }
-                this.removeCommentForm(formId);
-                this.refreshComments(solutionId);
-            }
+            const envelope = await response.json();
+            if (envelope.message) showMessage(envelope.message, envelope.success ? 'success' : 'error');
+            if (!response.ok || !envelope.success) throw new Error(envelope.message || 'Failed to create comment');
+            this.removeCommentForm(formId);
+            this.refreshComments(solutionId);
         } catch (error) {
             console.error('Error submitting comment:', error);
         }
@@ -147,7 +141,9 @@ export class CommentEditor {
                 throw new Error('Failed to fetch comments');
             }
             
-            const data = await response.json();
+            const envelope = await response.json();
+            if (!envelope.success) throw new Error(`${envelope.error_code || 'request_failed'}: ${envelope.message}`);
+            const data = envelope.data;
             const commentsContainer = document.querySelector(`[data-solution-id="${solutionId}"] .comments`);
 
             console.log("DATA: ", data);
@@ -221,14 +217,10 @@ export class CommentEditor {
             });
 
             const data = await response.json();
-            if (data.messages) {
-                data.messages.forEach(messageData => {
-                    showMessage(messageData.message, messageData.tags);
-                });
-            }
+            if (data.message) showMessage(data.message, data.success ? 'success' : 'error');
 
 
-            if (response.ok) {
+            if (response.ok && data.success) {
                 await this.editorManager.toggleEditorReadOnly(commentId, true);
                 this.toggleCommentActions(commentId, false);
                 delete this.originalContents[commentId];
@@ -273,13 +265,9 @@ export class CommentEditor {
     
             const data = await response.json();
     
-            if (data.messages) {
-                data.messages.forEach(messageData => {
-                    showMessage(messageData.message, messageData.tags);
-                });
-            }
+            if (data.message) showMessage(data.message, data.success ? 'success' : 'error');
     
-            if (response.ok) {
+            if (response.ok && data.success) {
                 const commentContainer = document.querySelector(`#comment-${commentId}`);
                 if (commentContainer) {
                     const solutionContainer = commentContainer.closest('[data-solution-id]');

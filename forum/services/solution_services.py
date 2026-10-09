@@ -1,24 +1,33 @@
-from django.shortcuts import get_object_or_404
 from forum.models import Post, Solution, SolutionUpvote, SolutionDownvote
 from forum.services.utils import detect_bad_words
 from forum.services.notification_services import send_solution_notification_service
 from forum.services.mention_service import update_mentions
-from forum.services.post_services import _check_teacher_visibility
+from forum.services.post_services import _check_teacher_visibility, record_post_activity
+from forum.services.results import service_error
 from django.db.models import F
 import json
 
+
+def get_solution_for_author(user, solution_id):
+    solution = Solution.objects.filter(id=solution_id, author=user).first()
+    return {'solution': solution} if solution else service_error('Solution not found', 404)
+
 def create_solution_service(user, post_id, data):
     try:
-        post = get_object_or_404(Post, id=post_id)
-        
-        # Check teacher visibility
-        _check_teacher_visibility(user, post)
+        post = Post.objects.get(id=post_id)
+
+        # Check teacher visibility before content validation so each error has
+        # an unambiguous status.
+        try:
+            _check_teacher_visibility(user, post)
+        except ValueError as error:
+            return service_error(error, 403)
         if Solution.objects.filter(post=post, author=user).exists():
-            return {'error': 'You have already submitted a solution'}
+            return service_error('You have already submitted a solution', 409)
 
         content = data.get('content')
         if not content:
-            return {'error': 'Content is required'}
+            return service_error('Content is required')
 
         # Validate content
         if isinstance(content, dict) and 'blocks' in content:
@@ -26,7 +35,7 @@ def create_solution_service(user, post_id, data):
             if (len(blocks) == 1 and 
                 blocks[0].get('type') == 'paragraph' and 
                 not blocks[0].get('data', {}).get('text', '').strip()) or len(blocks) == 0:
-                return {'error': 'Solution cannot be empty'}
+                return service_error('Solution cannot be empty')
 
         detect_bad_words(content)
         
@@ -35,6 +44,8 @@ def create_solution_service(user, post_id, data):
             author=user,
             content=content
         )
+
+        record_post_activity(post)
         
         # Update mentions in the solution content
         update_mentions(solution, content, old_content=None)
@@ -48,19 +59,21 @@ def create_solution_service(user, post_id, data):
         }
 
     except ValueError as e:
-        return {'error': str(e)}
+        return service_error(e)
+    except Post.DoesNotExist:
+        return service_error('Post not found', 404)
     except Exception as e:
-        return {'error': f'Error creating solution: {str(e)}'}
+        return service_error(f'Error creating solution: {e}', 500)
 
 def update_solution_service(user, solution_id, data):
     try:
         
-        solution = get_object_or_404(Solution, id=solution_id, author=user)
+        solution = Solution.objects.get(id=solution_id, author=user)
         old_content = solution.content
         content = data.get('content')
         
         if not content:
-            return {'error': 'Content is required'}
+            return service_error('Content is required')
 
         detect_bad_words(content)
         solution.content = content
@@ -74,22 +87,26 @@ def update_solution_service(user, solution_id, data):
             'id': solution.id
         }
     except ValueError as e:
-        return {'error': str(e)}
+        return service_error(e)
+    except Solution.DoesNotExist:
+        return service_error('Solution not found', 404)
     except Exception as e:
-        return {'error': f'Error updating solution: {str(e)}'}
+        return service_error(f'Error updating solution: {e}', 500)
 
 def delete_solution_service(user, solution_id):
     try:
-        solution = get_object_or_404(Solution, id=solution_id, author=user)
+        solution = Solution.objects.get(id=solution_id, author=user)
         
         solution.delete()
         return {'message': 'Solution deleted successfully'}
+    except Solution.DoesNotExist:
+        return service_error('Solution not found', 404)
     except Exception as e:
-        return {'error': str(e)}
+        return service_error(e, 500)
 
 def vote_solution_service(user, solution_id, vote_type):
     try:
-        solution = get_object_or_404(Solution, id=solution_id)
+        solution = Solution.objects.get(id=solution_id)
         
         # Check teacher visibility on the post
         _check_teacher_visibility(user, solution.post)
@@ -98,32 +115,28 @@ def vote_solution_service(user, solution_id, vote_type):
             if SolutionDownvote.objects.filter(solution=solution, user=user).exists():
                 SolutionDownvote.objects.filter(solution=solution, user=user).delete()
                 solution.downvotes -= 1
-                message = 'Downvote removed'
+                SolutionUpvote.objects.create(solution=solution, user=user)
+                solution.upvotes += 1
+                message = 'Solution upvoted successfully'
             elif not SolutionUpvote.objects.filter(solution=solution, user=user).exists():
                 SolutionUpvote.objects.create(solution=solution, user=user)
                 solution.upvotes += 1
                 message = 'Solution upvoted successfully'
             else:
-                return {
-                    'conflict': True, 
-                    'error': 'Already upvoted',
-                    'messages': [{'message': 'You have already upvoted this solution', 'tags': 'info'}]
-                }
+                return service_error('Already upvoted', 409)
         else:  # downvote
             if SolutionUpvote.objects.filter(solution=solution, user=user).exists():
                 SolutionUpvote.objects.filter(solution=solution, user=user).delete()
                 solution.upvotes -= 1
-                message = 'Upvote removed'
+                SolutionDownvote.objects.create(solution=solution, user=user)
+                solution.downvotes += 1
+                message = 'Solution downvoted successfully'
             elif not SolutionDownvote.objects.filter(solution=solution, user=user).exists():
                 SolutionDownvote.objects.create(solution=solution, user=user)
                 solution.downvotes += 1
                 message = 'Solution downvoted successfully'
             else:
-                return {
-                    'conflict': True,  
-                    'error': 'Already downvoted',
-                    'messages': [{'message': 'You have already downvoted this solution', 'tags': 'info'}]
-                }
+                return service_error('Already downvoted', 409)
         
         solution.save()
         return {
@@ -135,25 +148,23 @@ def vote_solution_service(user, solution_id, vote_type):
                          else 'none',
             'messages': [{'message': message, 'tags': 'success'}]
         }
+    except Solution.DoesNotExist:
+        return service_error('Solution not found', 404)
+    except ValueError as e:
+        return service_error(e, 403)
     except Exception as e:
-        return {
-            'error': str(e),
-            'messages': [{'message': f'Error processing vote: {str(e)}', 'tags': 'error'}]
-        }
+        return service_error(e, 500)
 
 def accept_solution_service(user, solution_id):
     try:
-        solution = get_object_or_404(Solution, id=solution_id)
+        solution = Solution.objects.get(id=solution_id)
         post = solution.post
         
         # Check teacher visibility
         _check_teacher_visibility(user, post)
         
         if user != post.author:
-            return {
-                'error': 'Only the post author can accept solutions',
-                'messages': [{'message': 'Only the post author can accept solutions', 'tags': 'error'}]
-            }
+            return service_error('Only the post author can accept solutions', 403)
         
         if post.accepted_solution == solution:
             # Unaccept the solution
@@ -182,15 +193,16 @@ def accept_solution_service(user, solution_id):
                 'messages': [{'message': 'Solution marked as accepted', 'tags': 'success'}]
             }
             
+    except Solution.DoesNotExist:
+        return service_error('Solution not found', 404)
+    except ValueError as e:
+        return service_error(e, 403)
     except Exception as e:
-        return {
-            'error': str(e),
-            'messages': [{'message': f'Error accepting solution: {str(e)}', 'tags': 'error'}]
-        }
+        return service_error(e, 500)
 
 def get_sorted_solutions_service(post_id, sort_by='votes'):
     try:
-        post = get_object_or_404(Post, id=post_id)
+        post = Post.objects.get(id=post_id)
         solutions = Solution.objects.filter(post=post)
         
         if sort_by == 'votes':
@@ -213,8 +225,7 @@ def get_sorted_solutions_service(post_id, sort_by='votes'):
             'solutions': solutions
         }
         
+    except Post.DoesNotExist:
+        return service_error('Post not found', 404)
     except Exception as e:
-        return {
-            'error': str(e),
-            'messages': [{'message': f'Error fetching solutions: {str(e)}', 'tags': 'error'}]
-        }
+        return service_error(e, 500)

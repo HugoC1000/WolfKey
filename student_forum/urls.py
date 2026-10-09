@@ -43,6 +43,7 @@ from forum.views.post_views import (
 
 from forum.views.feed_views import (
     all_posts,
+    all_posts_fragment,
     for_you,
     my_posts
 )
@@ -75,9 +76,7 @@ from forum.views.profile_views import (
     update_courses,
     upload_profile_picture
 )
-from forum.services.course_services import (
-    course_search
-)
+from forum.api.courses import course_search_api
 from forum.views.save_views import (
     followed_posts,
 )
@@ -86,8 +85,7 @@ from forum.views.notification_views import (
     mark_notification_read,
     mark_all_notifications_read
 )
-from forum.views.updates_views import acknowledge_update
-from forum.services.utils import upload_image
+from forum.views.upload_views import upload_image
 
 from forum.views.comments_views import (
     create_comment,
@@ -123,13 +121,13 @@ from forum.views.schedule_views import (
 from forum.api.auth import(
     api_login,
     api_register,
-    api_upload_image,
     search_users_api,
     api_refresh_token,
     api_verify_token,
     api_logout,
     api_delete_account
 )
+from forum.api.uploads import api_upload_image
 from forum.api.mentions import (
     mentions_autocomplete_api,
     mentions_courses_autocomplete_api,
@@ -242,6 +240,7 @@ urlpatterns = [
     # Post related URLs
     path('', for_you, name='for_you'),
     path('all-posts/', all_posts, name='all_posts'),
+    path('all-posts/fragment/', all_posts_fragment, name='all_posts_fragment'),
     path('community/', community, name='community'),
     path('community/<int:community_id>/follow/', toggle_community_follow, name='toggle_community_follow'),
     path('community/<int:community_id>/mailing-list/', toggle_community_subscription, name='toggle_community_subscription'),
@@ -315,7 +314,7 @@ urlpatterns = [
     path('courses/experience/remove/<int:experience_id>/', remove_experience, name='remove_experience'),
     path('courses/help/add/', add_help_request, name='add_help_request'),
     path('courses/help/remove/<int:help_id>/', remove_help_request, name='remove_help_request'),
-    path('api/courses/', course_search, name='course-search'),
+    path('api/courses/', course_search_api, name='course-search'),
     path('classes/<int:course_id>/', course_page, name='course_page'),
     path('classes/<int:course_id>/teachers/', contribute_course_teacher, name='contribute_course_teacher'),
     path('classes/<int:course_id>/teachers/<int:report_id>/edit/', edit_course_teacher, name='edit_course_teacher'),
@@ -334,7 +333,6 @@ urlpatterns = [
     path('unfollow-post/<int:post_id>/', unfollow_post, name='unfollow_post'),
 
     # API URLs
-    path('api/acknowledge-update/', acknowledge_update, name='acknowledge_update'),
     
     # Notification URLs
     path('notifications/', all_notifications, name='all_notifications'),

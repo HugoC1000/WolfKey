@@ -20,9 +20,9 @@ from forum.serializers import CommentSerializer
 @permission_classes([IsAuthenticated])
 def create_comment_api(request, solution_id):
     try:
-        result = create_comment_service(request, solution_id, request.data)
+        result = create_comment_service(request.user, solution_id, request.data)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result.get('status', 400))
         
         comment = Comment.objects.get(id=result['id'])
         serializer = CommentSerializer(comment, context={'request': request})
@@ -36,9 +36,9 @@ def create_comment_api(request, solution_id):
 @permission_classes([IsAuthenticated])
 def edit_comment_api(request, comment_id):
     try:
-        result = edit_comment_service(request, comment_id, request.data)
+        result = edit_comment_service(request.user, comment_id, request.data)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result.get('status', 400))
         
         comment = Comment.objects.get(id=comment_id)
         serializer = CommentSerializer(comment, context={'request': request})
@@ -51,9 +51,9 @@ def edit_comment_api(request, comment_id):
 @permission_classes([IsAuthenticated])
 def delete_comment_api(request, comment_id):
     try:
-        result = delete_comment_service(request, comment_id)
+        result = delete_comment_service(request.user, comment_id)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result.get('status', 400))
         return Response({'message': 'Comment deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -86,5 +86,5 @@ def get_comments_api(request, solution_id):
 def vote_comment_api(request, comment_id):
     result = vote_comment_service(request.user, comment_id, request.data.get('vote_type'))
     if 'error' in result:
-        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': result['error']}, status=result['status'])
     return Response(result)

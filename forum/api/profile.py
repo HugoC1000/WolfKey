@@ -1,7 +1,6 @@
 """
 API endpoints for profile management
 """
-import json
 import logging
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.authentication import TokenAuthentication
@@ -11,13 +10,14 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 
-from forum.models import User, UserCourseExperience, UserCourseHelp
 from forum.services.profile_service import (
-    get_profile_context,
+    PROFILE_FIELDS,
     get_profile_posts_page,
     update_profile_info,
     update_profile_picture,
     update_lunch_card,
+    delete_lunch_card,
+    update_privacy_preferences,
     update_profile_courses,
     add_user_experience,
     add_user_help_request,
@@ -28,6 +28,9 @@ from forum.services.profile_service import (
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+def _profile_fields(data):
+    return {field: data.get(field) for field in PROFILE_FIELDS if field in data}
 
 
 @api_view(['GET'])
@@ -121,27 +124,32 @@ def update_profile_api(request):
         - snapchat_handle: Snapchat username (without @)
         - linkedin_url: LinkedIn profile URL (must start with www.linkedin.com/in/)
         - preferred_msg_app: Preferred contact app (Instagram, LinkedIn, Snapchat, Email, or Discord)
-        - form_type: Type of form ('wolfnet_settings' for WolfNet settings)
-        - wolfnet_password: WolfNet password (if form_type is 'wolfnet_settings')
-        - clear_wolfnet_password: Boolean to clear WolfNet password
     
     Returns:
         Response: Success message or error
     """
     try:
-        # Create a mock POST request for the service
-        mock_request = type('MockRequest', (), {
-            'POST': request.data,
-            'user': request.user,
-            'method': 'POST'
-        })()
-        
-        success, msg = update_profile_info(mock_request, request.user.username)
-        
-        if success:
-            return Response({'message': msg}, status=status.HTTP_200_OK)
+        form_type = request.data.get('form_type')
+        if form_type == 'privacy_preferences':
+            allow_schedule_comparison = request.data.get('allow_schedule_comparison')
+            display_email = request.data.get('display_email')
+            if not isinstance(allow_schedule_comparison, bool) or not isinstance(display_email, bool):
+                return Response({
+                    'error': 'Privacy preferences must be booleans'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            result = update_privacy_preferences(
+                request.user,
+                allow_schedule_comparison=allow_schedule_comparison,
+                display_email=display_email,
+            )
         else:
-            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+            result = update_profile_info(
+                request.user, request.user, _profile_fields(request.data)
+            )
+
+        if 'error' in result:
+            return Response({'error': result['error']}, status=result['status'])
+        return Response({'message': result['message']}, status=status.HTTP_200_OK)
             
     except Exception as e:
         logger.error(f"Error updating profile for {request.user.username}: {str(e)}")
@@ -168,23 +176,17 @@ def upload_profile_picture_api(request):
                 'error': 'No profile picture file provided'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Create a mock request for the service
-        mock_request = type('MockRequest', (), {
-            'FILES': request.FILES,
-            'user': request.user
-        })()
+        result = update_profile_picture(request.user, request.FILES.get('profile_picture'))
         
-        success, msg = update_profile_picture(mock_request)
-        
-        if success:
+        if 'error' not in result:
             return Response({
-                'message': msg,
+                'message': result['message'],
                 'profile_picture_url': request.user.userprofile.profile_picture.url
             }, status=status.HTTP_200_OK)
         else:
             return Response({
-                'error': msg
-            }, status=status.HTTP_400_BAD_REQUEST)
+                'error': result['error']
+            }, status=result['status'])
         
     except Exception as e:
         logger.error(f"Error uploading profile picture for {request.user.username}: {str(e)}")
@@ -211,23 +213,17 @@ def upload_lunch_card_api(request):
                 'error': 'No lunch card file provided'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Create a mock request for the service
-        mock_request = type('MockRequest', (), {
-            'FILES': request.FILES,
-            'user': request.user
-        })()
+        result = update_lunch_card(request.user, request.FILES.get('lunch_card'))
         
-        success, msg = update_lunch_card(mock_request)
-        
-        if success:
+        if 'error' not in result:
             return Response({
-                'message': msg,
+                'message': result['message'],
                 'lunch_card_url': request.user.userprofile.lunch_card.url
             }, status=status.HTTP_200_OK)
         else:
             return Response({
-                'error': msg
-            }, status=status.HTTP_400_BAD_REQUEST)
+                'error': result['error']
+            }, status=result['status'])
         
     except Exception as e:
         logger.error(f"Error uploading lunch card for {request.user.username}: {str(e)}")
@@ -247,19 +243,10 @@ def delete_lunch_card_api(request):
         Response: Success message or error
     """
     try:
-        profile = request.user.userprofile
-        
-        if not profile.lunch_card:
-            return Response({
-                'error': 'No lunch card to delete'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Delete the lunch card file
-        profile.lunch_card.delete(save=True)
-        
-        return Response({
-            'message': 'Lunch card deleted successfully!'
-        }, status=status.HTTP_200_OK)
+        result = delete_lunch_card(request.user)
+        if 'error' not in result:
+            return Response({'message': result['message']}, status=status.HTTP_200_OK)
+        return Response({'error': result['error']}, status=result['status'])
         
     except Exception as e:
         logger.error(f"Error deleting lunch card for {request.user.username}: {str(e)}")
@@ -284,18 +271,12 @@ def update_courses_api(request):
         Response: Success message or error
     """
     try:
-        # Create a mock POST request for the service
-        mock_request = type('MockRequest', (), {
-            'POST': request.data,
-            'user': request.user
-        })()
+        result = update_profile_courses(request.user, request.data)
         
-        success, msg = update_profile_courses(mock_request)
-        
-        if success:
-            return Response({'message': msg}, status=status.HTTP_200_OK)
+        if 'error' not in result:
+            return Response({'message': result['message']}, status=status.HTTP_200_OK)
         else:
-            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
             
     except Exception as e:
         logger.error(f"Error updating courses for {request.user.username}: {str(e)}")
@@ -318,18 +299,12 @@ def add_experience_api(request):
         Response: Success message or error
     """
     try:
-        # Create a mock POST request for the service
-        mock_request = type('MockRequest', (), {
-            'POST': request.data,
-            'user': request.user
-        })()
+        result = add_user_experience(request.user, request.data.get('course'))
         
-        success, error = add_user_experience(mock_request)
-        
-        if success:
-            return Response({'message': 'Course experience added successfully!'}, status=status.HTTP_201_CREATED)
+        if 'error' not in result:
+            return Response({'message': result['message']}, status=status.HTTP_201_CREATED)
         else:
-            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
             
     except Exception as e:
         logger.error(f"Error adding experience for {request.user.username}: {str(e)}")
@@ -352,18 +327,12 @@ def add_help_request_api(request):
         Response: Success message or error
     """
     try:
-        # Create a mock POST request for the service
-        mock_request = type('MockRequest', (), {
-            'POST': request.data,
-            'user': request.user
-        })()
+        result = add_user_help_request(request.user, request.data.get('course'))
         
-        success, error = add_user_help_request(mock_request)
-        
-        if success:
-            return Response({'message': 'Help request added successfully!'}, status=status.HTTP_201_CREATED)
+        if 'error' not in result:
+            return Response({'message': result['message']}, status=status.HTTP_201_CREATED)
         else:
-            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
             
     except Exception as e:
         logger.error(f"Error adding help request for {request.user.username}: {str(e)}")
@@ -386,17 +355,12 @@ def remove_experience_api(request, experience_id):
         Response: Success message or error
     """
     try:
-        # Create a mock request for the service
-        mock_request = type('MockRequest', (), {
-            'user': request.user
-        })()
+        result = remove_user_experience(request.user, experience_id)
         
-        success, msg = remove_user_experience(mock_request, experience_id)
-        
-        if success:
-            return Response({'message': msg}, status=status.HTTP_200_OK)
+        if 'error' not in result:
+            return Response({'message': result['message']}, status=status.HTTP_200_OK)
         else:
-            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
             
     except Exception as e:
         logger.error(f"Error removing experience {experience_id} for {request.user.username}: {str(e)}")
@@ -419,17 +383,12 @@ def remove_help_request_api(request, help_id):
         Response: Success message or error
     """
     try:
-        # Create a mock request for the service
-        mock_request = type('MockRequest', (), {
-            'user': request.user
-        })()
+        result = remove_user_help_request(request.user, help_id)
         
-        success, msg = remove_user_help_request(mock_request, help_id)
-        
-        if success:
-            return Response({'message': msg}, status=status.HTTP_200_OK)
+        if 'error' not in result:
+            return Response({'message': result['message']}, status=status.HTTP_200_OK)
         else:
-            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
             
     except Exception as e:
         logger.error(f"Error removing help request {help_id} for {request.user.username}: {str(e)}")
@@ -455,8 +414,6 @@ def update_privacy_preferences_api(request):
     """
     try:
         data = request.data
-        profile_user = request.user
-        
         # Get the boolean values from the request
         allow_schedule_comparison = data.get('allow_schedule_comparison')
         
@@ -466,18 +423,24 @@ def update_privacy_preferences_api(request):
                 'error': 'At least one preference must be provided'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Update the preferences
-        if allow_schedule_comparison is not None:
-            profile_user.userprofile.allow_schedule_comparison = allow_schedule_comparison
-        
-        profile_user.userprofile.save()
+        if not isinstance(allow_schedule_comparison, bool):
+            return Response({
+                'error': 'allow_schedule_comparison must be a boolean'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        result = update_privacy_preferences(
+            request.user,
+            allow_schedule_comparison=allow_schedule_comparison,
+        )
+        if 'error' in result:
+            return Response({'error': result['error']}, status=result['status'])
         
         # Return updated user data using UserSerializer
         from forum.serializers import PrivateUserSerializer
-        serializer = PrivateUserSerializer(profile_user, context={'request': request})
+        serializer = PrivateUserSerializer(request.user, context={'request': request})
         
         return Response({
-            'message': 'Privacy preferences updated successfully',
+            'message': result['message'],
             'user': serializer.data
         }, status=status.HTTP_200_OK)
         

@@ -1,7 +1,7 @@
-from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.db.models import Q
 from forum.models import UserCourseExperience, UserProfile, Notification, Post, Solution, Comment, User, CommunityFollow, CommunitySubscription
+from forum.services.results import service_error, service_success
 from forum.services.utils import process_post_preview
 import logging
 from pathlib import Path
@@ -320,11 +320,17 @@ def all_notifications_service(user):
         'comment__solution__post',
     ).order_by('-created_at')
 
+
+def mark_all_notifications_read_service(user):
+    return Notification.objects.filter(recipient=user, is_read=False).update(is_read=True)
+
 def mark_notification_read_service(user, notification_id):
-    notification = get_object_or_404(Notification, id=notification_id, recipient=user)
+    notification = Notification.objects.filter(id=notification_id, recipient=user).first()
+    if notification is None:
+        return service_error('Notification not found', 404)
     notification.is_read = True
     notification.save()
-    return notification
+    return service_success(notification=notification)
 
 def mark_notifications_by_post_service(user, post_id):
     """
@@ -343,7 +349,7 @@ def mark_notifications_by_post_service(user, post_id):
     """
     try:
         # Verify the post exists
-        post = get_object_or_404(Post, id=post_id)
+        post = Post.objects.get(id=post_id)
         
         # Find all unread notifications for this user related to this post
         unread_notifications = Notification.objects.filter(
@@ -365,16 +371,10 @@ def mark_notifications_by_post_service(user, post_id):
             'post_id': post_id
         }
     except Post.DoesNotExist:
-        return {
-            'success': False,
-            'error': 'Post not found'
-        }
+        return service_error('Post not found', 404)
     except Exception as e:
         logger.error(f"Error marking notifications by post {post_id} for user {user.id}: {str(e)}")
-        return {
-            'success': False,
-            'error': 'Failed to mark notifications as read'
-        }
+        return service_error('Failed to mark notifications as read', 500)
 
 def send_mention_notification_service(mentioned_user, mention_author, content_object, is_anonymous):
     """

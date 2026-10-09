@@ -27,6 +27,7 @@
 - [Advanced Setup](#-advanced-setup)
 - [Usage Guide](#-usage-guide)
 - [Project Architecture](#-project-architecture)
+- [Architecture Diagrams](docs/architecture.md)
 - [Contributing](#-contributing)
 - [Testing](#-testing)
 - [Troubleshooting](#-troubleshooting)
@@ -48,7 +49,6 @@
 - 👤 **User Profiles**: Customizable profiles with profile pictures
 
 ### Advanced Features
-- 📊 **Grade Tracking**: Integration with WolfNet for grade monitoring
 - 📧 **Email Notifications**: Asynchronous email delivery via Celery
 - 🗓️ **Schedule Management**: Daily schedule and timetable features
 - 🎨 **Responsive Design**: Mobile-friendly interface

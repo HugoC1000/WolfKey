@@ -1,11 +1,20 @@
-from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.db.models import F
 from forum.models import Post, Course, PostLike, FollowedPost, Poll, PollOption
 from forum.services.utils import detect_bad_words
 from forum.services.notification_services import send_course_notifications_service, send_community_post_notifications_service
 from forum.services.mention_service import update_mentions
+from forum.services.results import service_error
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def record_post_activity(post):
+    """Move a post to the top of activity-based feeds after a new response."""
+    activity_time = timezone.now()
+    Post.objects.filter(id=post.id).update(last_activity_at=activity_time)
+    post.last_activity_at = activity_time
 
 
 def _check_teacher_visibility(user, post):
@@ -17,10 +26,33 @@ def _check_teacher_visibility(user, post):
         raise ValueError("You don't have permission to view this post.")
     return True
 
+
+def get_post_detail_service(user, post_id):
+    """Load a visible post and count the page visit in one place."""
+    post = Post.objects.filter(id=post_id).first()
+    if post is None:
+        return service_error('Post not found', 404)
+    try:
+        _check_teacher_visibility(user, post)
+    except ValueError as error:
+        return service_error(error, 404)
+    Post.objects.filter(id=post_id).update(views=F('views') + 1)
+    post.views += 1
+    return {'post': post}
+
+
+def get_post_for_author(user, post_id):
+    post = Post.objects.filter(id=post_id).first()
+    if post is None:
+        return service_error('Post not found', 404)
+    if post.author_id != user.id:
+        return service_error('Permission denied', 403)
+    return {'post': post}
+
 def create_post_service(user, data):
     try:
         if not user.is_active:
-            return {'error': 'This account is inactive and cannot create posts.'}
+            return service_error('This account is inactive and cannot create posts.', 403)
         # Check if this is a poll
         poll_data = data.get('poll_data')
         if poll_data and isinstance(poll_data, dict) and poll_data.get('isPoll'):
@@ -35,7 +67,7 @@ def create_post_service(user, data):
         # Regular post creation
         content = data.get('content')
         if not content:
-            return {'error': 'Content is required'}
+            return service_error('Content is required')
 
         detect_bad_words(content)
         
@@ -68,16 +100,17 @@ def create_post_service(user, data):
             'message': 'Post created successfully'
         }
     except ValueError as e:
-        return {'error': f"Content contains inappropriate language: {str(e)}"}
+        return service_error(f"Content contains inappropriate language: {e}")
     except Exception as e:
-        return {'error': str(e)}
+        logger.exception('Error creating post')
+        return service_error(e, 500)
 
 def update_post_service(user, post_id, data):
     try:
-        post = get_object_or_404(Post, id=post_id)
+        post = Post.objects.get(id=post_id)
         
         if post.author != user:
-            return {'error': 'Permission denied'}
+            return service_error('Permission denied', 403)
 
         # Store old content for mention comparison
         old_content = post.content if 'content' in data else None
@@ -117,28 +150,36 @@ def update_post_service(user, post_id, data):
 
         return {'message': 'Post updated successfully'}
     except ValueError as e:
-        return {'error': f"{str(e)}"}
+        return service_error(e)
+    except Post.DoesNotExist:
+        return service_error('Post not found', 404)
     except Exception as e:
-        return {'error': str(e)}
+        logger.exception('Error updating post')
+        return service_error(e, 500)
 
 def delete_post_service(user, post_id):
     try:
-        post = get_object_or_404(Post, id=post_id)
+        post = Post.objects.get(id=post_id)
         
         if post.author != user:
-            return {'error': 'Permission denied'}
+            return service_error('Permission denied', 403)
             
         post.delete()
         return {'message': 'Post deleted successfully'}
+    except Post.DoesNotExist:
+        return service_error('Post not found', 404)
     except Exception as e:
-        return {'error': str(e)}
+        logger.exception('Error deleting post')
+        return service_error(e, 500)
 
 
 def toggle_community_post_pin_service(user, post_id):
     """Pin only the author's community post; Home ordering never reads this flag."""
-    post = get_object_or_404(Post, id=post_id)
+    post = Post.objects.filter(id=post_id).first()
+    if post is None:
+        return service_error('Post not found', 404)
     if post.author != user or not user.is_community_account or post.scope != 'community':
-        return {'error': 'Only the owning community account can pin this post.'}
+        return service_error('Only the owning community account can pin this post.', 403)
     post.is_pinned_in_community = not post.is_pinned_in_community
     post.save(update_fields=['is_pinned_in_community'])
     return {'pinned': post.is_pinned_in_community}
@@ -148,7 +189,7 @@ def like_post_service(user, post_id):
     Service to like a post
     """
     try:
-        post = get_object_or_404(Post, id=post_id)
+        post = Post.objects.get(id=post_id)
         
         # Check teacher visibility
         _check_teacher_visibility(user, post)
@@ -161,16 +202,20 @@ def like_post_service(user, post_id):
             'like_count': post.like_count(),
             'created': created
         }
+    except Post.DoesNotExist:
+        return service_error('Post not found', 404)
+    except ValueError as e:
+        return service_error(e, 403)
     except Exception as e:
         logger.error(f"Error liking post {post_id}: {str(e)}")
-        return {'error': str(e)}
+        return service_error(e, 500)
 
 def unlike_post_service(user, post_id):
     """
     Service to unlike a post
     """
     try:
-        post = get_object_or_404(Post, id=post_id)
+        post = Post.objects.get(id=post_id)
         
         # Check teacher visibility
         _check_teacher_visibility(user, post)
@@ -183,16 +228,20 @@ def unlike_post_service(user, post_id):
             'like_count': post.like_count(),
             'was_liked': deleted_count > 0
         }
+    except Post.DoesNotExist:
+        return service_error('Post not found', 404)
+    except ValueError as e:
+        return service_error(e, 403)
     except Exception as e:
         logger.error(f"Error unliking post {post_id}: {str(e)}")
-        return {'error': str(e)}
+        return service_error(e, 500)
 
 def follow_post_service(user, post_id):
     """
     Service to follow a post
     """
     try:
-        post = get_object_or_404(Post, id=post_id)
+        post = Post.objects.get(id=post_id)
         
         # Check teacher visibility
         _check_teacher_visibility(user, post)
@@ -205,16 +254,20 @@ def follow_post_service(user, post_id):
             'followers_count': post.followers.count(),
             'created': created
         }
+    except Post.DoesNotExist:
+        return service_error('Post not found', 404)
+    except ValueError as e:
+        return service_error(e, 403)
     except Exception as e:
         logger.error(f"Error following post {post_id}: {str(e)}")
-        return {'error': str(e)}
+        return service_error(e, 500)
 
 def unfollow_post_service(user, post_id):
     """
     Service to unfollow a post
     """
     try:
-        post = get_object_or_404(Post, id=post_id)
+        post = Post.objects.get(id=post_id)
         
         # Check teacher visibility
         _check_teacher_visibility(user, post)
@@ -227,37 +280,43 @@ def unfollow_post_service(user, post_id):
             'followers_count': post.followers.count(),
             'was_following': deleted_count > 0
         }
+    except Post.DoesNotExist:
+        return service_error('Post not found', 404)
+    except ValueError as e:
+        return service_error(e, 403)
     except Exception as e:
         logger.error(f"Error unfollowing post {post_id}: {str(e)}")
-        return {'error': str(e)}
+        return service_error(e, 500)
 
-def get_post_share_info_service(post_id, request):
+def get_post_share_info_service(user, post_id):
     """
     Service to get post share information, enforcing normal post visibility.
     """
     try:
-        post = get_object_or_404(Post, id=post_id)
+        post = Post.objects.get(id=post_id)
 
         # Check teacher visibility
-        request_user = request.user if request and request.user.is_authenticated else None
-        _check_teacher_visibility(request_user, post)
+        _check_teacher_visibility(user, post)
 
         relative_url = post.get_absolute_url()
-        post_url = request.build_absolute_uri(relative_url) if request else relative_url
         preview_text = getattr(post, 'preview_text', '') or post.title or ''
 
         return {
             'success': True,
             'post_id': post.id,
             'post_title': post.title,
-            'post_url': post_url,
+            'post_url': relative_url,
             'author': post.author.get_full_name() if not post.is_anonymous else 'Anonymous',
             'created_at': post.created_at.isoformat(),
             'preview_text': preview_text[:250],
         }
+    except Post.DoesNotExist:
+        return service_error('Post not found', 404)
+    except ValueError as e:
+        return service_error(e, 403)
     except Exception as e:
         logger.error(f"Error getting share info for post {post_id}: {str(e)}")
-        return {'error': str(e)}
+        return service_error(e, 500)
 
 def create_poll_service(user, data):
     """
@@ -266,7 +325,7 @@ def create_poll_service(user, data):
     try:
         title = data.get('question')
         if not title:
-            return {'error': 'Poll question is required'}
+            return service_error('Poll question is required')
 
         content = data.get('content', {})
         if not content:
@@ -275,7 +334,7 @@ def create_poll_service(user, data):
         # Validate answers
         answers = data.get('answers', [])
         if len(answers) < 2:
-            return {'error': 'At least 2 answers are required for a poll'}
+            return service_error('At least 2 answers are required for a poll')
 
         # Create poll
         is_community_post = user.is_community_account
@@ -314,4 +373,4 @@ def create_poll_service(user, data):
         }
     except Exception as e:
         logger.error(f"Error creating poll: {str(e)}")
-        return {'error': str(e)}
+        return service_error(e, 500)

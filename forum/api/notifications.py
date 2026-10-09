@@ -122,7 +122,13 @@ def mark_notification_read_api(request, notification_id):
     Mark a specific notification as read
     """
     try:
-        notification = mark_notification_read_service(request.user, notification_id)
+        result = mark_notification_read_service(request.user, notification_id)
+        if 'error' in result:
+            return Response({
+                'success': False,
+                'error': result['error']
+            }, status=result['status'])
+        notification = result['notification']
         
         return Response({
             'success': True,
@@ -243,11 +249,10 @@ def mark_notifications_by_post_api(request, post_id):
         result = mark_notifications_by_post_service(request.user, post_id)
         
         if 'error' in result:
-            status_code = status.HTTP_404_NOT_FOUND if result['error'] == 'Post not found' else status.HTTP_500_INTERNAL_SERVER_ERROR
             return Response({
                 'success': False,
                 'error': result['error']
-            }, status=status_code)
+            }, status=result['status'])
         
         return Response({
             'success': True,

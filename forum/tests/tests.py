@@ -301,21 +301,21 @@ class SolutionFeatureTests(TestCase):
         url = reverse('upvote_solution', kwargs={'solution_id': solution.id})
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
-        self.assertIn('upvotes', response.json())
+        self.assertIn('upvotes', response.json()['data'])
 
     def test_downvote_solution(self):
         solution = Solution.objects.create(post=self.post, author=self.user, content={'blocks': []})
         url = reverse('downvote_solution', kwargs={'solution_id': solution.id})
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
-        self.assertIn('downvotes', response.json())
+        self.assertIn('downvotes', response.json()['data'])
 
     def test_accept_solution(self):
         solution = Solution.objects.create(post=self.post, author=self.user, content={'blocks': []})
         url = reverse('accept_solution', kwargs={'solution_id': solution.id})
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
-        self.assertIn('is_accepted', response.json())
+        self.assertIn('is_accepted', response.json()['data'])
 
 
 class CommentFeatureTests(TestCase):
@@ -483,7 +483,7 @@ class AnonymousSerializationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         solutions = {
-            solution['id']: solution for solution in response.json()['solutions']
+            solution['id']: solution for solution in response.json()['data']['solutions']
         }
         self.assertAnonymousAuthor(solutions[self.author_solution.id]['author'])
         self.assertEqual(solutions[self.other_solution.id]['author']['id'], self.other.id)
@@ -498,7 +498,7 @@ class AnonymousSerializationTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertAnonymousAuthor(response.json()['comments'][0]['author'])
+        self.assertAnonymousAuthor(response.json()['data']['comments'][0]['author'])
         self.assertNotContains(response, self.author.get_full_name())
 
 
@@ -911,7 +911,6 @@ class APIProfilePrivacyTests(TestCase):
             personal_email='other@example.com', phone_number='555-0100',
             student_id='123456', first_name='Other', last_name='User'
         )
-        self.other.userprofile.wolfnet_password = 'secret'
         self.other.userprofile.lunch_card = 'lunch_cards/private.png'
         self.other.userprofile.display_email = False
         self.other.userprofile.allow_schedule_comparison = False
@@ -934,7 +933,6 @@ class APIProfilePrivacyTests(TestCase):
         self.assertNotIn('student_id', payload)
         self.assertIsNone(payload['school_email'])
         self.assertNotIn('lunch_card', payload['userprofile'])
-        self.assertNotIn('has_wolfnet_password', payload['userprofile'])
         self.assertNotIn('display_email', payload['userprofile'])
         self.assertIsNone(payload['userprofile']['schedule'])
         self.assertNotIn('schedule_courses', payload['userprofile']['courses'])
@@ -1294,12 +1292,12 @@ class PostShareInfoTests(TestCase):
         request = self.factory.get('/')
         request.user = self.author
 
-        result = get_post_share_info_service(self.post.id, request)
+        result = get_post_share_info_service(self.author, self.post.id)
 
         self.assertNotIn('error', result)
         self.assertEqual(
             result['post_url'],
-            f'http://testserver/post/{self.post.id}/',
+            f'/post/{self.post.id}/',
         )
 
     def test_share_info_enforces_teacher_visibility(self):
@@ -1315,6 +1313,6 @@ class PostShareInfoTests(TestCase):
         request = self.factory.get('/')
         request.user = teacher
 
-        result = get_post_share_info_service(self.post.id, request)
+        result = get_post_share_info_service(teacher, self.post.id)
 
         self.assertIn('error', result)

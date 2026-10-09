@@ -28,38 +28,38 @@ def for_you(request):
     # the global all-posts feed rather than personalized course filtering.
     page_obj = get_all_posts(request.user, query, page)
     posts = list(page_obj.object_list)
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return render(request, 'forum/components/post_list.html', {
-            'posts': posts,
-            'page_obj': page_obj
-        })
-
+    profile = getattr(request.user, 'userprofile', None)
+    has_schedule_block = profile is not None and any(
+        getattr(profile, f'{block}_id')
+        for block in ('block_1A', 'block_1B', 'block_1D', 'block_1E',
+                      'block_2A', 'block_2B', 'block_2C', 'block_2D', 'block_2E')
+    )
     # Get schedule info
-    pst = ZoneInfo("America/Los_Angeles")
-    now_pst = datetime.now(pst)
-    tomorrow_pst = now_pst + timedelta(days=1)
+    school_timezone = ZoneInfo("America/Vancouver")
+    now_school = datetime.now(school_timezone)
+    tomorrow_school = now_school + timedelta(days=1)
     
     # If tomorrow is Saturday (5) or Sunday (6), show Monday's schedule instead
-    if tomorrow_pst.weekday() in [5, 6]:  # 5 = Saturday, 6 = Sunday
+    if tomorrow_school.weekday() in [5, 6]:  # 5 = Saturday, 6 = Sunday
         # Calculate days until Monday
-        days_until_monday = (7 - tomorrow_pst.weekday()) % 7
+        days_until_monday = (7 - tomorrow_school.weekday()) % 7
         if days_until_monday == 0:  # If tomorrow is already Sunday
             days_until_monday = 1
-        tomorrow_pst = tomorrow_pst + timedelta(days=days_until_monday)
+        tomorrow_school = tomorrow_school + timedelta(days=days_until_monday)
 
-    today_iso = _get_iso_date(now_pst)
-    tomorrow_iso = _get_iso_date(tomorrow_pst)
+    today_iso = _get_iso_date(now_school)
+    tomorrow_iso = _get_iso_date(tomorrow_school)
 
     greeting = get_random_greeting(request.user.first_name, user_timezone="America/Vancouver")
 
     # Convert dates to display format
-    today_display = _convert_to_sheet_date_format(now_pst.date())
-    tomorrow_display = _convert_to_sheet_date_format(tomorrow_pst.date())
+    today_display = _convert_to_sheet_date_format(now_school.date())
+    tomorrow_display = _convert_to_sheet_date_format(tomorrow_school.date())
     
     # Determine the schedule title based on day of week
-    if tomorrow_pst.weekday() == 0:  # Monday
+    if tomorrow_school.weekday() == 0:  # Monday
         # Check if we jumped from weekend to Monday
-        actual_tomorrow = now_pst + timedelta(days=1)
+        actual_tomorrow = now_school + timedelta(days=1)
         if actual_tomorrow.weekday() in [5, 6]:  # If actual tomorrow is weekend
             schedule_title = "Monday's Schedule"
         else:
@@ -75,6 +75,7 @@ def for_you(request):
         'today_iso': today_iso,
         'tomorrow_iso': tomorrow_iso,
         'schedule_title': schedule_title,
+        'show_schedule_upload': not has_schedule_block,
     })
 
 def all_posts(request):
@@ -82,16 +83,19 @@ def all_posts(request):
     page = request.GET.get('page', 1)
     page_obj = get_all_posts(request.user, query, page)
     posts = list(page_obj.object_list)
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return render(request, 'forum/components/post_list.html', {
-            'posts': posts,
-            'page_obj': page_obj
-        })
-
     return render(request, 'forum/all_posts.html', {
         'posts': posts,
         'query': query,
         'page_obj': page_obj
+    })
+
+def all_posts_fragment(request):
+    query = request.GET.get('q', '')
+    page = request.GET.get('page', 1)
+    page_obj = get_all_posts(request.user, query, page)
+    return render(request, 'forum/components/post_list.html', {
+        'posts': list(page_obj.object_list),
+        'page_obj': page_obj,
     })
 
 @login_required

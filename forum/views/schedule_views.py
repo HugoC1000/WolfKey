@@ -7,8 +7,10 @@ from forum.services.schedule_services import (
     _convert_to_sheet_date_format,
     process_schedule_for_user,
     is_ceremonial_uniform_required,
+    get_user_blocks_for_viewer,
 )
 from forum.serializers import serialize_community_lunches_for_schedule
+from forum.views.json_responses import error_payload, success_payload
 
 
 @require_http_methods(["GET"])
@@ -29,10 +31,11 @@ def daily_schedule_view(request, target_date):
             - ceremonial_required (bool): Whether ceremonial uniform is required (if user is authenticated)
     """
     try:
-        schedule = get_block_order_for_day(target_date)
+        calendar_context = {}
+        schedule = get_block_order_for_day(target_date, calendar_context)
         
         if schedule is None:
-            return JsonResponse({'error': 'Failed to get schedule'}, status=500)
+            return JsonResponse(error_payload('Failed to get schedule', 500), status=500)
         
         date_obj = _parse_iso_date(target_date)
         formatted_date = _convert_to_sheet_date_format(date_obj)
@@ -47,7 +50,7 @@ def daily_schedule_view(request, target_date):
         # If user is authenticated, process schedule for them and include ceremonial uniform
         if request.user.is_authenticated:
             processed_schedule = process_schedule_for_user(request.user, schedule)
-            ceremonial_required = is_ceremonial_uniform_required(request.user, target_date)
+            ceremonial_required = is_ceremonial_uniform_required(target_date, calendar_context)
             response_data['schedule'] = processed_schedule
             response_data['ceremonial_required'] = ceremonial_required
         else:
@@ -55,12 +58,12 @@ def daily_schedule_view(request, target_date):
             response_data['blocks'] = schedule['blocks']
             response_data['times'] = schedule['times']
         
-        return JsonResponse(response_data)
+        return JsonResponse(success_payload(response_data))
     except ValueError as e:
-        return JsonResponse({'error': 'Invalid date format. Expected YYYY-MM-DD', 'details': str(e)}, status=400)
+        return JsonResponse(error_payload('Invalid date format. Expected YYYY-MM-DD'), status=400)
     except Exception as e:
         print(f"Error in daily_schedule_view: {e}")
-        return JsonResponse({'error': 'Internal server error', 'details': str(e)}, status=500)
+        return JsonResponse(error_payload('Internal server error', 500), status=500)
 
 
 @login_required
@@ -75,31 +78,15 @@ def user_blocks_view(request, user_id):
     Returns:
         JsonResponse: JSON response with user's course block information
     """
-    from django.shortcuts import get_object_or_404
-    from forum.models import User, UserProfile
     from forum.serializers import UserScheduleSerializer
 
     try:
-        user = get_object_or_404(User, id=user_id)
-        user_profile = get_object_or_404(UserProfile, user=user)
-
-        viewer_profile = getattr(request.user, 'userprofile', None)
-        if request.user != user and (
-            not viewer_profile or not viewer_profile.allow_schedule_comparison
-        ):
-            return JsonResponse({
-                'error': 'Enable schedule comparison to compare schedules'
-            }, status=403)
-        
-        # Check if user allows schedule comparison
-        if not user_profile.allow_schedule_comparison:
-            return JsonResponse({
-                'error': 'This user has disabled schedule comparison'
-            }, status=403)
-
-        serializer = UserScheduleSerializer(user_profile)
-        return JsonResponse(serializer.data)
+        result = get_user_blocks_for_viewer(request.user, user_id)
+        if 'error' in result:
+            return JsonResponse(error_payload(result['error'], result['status']), status=result['status'])
+        serializer = UserScheduleSerializer(result['profile'])
+        return JsonResponse(success_payload(serializer.data))
 
     except Exception as e:
         print(f"Error in user_schedule_view: {e}")
-        return JsonResponse({'error': 'User or profile not found'}, status=404)
+        return JsonResponse(error_payload('User or profile not found', 404), status=404)

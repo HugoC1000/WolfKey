@@ -46,9 +46,9 @@ export class SolutionSorter {
             if (!response.ok) throw new Error('Failed to fetch solutions');
             
             const data = await response.json();
-            if (!data.success) throw new Error(data.message);
+            if (!response.ok || !data.success) throw new Error(`${data.error_code || 'request_failed'}: ${data.message}`);
             
-            this.updateSolutionsOrder(data.solutions);
+            this.updateSolutionsOrder(data.data.solutions);
         } catch (error) {
             console.error('Error fetching solutions:', error);
         }

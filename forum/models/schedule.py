@@ -41,6 +41,7 @@ class DailySchedule(models.Model):
     is_school = models.BooleanField(null=True)
     early_dismissal = models.BooleanField(null=True)
     late_start = models.BooleanField(null=True)
+    calendar_verified = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Schedule for {self.date}"

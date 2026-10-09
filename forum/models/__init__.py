@@ -9,13 +9,10 @@ from .post import Post, StandardPost, SavedPost, FollowedPost, PostLike
 from .poll import Poll, PollOption, PollVote
 from .solution import Solution, SavedSolution, Comment, SolutionUpvote, SolutionDownvote, CommentUpvote, CommentDownvote
 from .schedule import GradebookSnapshot, DailySchedule
-from .notification import Notification, UpdateAnnouncement, UserUpdateView
+from .notification import Notification
 from .mention import Mention
 from .volunteer import VolunteerPinMilestone, VolunteerResource
 from .file import File
-
-# Import signals to ensure they are registered
-from . import signals
 
 __all__ = [
     # User models
@@ -55,8 +52,6 @@ __all__ = [
     'DailySchedule',
     # Notification models
     'Notification',
-    'UpdateAnnouncement',
-    'UserUpdateView',
     # Mention models
     'Mention',
     # Volunteer models

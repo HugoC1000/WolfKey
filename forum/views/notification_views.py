@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import render, redirect
 from forum.models import Notification
 from forum.serializers import NotificationSerializer
 from forum.services.notification_services import (
@@ -9,6 +9,7 @@ from forum.services.notification_services import (
     send_comment_notifications_service,
     all_notifications_service,
     mark_notification_read_service,
+    mark_all_notifications_read_service,
 )
 
 @login_required
@@ -37,19 +38,16 @@ def all_notifications(request):
 
 @login_required
 def mark_notification_read(request, notification_id):
-    notification = mark_notification_read_service(request.user, notification_id)
-    if notification and notification.post:
-        return redirect('post_detail', post_id=notification.post.id)
+    result = mark_notification_read_service(request.user, notification_id)
+    if 'error' not in result and result['notification'].post:
+        return redirect('post_detail', post_id=result['notification'].post.id)
     return redirect('all_notifications')
 
 
 @login_required
 def mark_all_notifications_read(request):
     if request.method == 'POST':
-        notifications = all_notifications_service(request.user)
-        for n in notifications:
-            if not n.is_read:
-                mark_notification_read_service(request.user, n.id)
+        mark_all_notifications_read_service(request.user)
     return redirect('all_notifications')
 
 def send_course_notifications(post, courses):

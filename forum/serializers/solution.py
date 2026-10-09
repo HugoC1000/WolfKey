@@ -72,12 +72,13 @@ class SolutionSerializer(serializers.ModelSerializer):
     is_accepted = serializers.SerializerMethodField()
     processed_content = serializers.SerializerMethodField()
     mentions = serializers.SerializerMethodField()
+    vote_state = serializers.SerializerMethodField()
     
     class Meta:
         model = Solution
         fields = [
             'id', 'content', 'processed_content', 'author', 'created_at', 
-            'upvotes', 'downvotes', 'comments', 'is_accepted', 'mentions'
+            'upvotes', 'downvotes', 'comments', 'is_accepted', 'mentions', 'vote_state'
         ]
     
     def get_author(self, obj):
@@ -121,3 +122,13 @@ class SolutionSerializer(serializers.ModelSerializer):
         """Get all mentions in this solution"""
         from forum.services.mention_service import fetch_mentions_for_content
         return fetch_mentions_for_content(obj)
+
+    def get_vote_state(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return 'none'
+        if obj.solutionupvote_set.filter(user=request.user).exists():
+            return 'upvoted'
+        if obj.solutiondownvote_set.filter(user=request.user).exists():
+            return 'downvoted'
+        return 'none'

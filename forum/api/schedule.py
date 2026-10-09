@@ -146,7 +146,7 @@ def check_ceremonial_uniform(request, target_date):
             - ceremonial_uniform_required (bool): Whether ceremonial uniform is required
     """
     try:
-        is_required = is_ceremonial_uniform_required(user=request.user, iso_date=target_date)
+        is_required = is_ceremonial_uniform_required(iso_date=target_date)
         date_obj = _parse_iso_date(target_date)
         formatted_date = _convert_to_sheet_date_format(date_obj)
         
@@ -201,12 +201,13 @@ def get_and_process_schedule(request, user_id):
         target_date = request.query_params.get('date') or now_pst.date().isoformat()
         
         # Get raw schedule data
-        raw_schedule = get_block_order_for_day(target_date)
+        calendar_context = {}
+        raw_schedule = get_block_order_for_day(target_date, calendar_context)
         
         # Process schedule for user
         processed = process_schedule_for_user(user, raw_schedule)
         # Determine if ceremonial uniform is required for this user/date
-        is_required = is_ceremonial_uniform_required(user=user, iso_date=target_date)
+        is_required = is_ceremonial_uniform_required(target_date, calendar_context)
         
         # Parse and format the date
         date_obj = _parse_iso_date(target_date)

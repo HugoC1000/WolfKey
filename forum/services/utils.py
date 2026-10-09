@@ -6,9 +6,6 @@ from html import unescape, escape
 from django.utils.html import strip_tags
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.http import JsonResponse
-from django.contrib import messages
-from django.views.decorators.csrf import csrf_exempt
 from PIL import Image
 from io import BytesIO
 from urllib.parse import urlparse
@@ -464,61 +461,33 @@ def process_post_preview_html(post):
 
     return _normalize_preview_text_with_links(content)
     
-@csrf_exempt
-def upload_image(request):
-    """
-    Handle image uploads for Editor.js.
-
-    - Ensures only allowed image types are accepted.
-    - Converts all images to JPEG format.
-    - Generates a unique filename for each upload.
-    - Saves the image to the default Django storage.
-    - Enforces a maximum file size of 500 MB.
-
-    Args:
-        request: Django HttpRequest object with an uploaded file in 'image'.
-
-    Returns:
-        JsonResponse: Success with image URL or error message.
-    """
+def store_editor_image(image_file):
+    """Validate and store one Editor.js image upload."""
+    from forum.services.results import service_error
     MAX_IMAGE_SIZE = 10 * 1024 * 1024  #10 MB
 
-    if request.method == 'POST' and request.FILES.get('image'):
-        image_file = request.FILES['image']
-        ext = os.path.splitext(image_file.name)[1].lower()
-        mime_type = image_file.content_type
+    if image_file is None:
+        return service_error('No image uploaded')
 
-        # Check file size
-        if image_file.size > MAX_IMAGE_SIZE:
-            return JsonResponse({'error': 'Image file too large (max 10 MB).'}, status=400)
+    ext = os.path.splitext(image_file.name)[1].lower()
+    mime_type = image_file.content_type
+    if image_file.size > MAX_IMAGE_SIZE:
+        return service_error('Image file too large (max 10 MB).')
+    if mime_type not in ALLOWED_IMAGE_TYPES or ext not in ALLOWED_EXTENSIONS:
+        return service_error('Unsupported file type.')
 
-        # 1. Check allowed types
-        if mime_type not in ALLOWED_IMAGE_TYPES or ext not in ALLOWED_EXTENSIONS:
-            return JsonResponse({'error': 'Unsupported file type.'}, status=400)
-
-        # 2. Open and convert to JPEG
-        try:
-            img = Image.open(image_file)
-            rgb_img = img.convert('RGB')  # Convert to RGB for JPEG
-
-            # 3. Generate unique filename
-            unique_name = f"{uuid.uuid4().hex}.jpg"
-            upload_path = os.path.join('uploads', unique_name)
-
-            # 4. Save to BytesIO as JPEG
-            buffer = BytesIO()
-            rgb_img.save(buffer, format='JPEG', quality=90)
-            buffer.seek(0)
-
-            # 5. Save to storage
-            saved_path = default_storage.save(upload_path, ContentFile(buffer.read()))
-            image_url = default_storage.url(saved_path)
-
-            return JsonResponse({'success': 1, 'file': {'url': image_url}})
-        except Exception as e:
-            return JsonResponse({'error': f'Image processing failed: {str(e)}'}, status=400)
-    else:
-        return JsonResponse({'error': 'No image uploaded'}, status=400)
+    try:
+        img = Image.open(image_file)
+        rgb_img = img.convert('RGB')
+        unique_name = f"{uuid.uuid4().hex}.jpg"
+        upload_path = os.path.join('uploads', unique_name)
+        buffer = BytesIO()
+        rgb_img.save(buffer, format='JPEG', quality=90)
+        buffer.seek(0)
+        saved_path = default_storage.save(upload_path, ContentFile(buffer.read()))
+        return {'url': default_storage.url(saved_path)}
+    except Exception as e:
+        return service_error(f'Image processing failed: {e}')
     
 def selective_quote_replace(content):
     """
@@ -559,26 +528,6 @@ def selective_quote_replace(content):
     content = content.replace("__INLINEMATH__", "'inline-math'")
 
     return content
-
-def process_messages_to_json(request):
-    """
-    Convert Django messages to a JSON-serializable list.
-
-    Args:
-        request: Django HttpRequest object.
-
-    Returns:
-        list: List of dicts with 'message' and 'tags' keys.
-    """
-    messages_data = [
-        {
-            'message': message.message,
-            'tags': message.tags
-        }
-        for message in messages.get_messages(request)
-    ]
-
-    return messages_data
 
 leet_mapping = str.maketrans({
     '4': 'a', '@': 'a',

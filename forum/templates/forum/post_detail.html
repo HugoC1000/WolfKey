@@ -204,9 +204,13 @@ document.addEventListener("DOMContentLoaded", function () {
                     },
                     credentials: 'same-origin'
                 })
-                .then(response => response.json())
+                .then(async response => {
+                    const envelope = await response.json();
+                    if (!response.ok || !envelope.success) throw new Error(envelope.message || 'Follow update failed');
+                    return envelope.data;
+                })
                 .then(data => {
-                    if (data.success) {
+                    if (data) {
                         const followCount = document.querySelectorAll('.follow-count');
                         followCount.forEach(count => {
                             count.textContent = data.followers_count;
@@ -326,9 +330,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 },
                 credentials: 'same-origin'
             })
-            .then(response => response.json())
+            .then(async response => {
+                const envelope = await response.json();
+                if (!response.ok || !envelope.success) throw new Error(envelope.message || 'Like update failed');
+                return envelope.data;
+            })
             .then(data => {
-                if (data.success) {
+                if (data) {
                     this.dataset.liked = data.liked.toString();
                     likeCount.textContent = data.like_count;
                     if (data.liked) {

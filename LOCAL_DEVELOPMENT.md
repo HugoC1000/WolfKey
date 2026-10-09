@@ -67,6 +67,15 @@ SCHEDULE_IMPORT_RATE=4/hour
 
 ## Testing
 
+### Refreshing the schedule cache
+
+The application does not contact Google Sheets as a side effect of starting
+Django. Refresh the cache deliberately when the source schedule changes:
+
+```bash
+python manage.py rebuild_schedule_cache
+```
+
 ### Manual Grade Checking
 ```bash
 # Check all users' grades (dispatches grade tasks)

@@ -285,7 +285,11 @@
             throw new Error('CSRF token validation failed');
         }
 
-        return response.json();
+        const envelope = await response.json();
+        if (!response.ok || !envelope.success) {
+            throw new Error(envelope.message || 'Poll update failed');
+        }
+        return envelope.data;
     }
 
     async function submitVote() {
@@ -301,7 +305,7 @@
                 selected_option_ids: selectedOptionIds
             });
 
-            if (data.success) {
+            if (data) {
                 const votedOptionIds = data.user_vote?.selected_option_ids || selectedOptionIds;
                 setMode(true, votedOptionIds);
                 applyPollData(data, true);
@@ -317,7 +321,7 @@
         try {
             const data = await postJson(`/post/${postId}/remove-vote/`);
 
-            if (data.success) {
+            if (data) {
                 setMode(false);
                 applyPollData(data);
             }

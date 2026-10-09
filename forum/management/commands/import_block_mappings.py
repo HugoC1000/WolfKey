@@ -1,8 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from forum.models import Course, Block
-from forum.services.course_services import course_search
-import json
+from forum.services.course_services import search_courses
 import re
 import os
 from django.conf import settings
@@ -137,21 +136,15 @@ class Command(BaseCommand):
             # 1) Try exact match first (case-insensitive)
             matches = list(Course.objects.filter(name__iexact=course_name))
 
-            # 2) If no exact match, try the service search (trigram/prefix) which
-            #    may return close matches for human-entered names. We call
-            #    course_search with a mock request object exposing GET['q'].
+            # 2) If no exact match, try the service search (trigram/prefix),
+            #    which may return close matches for human-entered names.
             if not matches:
-
-                mock_request = type('MockRequest', (), {'GET': {'q': course_name}})()
                 try:
-                    response = course_search(mock_request)
-                    # course_search returns a JsonResponse with a JSON list
-                    data = json.loads(response.content)
-                    # data is a list of dicts with 'id' and 'name' keys
-                    if data:
+                    suggestions = list(search_courses(course_name, limit=3))
+                    if suggestions:
                         # take up to 3 suggestions from search as potential matches
-                        suggested_ids = [d['id'] for d in data[:3]]
-                        # fetch Course objects and preserve the ordering returned by course_search
+                        suggested_ids = [course.id for course in suggestions]
+                        # fetch Course objects and preserve the search ordering
                         matches = list(Course.objects.filter(id__in=suggested_ids))
                         id_order = list(suggested_ids)
                         matches = sorted(matches, key=lambda c: id_order.index(c.id) if c.id in id_order else len(id_order))

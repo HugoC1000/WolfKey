@@ -1,4 +1,3 @@
-from django.http import JsonResponse
 from forum.models import Course, UserCourseExperience, UserCourseHelp
 from django.db.models import Q, F, Value, IntegerField, Case, When
 from django.db.models.functions import Concat
@@ -51,6 +50,34 @@ def filter_courses_for_grade(courses, grade_level):
     if grade_level is None:
         return courses
     return courses.filter(Q(max_grade__isnull=True) | Q(max_grade__gte=grade_level))
+
+
+def list_courses():
+    return Course.objects.all().order_by('name')
+
+
+def get_courses_by_ids(course_ids):
+    return Course.objects.filter(id__in=course_ids)
+
+
+def get_courses_by_block(grade_level=None):
+    """Return course metadata grouped by block for the website timetable."""
+    from forum.serializers.user import USER_SCHEDULE_BLOCKS
+    blocks_data = {code: [] for code in USER_SCHEDULE_BLOCKS}
+    course_links = {code: [] for code in USER_SCHEDULE_BLOCKS}
+    courses = filter_courses_for_grade(
+        Course.objects.prefetch_related('blocks').all(), grade_level,
+    )
+    for course in courses:
+        for block in course.blocks.all():
+            if block.code in blocks_data:
+                blocks_data[block.code].append(course.name)
+                course_links[block.code].append({
+                    'id': course.id,
+                    'name': course.name,
+                    'category': course.category,
+                })
+    return {'blocks': blocks_data, 'course_links': course_links}
 
 
 def get_user_courses(user):
@@ -139,20 +166,3 @@ def search_courses(query, limit=10):
         courses = sorted(courses, key=lambda c: course_id_list.index(c.id))
     
     return courses
-
-
-def course_search(request):
-    """API endpoint for course search"""
-    query = request.GET.get('q', '').strip()
-    limit = int(request.GET.get('limit', 10))
-    
-    courses = search_courses(query, limit)
-    
-    data = [{
-        "id": course.id,
-        "name": course.name,
-        "category": course.category,
-        "experienced_count": UserCourseExperience.objects.filter(course=course).count()
-    } for course in courses]
-
-    return JsonResponse(data, safe=False)

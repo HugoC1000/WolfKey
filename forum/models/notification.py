@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils import timezone
 
 
 class Notification(models.Model):
@@ -28,23 +27,3 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-
-
-class UpdateAnnouncement(models.Model):
-    title = models.CharField(max_length=200)
-    content = models.TextField()
-    version = models.CharField(max_length=20)  # e.g., "1.2.0"
-    release_date = models.DateTimeField(default=timezone.now)
-    is_active = models.BooleanField(default=True)
-
-    class Meta:
-        ordering = ['-release_date']
-
-
-class UserUpdateView(models.Model):
-    user = models.ForeignKey('forum.User', on_delete=models.CASCADE)
-    update = models.ForeignKey(UpdateAnnouncement, on_delete=models.CASCADE)
-    viewed_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ['user', 'update']

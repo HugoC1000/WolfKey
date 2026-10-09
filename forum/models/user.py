@@ -3,9 +3,6 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.validators import RegexValidator
 from django.contrib.postgres.search import SearchVectorField, SearchVector
 from django.urls import reverse
-from django.conf import settings
-from cryptography.fernet import Fernet
-import base64
 import logging
 
 logger = logging.getLogger(__name__)
@@ -142,6 +139,14 @@ class User(AbstractUser):
     
     def get_absolute_url(self):
         return reverse('profile', args=[str(self.username)])
+
+    @property
+    def is_moderator(self):
+        """Use the profile's moderator flag everywhere, including templates."""
+        try:
+            return self.is_superuser or self.userprofile.is_moderator
+        except UserProfile.DoesNotExist:
+            return self.is_superuser
     
     search_vector = SearchVectorField(null=True, blank=True)
 
@@ -186,26 +191,6 @@ class UserProfile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     background_hue = models.IntegerField(default=231)
     
-    # WolfNet Integration
-    wolfnet_password = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        help_text="Your WolfNet password for grade notifications and schedule integration"
-    )
-
-    def get_decrypted_wolfnet_password(self):
-        """Get the decrypted WolfNet password for use in web scraping"""
-        from forum.forms import WolfNetSettingsForm
-        return WolfNetSettingsForm.decrypt_password(self.wolfnet_password)
-    
-    def save(self, *args, **kwargs):
-        if self.wolfnet_password and not self.wolfnet_password.startswith('gAAAA'):  # Fernet tokens start with 'gAAAA'
-            key = base64.urlsafe_b64encode(settings.SECRET_KEY[:32].encode())
-            f = Fernet(key)
-            self.wolfnet_password = f.encrypt(self.wolfnet_password.encode()).decode()
-        super().save(*args, **kwargs)
-
     profile_picture = models.ImageField(
         upload_to='profile_pictures/',
         default='profile_pictures/default.png',

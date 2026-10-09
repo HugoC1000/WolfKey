@@ -53,16 +53,12 @@ export class SolutionEditor {
 
             const data = await response.json();
 
-            if (data.messages) {
-                data.messages.forEach(messageData => {
-                    showMessage(messageData.message, messageData.tags);
-                });
-            }
+            if (data.message) showMessage(data.message, data.success ? 'success' : 'error');
 
-            if (data.status === 'success') {
+            if (response.ok && data.success) {
                 this.cancelEdit(solutionId, false);
             } else {
-                console.error('Failed to save solution:', data.message);
+                console.error('Failed to save solution:', data.error_code, data.message);
             }
         } catch (error) {
             console.error('Failed to save edited solution:', error);
@@ -108,19 +104,17 @@ export class SolutionEditor {
 
             const data = await response.json();
 
-            if (data.messages) {
-                data.messages.forEach(messageData => {
-                    showMessage(messageData.message, messageData.tags);
-                });
-            }
+            if (data.message) showMessage(data.message, data.success ? 'success' : 'error');
 
-            if (response.ok) {
+            if (response.ok && data.success) {
                 const solutionId = form.querySelector('input[name="solution_id"]').value;
                 const solutionContainer = document.querySelector(`.solution-container[data-solution-id="${solutionId}"]`);
                 
                 if (solutionContainer) {
                     solutionContainer.remove();
                 }
+            } else if (!response.ok || !data.success) {
+                console.error('Failed to delete solution:', data.error_code, data.message);
             }
         } catch (error) {
             console.error('Delete solution failed:', error);

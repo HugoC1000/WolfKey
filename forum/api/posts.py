@@ -21,6 +21,7 @@ from forum.services.post_services import (
     toggle_community_post_pin_service,
     get_post_share_info_service
 )
+from forum.services.poll_services import cast_poll_vote, remove_poll_vote
 from forum.serializers import (
     PostListSerializer,
     PostDetailSerializer,
@@ -146,7 +147,7 @@ def create_post_api(request):
         
         result = create_post_service(request.user, processed_data)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
         
         post = Post.objects.get(id=result['id'])
         serializer = PostDetailSerializer(post, context={'request': request})
@@ -168,8 +169,7 @@ def update_post_api(request, post_id):
         
         result = update_post_service(request.user, post_id, processed_data)
         if 'error' in result:
-            status_code = status.HTTP_403_FORBIDDEN if 'permission' in result['error'] else status.HTTP_400_BAD_REQUEST
-            return Response(result, status=status_code)
+            return Response({'error': result['error']}, status=result['status'])
         
         post = Post.objects.get(id=post_id)
         serializer = PostDetailSerializer(post, context={'request': request})
@@ -184,7 +184,7 @@ def delete_post_api(request, post_id):
     try:
         result = delete_post_service(request.user, post_id)
         if 'error' in result:
-            return Response(result, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': result['error']}, status=result['status'])
         return Response({'message': 'Post deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -196,7 +196,7 @@ def delete_post_api(request, post_id):
 def toggle_community_post_pin_api(request, post_id):
     result = toggle_community_post_pin_service(request.user, post_id)
     if 'error' in result:
-        return Response(result, status=status.HTTP_403_FORBIDDEN)
+        return Response({'error': result['error']}, status=result['status'])
     return Response(result)
 
 @api_view(['POST'])
@@ -209,7 +209,7 @@ def like_post_api(request, post_id):
     try:
         result = like_post_service(request.user, post_id)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
         return Response(result, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -224,7 +224,7 @@ def unlike_post_api(request, post_id):
     try:
         result = unlike_post_service(request.user, post_id)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
         return Response(result, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -239,7 +239,7 @@ def follow_post_api(request, post_id):
     try:
         result = follow_post_service(request.user, post_id)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
         return Response(result, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -254,7 +254,7 @@ def unfollow_post_api(request, post_id):
     try:
         result = unfollow_post_service(request.user, post_id)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
         return Response(result, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -267,9 +267,10 @@ def get_post_share_info_api(request, post_id):
     API endpoint to get post share information
     """
     try:
-        result = get_post_share_info_service(post_id, request)
+        result = get_post_share_info_service(request.user, post_id)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
+        result['post_url'] = request.build_absolute_uri(result['post_url'])
         return Response(result, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -283,39 +284,17 @@ def vote_on_poll_api(request, post_id):
     API endpoint to vote on a poll
     """
     try:
-        from forum.models import Poll, PollVote
-        from forum.services.post_services import _check_teacher_visibility
-        
-        poll = Poll.objects.get(id=post_id)
-        
-        # Check teacher visibility
-        _check_teacher_visibility(request.user, poll)
-        
-        selected_option_ids = request.data.get('selected_option_ids', [])
-        
-        if not selected_option_ids:
-            return Response({'error': 'No options selected'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Check if user already voted
-        existing_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
-        if existing_vote:
-            # Update existing vote
-            existing_vote.selected_options.set(selected_option_ids)
-            existing_vote.save(update_fields=['updated_at'])
-        else:
-            # Create new vote
-            poll_vote = PollVote.objects.create(poll=poll, user=request.user)
-            poll_vote.selected_options.set(selected_option_ids)
-
-        poll_data = serialize_poll_display_data(poll, request=request) or {}
+        result = cast_poll_vote(request.user, post_id, request.data.get('selected_option_ids', []))
+        if 'error' in result:
+            return Response({'error': result['error']}, status=result['status'])
+        poll = result['poll']
+        poll_data = serialize_poll_display_data(poll, viewer=request.user) or {}
         
         return Response({
             'success': True,
-            'message': 'Vote recorded successfully',
+            'message': result['message'],
             **poll_data
         }, status=status.HTTP_200_OK)
-    except Poll.DoesNotExist:
-        return Response({'error': 'Poll not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -328,30 +307,17 @@ def remove_poll_vote_api(request, post_id):
     API endpoint to remove a vote from a poll
     """
     try:
-        from forum.models import Poll, PollVote
-        from forum.services.post_services import _check_teacher_visibility
-        
-        poll = Poll.objects.get(id=post_id)
-        
-        # Check teacher visibility
-        _check_teacher_visibility(request.user, poll)
-        
-        poll_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
-        
-        if not poll_vote:
-            return Response({'error': 'No vote found to remove'}, status=status.HTTP_404_NOT_FOUND)
-        
-        poll_vote.delete()
-
-        poll_data = serialize_poll_display_data(poll, request=request) or {}
+        result = remove_poll_vote(request.user, post_id)
+        if 'error' in result:
+            return Response({'error': result['error']}, status=result['status'])
+        poll = result['poll']
+        poll_data = serialize_poll_display_data(poll, viewer=request.user) or {}
 
         return Response({
             'success': True,
-            'message': 'Vote removed successfully',
+            'message': result['message'],
             **poll_data
         }, status=status.HTTP_200_OK)
-    except Poll.DoesNotExist:
-        return Response({'error': 'Poll not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

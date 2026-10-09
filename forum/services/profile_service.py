@@ -5,16 +5,24 @@ from io import BytesIO
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.db.models.functions import Coalesce
-from django.shortcuts import get_object_or_404
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from forum.models import User, Course, Post, Solution, UserCourseExperience, UserCourseHelp, UserProfile
-from forum.forms import UserCourseExperienceForm, UserCourseHelpForm
+from forum.models import Course, Post, Solution, User, UserCourseExperience, UserCourseHelp, UserProfile
 from forum.services.utils import detect_bad_words
 from forum.services.post_list_service import prepare_posts
-from forum.serializers import UserProfileSerializer
 from forum.serializers.user import USER_SCHEDULE_BLOCKS
 from forum.services.schedule_import_service import ScheduleImportValidationError, replace_user_schedule
+from forum.services.results import service_error, service_success
+
+PROFILE_FIELDS = (
+    'first_name', 'last_name', 'personal_email', 'phone_number', 'bio',
+    'instagram_handle', 'snapchat_handle', 'linkedin_url',
+    'preferred_msg_app', 'background_hue',
+)
+
+
+def get_profile_user(username):
+    return User.objects.filter(username=username).select_related('userprofile').first()
 
 
 def compress_image(image_file, max_width=1200, quality=85):
@@ -92,17 +100,13 @@ def get_profile_posts_page(viewing_user, profile_user, page=1, per_page=8):
     page_obj.object_list = ordered_posts
     return page_obj
 
-def get_profile_context(request, username):
-    profile_user = get_object_or_404(User, username=username)
-    recent_posts_page = get_profile_posts_page(request.user, profile_user, page=1, per_page=3)
+def get_profile_context(viewing_user, profile_user, profile_data):
+    """Build profile-page data from already resolved application objects."""
+    recent_posts_page = get_profile_posts_page(viewing_user, profile_user, page=1, per_page=3)
     recent_posts = recent_posts_page.object_list
     posts_count = Post.objects.filter(author=profile_user).count()
     solutions_count = Solution.objects.filter(author=profile_user).count()
 
-    # Use the same public data and privacy rules for the website and API.
-    profile_data = UserProfileSerializer(
-        profile_user.userprofile, context={'request': request}
-    ).data
     initial_courses_json = json.dumps(profile_data['schedule'] or {})
 
     experienced_courses = UserCourseExperience.objects.filter(user=profile_user)
@@ -127,8 +131,8 @@ def get_profile_context(request, username):
     }
 
     from forum.services.community_services import is_following_community
-    context['is_following_community'] = is_following_community(request.user, profile_user)
-    if request.user == profile_user and profile_user.is_community_account and profile_user.is_active:
+    context['is_following_community'] = is_following_community(viewing_user, profile_user)
+    if viewing_user == profile_user and profile_user.is_community_account and profile_user.is_active:
         from forum.services.community_services import get_owned_community_lunches
         context['community_lunches'] = get_owned_community_lunches(profile_user)['lunches']
     
@@ -137,47 +141,59 @@ def get_profile_context(request, username):
 
     return context
 
-def update_profile_info(request, username):
-    profile_user = get_object_or_404(User, username=username)
-    if request.user != profile_user:
-        return False, 'You can only update your own profile.'
-    try:
-        # Handle WolfNet settings form
-        if request.POST.get('form_type') == 'wolfnet_settings':
-            return update_wolfnet_settings(request, profile_user)
-        
-        # Handle privacy preferences form
-        if request.POST.get('form_type') == 'privacy_preferences':
-            return update_privacy_preferences(request, profile_user)
-        
-        request.user.first_name = request.POST.get('first_name', request.user.first_name)
-        request.user.last_name = request.POST.get('last_name', request.user.last_name)
-        request.user.personal_email = request.POST.get('personal_email', request.user.personal_email)
-        request.user.phone_number = request.POST.get('phone_number', request.user.phone_number)
-        request.user.save()
+def update_profile_info(user, profile_user, data):
+    """Update a user's profile from plain values supplied by an entry point."""
+    if user != profile_user:
+        return service_error('You can only update your own profile.', 403)
 
-        if 'bio' in request.POST:
-            bio = request.POST.get('bio', profile_user.userprofile.bio)
+    data = dict(data)
+    for field in PROFILE_FIELDS:
+        if field == 'background_hue':
+            continue
+        if field not in data:
+            continue
+        if data[field] is None and field not in ('first_name', 'last_name'):
+            data[field] = ''
+        if not isinstance(data[field], str):
+            return service_error(f'Invalid {field.replace("_", " ")}.')
+
+    if 'background_hue' in data:
+        try:
+            if isinstance(data['background_hue'], bool):
+                raise ValueError
+            data['background_hue'] = int(data['background_hue'])
+        except (TypeError, ValueError):
+            return service_error('Background hue must be a number from 0 to 360.')
+        if not 0 <= data['background_hue'] <= 360:
+            return service_error('Background hue must be a number from 0 to 360.')
+    try:
+        user.first_name = data.get('first_name', user.first_name)
+        user.last_name = data.get('last_name', user.last_name)
+        user.personal_email = data.get('personal_email', user.personal_email)
+        user.phone_number = data.get('phone_number', user.phone_number)
+
+        if 'bio' in data:
+            bio = data.get('bio', profile_user.userprofile.bio)
             detect_bad_words(bio)
             profile_user.userprofile.bio = bio
 
         # Handle social media links
-        if 'instagram_handle' in request.POST:
-            instagram_handle = request.POST.get('instagram_handle', '').strip().lstrip('@')
+        if 'instagram_handle' in data:
+            instagram_handle = data.get('instagram_handle', '').strip().lstrip('@')
             profile_user.userprofile.instagram_handle = instagram_handle if instagram_handle else None
         
-        if 'snapchat_handle' in request.POST:
-            snapchat_handle = request.POST.get('snapchat_handle', '').strip().lstrip('@')
+        if 'snapchat_handle' in data:
+            snapchat_handle = data.get('snapchat_handle', '').strip().lstrip('@')
             profile_user.userprofile.snapchat_handle = snapchat_handle if snapchat_handle else None
         
-        if 'linkedin_url' in request.POST:
-            linkedin_url = request.POST.get('linkedin_url', '').strip()
+        if 'linkedin_url' in data:
+            linkedin_url = data.get('linkedin_url', '').strip()
             # Validate LinkedIn URL
             if linkedin_url:
                 if not (linkedin_url.startswith('https://www.linkedin.com/in/') or 
                         linkedin_url.startswith('http://www.linkedin.com/in/') or
                         linkedin_url.startswith('www.linkedin.com/in/')):
-                    return False, 'LinkedIn URL must start with www.linkedin.com/in/'
+                    return service_error('LinkedIn URL must start with www.linkedin.com/in/')
                 
                 # Ensure https protocol
                 if linkedin_url.startswith('www.'):
@@ -186,65 +202,44 @@ def update_profile_info(request, username):
                     linkedin_url = linkedin_url.replace('http://', 'https://')
             profile_user.userprofile.linkedin_url = linkedin_url if linkedin_url else None
 
-        if 'preferred_msg_app' in request.POST:
-            preferred_msg_app = request.POST.get('preferred_msg_app')
+        if 'preferred_msg_app' in data:
+            preferred_msg_app = data.get('preferred_msg_app')
             if preferred_msg_app is None:
                 preferred_msg_app = ''
             elif not isinstance(preferred_msg_app, str):
-                return False, 'Invalid preferred messaging app.'
+                return service_error('Invalid preferred messaging app.')
             preferred_msg_app = preferred_msg_app.strip()
             if preferred_msg_app and preferred_msg_app not in UserProfile.PreferredMessageApp.values:
-                return False, 'Invalid preferred messaging app.'
+                return service_error('Invalid preferred messaging app.')
             profile_user.userprofile.preferred_msg_app = preferred_msg_app or None
 
-        hue_value = request.POST.get('background_hue', profile_user.userprofile.background_hue)
-        profile_user.userprofile.background_hue = int(hue_value)
+        profile_user.userprofile.background_hue = data.get(
+            'background_hue', profile_user.userprofile.background_hue
+        )
+        user.save()
         profile_user.userprofile.save()
 
-        return True, 'Profile updated successfully!'
+        return service_success('Profile updated successfully!')
     except ValueError as e:
-        return False, str(e)
+        return service_error(e)
     except Exception as e:
-        return False, f'Error updating profile: {str(e)}'
+        return service_error(f'Error updating profile: {e}', 500)
 
-def update_privacy_preferences(request, profile_user):
+def update_privacy_preferences(profile_user, allow_schedule_comparison, display_email=None):
     """Handle privacy preferences update"""
     try:
-        allow_schedule_comparison = request.POST.get('allow_schedule_comparison') == 'on'
-        display_email = request.POST.get('display_email') == 'on'
-        
         profile_user.userprofile.allow_schedule_comparison = allow_schedule_comparison
-        profile_user.userprofile.display_email = display_email
-        profile_user.userprofile.save()
+        update_fields = ['allow_schedule_comparison']
+        if display_email is not None:
+            profile_user.userprofile.display_email = display_email
+            update_fields.append('display_email')
+        profile_user.userprofile.save(update_fields=update_fields)
         
-        return True, 'Privacy preferences updated successfully!'
+        return service_success('Privacy preferences updated successfully!')
     except Exception as e:
-        return False, f'Error updating privacy preferences: {str(e)}'
+        return service_error(f'Error updating privacy preferences: {e}', 500)
 
-def update_wolfnet_settings(request, profile_user):
-    """Handle WolfNet settings update"""
-    try:
-        # Check if we're clearing the password
-        if request.POST.get('clear_wolfnet_password') == 'true':
-            profile_user.userprofile.wolfnet_password = None
-            profile_user.userprofile.save()
-            return True, 'WolfNet password cleared successfully!'
-        
-        # Otherwise, update the password
-        wolfnet_password = request.POST.get('wolfnet_password', '').strip()
-        if wolfnet_password:
-            from forum.forms import WolfNetSettingsForm
-            encrypted_password = WolfNetSettingsForm().encrypt_password(wolfnet_password)
-            profile_user.userprofile.wolfnet_password = encrypted_password
-            profile_user.userprofile.save()
-            return True, 'WolfNet settings updated successfully! Grade notifications and schedule integration are now enabled.'
-        else:
-            return False, 'Please enter a valid WolfNet password.'
-            
-    except Exception as e:
-        return False, f'Error updating WolfNet settings: {str(e)}'
-
-def update_profile_picture(request):
+def update_profile_picture(user, image_file):
     """
     Update user profile picture with compression.
     
@@ -261,24 +256,22 @@ def update_profile_picture(request):
     ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic', '.webp']
     MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB (input file size before compression)
     
-    if 'profile_picture' not in request.FILES:
-        return False, 'No profile picture file provided'
-    
-    image_file = request.FILES['profile_picture']
+    if image_file is None:
+        return service_error('No profile picture file provided')
     ext = os.path.splitext(image_file.name)[1].lower()
     mime_type = image_file.content_type
     
     # Validate file size before compression
     if image_file.size > MAX_IMAGE_SIZE:
-        return False, f'Image file too large. Maximum size is 5 MB, got {image_file.size / (1024*1024):.1f} MB'
+        return service_error(f'Image file too large. Maximum size is 5 MB, got {image_file.size / (1024*1024):.1f} MB')
     
     # Validate file type
     if mime_type not in ALLOWED_IMAGE_TYPES or ext not in ALLOWED_EXTENSIONS:
-        return False, f'Unsupported file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
+        return service_error(f'Unsupported file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}')
     
     try:
         import uuid
-        profile = request.user.userprofile
+        profile = user.userprofile
         
         # GIFs are kept as-is to preserve animation
         if mime_type == 'image/gif':
@@ -307,12 +300,12 @@ def update_profile_picture(request):
         profile.profile_picture = saved_path
         profile.save()
         
-        return True, 'Profile picture updated successfully'
+        return service_success('Profile picture updated successfully')
         
     except Exception as e:
-        return False, f'Error processing image: {str(e)}'
+        return service_error(f'Error processing image: {e}', 500)
 
-def update_lunch_card(request):
+def update_lunch_card(user, image_file):
     """
     Update user lunch card without compression (original quality).
     
@@ -328,20 +321,18 @@ def update_lunch_card(request):
     ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.heic', '.webp']
     MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB (no compression)
     
-    if 'lunch_card' not in request.FILES:
-        return False, 'No lunch card file provided'
-    
-    image_file = request.FILES['lunch_card']
+    if image_file is None:
+        return service_error('No lunch card file provided')
     ext = os.path.splitext(image_file.name)[1].lower()
     mime_type = image_file.content_type
     
     # Validate file size
     if image_file.size > MAX_IMAGE_SIZE:
-        return False, f'Image file too large. Maximum size is 5 MB, got {image_file.size / (1024*1024):.1f} MB'
+        return service_error(f'Image file too large. Maximum size is 5 MB, got {image_file.size / (1024*1024):.1f} MB')
     
     # Validate file type
     if mime_type not in ALLOWED_IMAGE_TYPES or ext not in ALLOWED_EXTENSIONS:
-        return False, f'Unsupported file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
+        return service_error(f'Unsupported file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}')
     
     try:
         # Keep original file without compression
@@ -353,7 +344,7 @@ def update_lunch_card(request):
         unique_name = f"{uuid.uuid4().hex}{original_ext}"
         upload_path = os.path.join('lunch_cards', unique_name)
         
-        profile = request.user.userprofile
+        profile = user.userprofile
         
         # Delete old lunch card if it exists
         if profile.lunch_card:
@@ -367,99 +358,121 @@ def update_lunch_card(request):
         profile.lunch_card = saved_path
         profile.save()
         
-        return True, 'Lunch card updated successfully'
+        return service_success('Lunch card updated successfully')
         
     except Exception as e:
-        return False, f'Error processing image: {str(e)}'
+        return service_error(f'Error processing image: {e}', 500)
 
-def update_profile_courses(request):
-    profile = request.user.userprofile
+def delete_lunch_card(user):
+    """Delete a user's stored lunch card."""
+    profile = user.userprofile
+    if not profile.lunch_card:
+        return service_error('No lunch card to delete')
+    try:
+        profile.lunch_card.delete(save=True)
+        return service_success('Lunch card deleted successfully!')
+    except Exception as e:
+        return service_error(f'Error deleting lunch card: {e}', 500)
+
+
+def update_profile_courses(user, data):
+    profile = user.userprofile
     try:
         assignments = {}
         for block in USER_SCHEDULE_BLOCKS:
             key = f'block_{block}'
-            if key in request.POST:
-                value = request.POST.get(key)
+            if key in data:
+                value = data.get(key)
                 assignments[block] = None if value in (None, '', 'NOCOURSE') else value
             else:
                 assignments[block] = getattr(profile, f'{key}_id', None)
 
         replace_user_schedule(profile, assignments, allow_empty=True)
-        return True, 'Courses updated successfully!'
+        return service_success('Courses updated successfully!')
     except ScheduleImportValidationError as exc:
-        return False, str(exc)
+        return service_error(exc)
     except Exception as e:
-        return False, f"Error updating courses: {str(e)}"
+        return service_error(f"Error updating courses: {e}", 500)
 
-def add_user_experience(request):
+def add_user_experience(user, course_id):
     try:
-        course_id = request.POST.get('course')
         if not course_id:
-            return False, 'Course ID is required.'
+            return service_error('Course ID is required.')
         
         # Check if course exists
         try:
             course = Course.objects.get(id=course_id)
         except Course.DoesNotExist:
-            return False, 'Course not found.'
+            return service_error('Course not found.', 404)
         
         # Check if experience already exists
-        if UserCourseExperience.objects.filter(user=request.user, course=course).exists():
-            return False, 'You already have experience with this course.'
+        if UserCourseExperience.objects.filter(user=user, course=course).exists():
+            return service_error('You already have experience with this course.', 409)
         
         # Create the experience
-        UserCourseExperience.objects.create(
-            user=request.user,
+        experience = UserCourseExperience.objects.create(
+            user=user,
             course=course
         )
-        return True, None
+        return service_success(
+            'Course experience added successfully!',
+            id=experience.id,
+            course_id=course.id,
+            course_name=course.name,
+        )
         
     except Exception as e:
-        return False, f'Error adding course experience: {str(e)}'
+        return service_error(f'Error adding course experience: {e}', 500)
 
-def add_user_help_request(request):
+def add_user_help_request(user, course_id):
     try:
-        course_id = request.POST.get('course')
         if not course_id:
-            return False, 'Course ID is required.'
+            return service_error('Course ID is required.')
         
         # Check if course exists
         try:
             course = Course.objects.get(id=course_id)
         except Course.DoesNotExist:
-            return False, 'Course not found.'
+            return service_error('Course not found.', 404)
         
         # Check if help request already exists
-        if UserCourseHelp.objects.filter(user=request.user, course=course, active=True).exists():
-            return False, 'You already have an active help request for this course.'
+        if UserCourseHelp.objects.filter(user=user, course=course, active=True).exists():
+            return service_error('You already have an active help request for this course.', 409)
         
         # Create the help request
-        UserCourseHelp.objects.create(
-            user=request.user,
+        help_request = UserCourseHelp.objects.create(
+            user=user,
             course=course,
             active=True
         )
-        return True, None
+        return service_success(
+            'Help request added successfully!',
+            id=help_request.id,
+            course_id=course.id,
+            course_name=course.name,
+        )
         
     except Exception as e:
-        return False, f'Error adding help request: {str(e)}'
+        return service_error(f'Error adding help request: {e}', 500)
 
-def remove_user_experience(request, experience_id):
+def remove_user_experience(user, experience_id):
     try:
-        experience = get_object_or_404(UserCourseExperience, id=experience_id, user=request.user)
+        experience = UserCourseExperience.objects.filter(id=experience_id, user=user).first()
+        if experience is None:
+            return service_error('Course experience not found.', 404)
+        course_id = experience.course_id
         experience.delete()
-        return True, 'Course experience removed successfully!'
-    except UserCourseExperience.DoesNotExist:
-        return False, 'Course experience not found.'
+        return service_success('Course experience removed successfully!', course_id=course_id)
     except Exception as e:
-        return False, f'Error removing course experience: {str(e)}'
+        return service_error(f'Error removing course experience: {e}', 500)
 
-def remove_user_help_request(request, help_id):
+def remove_user_help_request(user, help_id):
     try:
-        help_request = get_object_or_404(UserCourseHelp, id=help_id, user=request.user)
+        help_request = UserCourseHelp.objects.filter(id=help_id, user=user).first()
+        if help_request is None:
+            return service_error('Help request not found.', 404)
+        course_id = help_request.course_id
         help_request.delete()
-        return True, 'Help request removed successfully!'
-    except UserCourseHelp.DoesNotExist:
-        return False, 'Help request not found.'
+        return service_success('Help request removed successfully!', course_id=course_id)
     except Exception as e:
-        return False, f'Error removing help request: {str(e)}'
+        return service_error(f'Error removing help request: {e}', 500)
