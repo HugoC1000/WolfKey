@@ -62,11 +62,10 @@
             loadingSpinner.classList.remove('d-none');
             
             page++;
-            fetch(`${window.location.pathname}?page=${page}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
+            const url = new URL('{% url "all_posts_fragment" %}', window.location.origin);
+            url.search = window.location.search;
+            url.searchParams.set('page', page);
+            fetch(url)
             .then(response => response.text())
             .then(html => {
                 if (html.trim()) {

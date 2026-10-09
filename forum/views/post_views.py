@@ -1,18 +1,18 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 import json
 import logging
 from django.utils.html import escape
-from forum.models import Post, Solution, FollowedPost, Notification, PostLike
-from ..services.utils import selective_quote_replace, detect_bad_words
 from forum.forms import SolutionForm, CommentForm, PostForm
 from forum.serializers import PostDetailSerializer, serialize_poll_display_data
 from forum.services.post_services import (
     create_post_service,
     update_post_service,
     delete_post_service,
+    get_post_detail_service,
+    get_post_for_author,
     like_post_service,
     unlike_post_service,
     follow_post_service,
@@ -20,6 +20,8 @@ from forum.services.post_services import (
     toggle_community_post_pin_service,
 )
 from forum.services.notification_services import mark_notifications_by_post_service
+from forum.services.poll_services import cast_poll_vote, remove_poll_vote as remove_poll_vote_service
+from forum.views.json_responses import error_payload, success_payload
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,7 @@ def build_poll_response_data(poll, request=None):
     """
     Build a JSON-safe poll payload for frontend updates.
     """
-    poll_data = serialize_poll_display_data(poll, request=request)
+    poll_data = serialize_poll_display_data(poll, viewer=request.user)
     if poll_data is not None:
         return poll_data
 
@@ -105,16 +107,11 @@ def create_post(request):
 
 @login_required
 def post_detail(request, post_id):
-    # Get post object and increment views
-    post = get_object_or_404(Post, id=post_id)
-    
-    # Check teacher visibility
-    if request.user.is_authenticated and request.user.is_teacher and not post.allow_teacher:
+    result = get_post_detail_service(request.user, post_id)
+    if 'error' in result:
         from django.http import Http404
-        raise Http404("You don't have permission to view this post.")
-    
-    post.views += 1
-    post.save(update_fields=['views'])
+        raise Http404(result['error'])
+    post = result['post']
     
     # Mark notifications as read using service
     if request.user.is_authenticated:
@@ -143,11 +140,14 @@ def post_detail(request, post_id):
 
 @login_required
 def edit_post(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-
-    if request.user != post.author:
+    lookup = get_post_for_author(request.user, post_id)
+    if 'error' in lookup:
+        if lookup['status'] == 404:
+            from django.http import Http404
+            raise Http404(lookup['error'])
         messages.error(request, "You don't have permission to edit this post.")
-        return redirect('post_detail', post_id=post.id)
+        return redirect('post_detail', post_id=post_id)
+    post = lookup['post']
     
     if request.method == 'POST':
         try:
@@ -155,7 +155,6 @@ def edit_post(request, post_id):
             content = request.POST.get('content')
             if content:
                 content = json.loads(content)
-            detect_bad_words(content)  # This will raise ValueError if bad words are detected
 
             # Use service so mention diffing + mention notifications run on edits.
             update_data = {
@@ -224,13 +223,15 @@ def edit_post(request, post_id):
 
 @login_required
 def delete_post(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-    
-    if post.author != request.user:
-        return HttpResponseForbidden("You cannot delete this post")
+    lookup = get_post_for_author(request.user, post_id)
+    if 'error' in lookup:
+        return HttpResponse(lookup['error'], status=lookup['status'])
+    post = lookup['post']
         
     if request.method == 'POST':
-        post.delete()
+        result = delete_post_service(request.user, post_id)
+        if 'error' in result:
+            return HttpResponse(result['error'], status=result['status'])
         messages.success(request, 'Post deleted successfully!')
         return redirect('all_posts')
         
@@ -243,7 +244,7 @@ def toggle_community_post_pin(request, post_id):
         return HttpResponseForbidden('POST required')
     result = toggle_community_post_pin_service(request.user, post_id)
     if 'error' in result:
-        return HttpResponseForbidden(result['error'])
+        return HttpResponse(result['error'], status=result['status'])
     messages.success(request, 'Post pinned in Community.' if result['pinned'] else 'Post unpinned from Community.')
     return redirect('post_detail', post_id=post_id)
 
@@ -252,59 +253,56 @@ def like_post(request, post_id):
     if request.method == 'POST':
         result = like_post_service(request.user, post_id)
         if 'error' in result:
-            return JsonResponse({'success': False, 'error': result['error']}, status=400)
-        return JsonResponse({
-            'success': result['success'],
+            return JsonResponse(error_payload(result['error'], result['status']), status=result['status'])
+        return JsonResponse(success_payload({
             'liked': result['liked'],
             'like_count': result['like_count']
-        })
-    return JsonResponse({'success': False}, status=400)
+        }))
+    return JsonResponse(error_payload('Invalid request method.'), status=405)
 
 @login_required
 def unlike_post(request, post_id):
     if request.method == 'POST':
         result = unlike_post_service(request.user, post_id)
         if 'error' in result:
-            return JsonResponse({'success': False, 'error': result['error']}, status=400)
-        return JsonResponse({
-            'success': result['success'],
+            return JsonResponse(error_payload(result['error'], result['status']), status=result['status'])
+        return JsonResponse(success_payload({
             'liked': result['liked'],
             'like_count': result['like_count']
-        })
-    return JsonResponse({'success': False}, status=400)
+        }))
+    return JsonResponse(error_payload('Invalid request method.'), status=405)
 
 @login_required
 def follow_post(request, post_id):
     if request.method == 'POST':
         result = follow_post_service(request.user, post_id)
         if 'error' in result:
-            return JsonResponse({'success': False, 'error': result['error']}, status=400)
+            return JsonResponse(error_payload(result['error'], result['status']), status=result['status'])
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': result['success'],
+            return JsonResponse(success_payload({
                 'followed': result['followed'],
                 'followers_count': result['followers_count']
-            })
+            }))
         
         return redirect('post_detail', post_id=post_id)
-    return JsonResponse({'success': False}, status=400)
+    return JsonResponse(error_payload('Invalid request method.'), status=405)
 
 @login_required
 def unfollow_post(request, post_id):
     if request.method == 'POST':
         result = unfollow_post_service(request.user, post_id)
         if 'error' in result:
-            return JsonResponse({'success': False, 'error': result['error']}, status=400)
+            return JsonResponse(error_payload(result['error'], result['status']), status=result['status'])
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': result['success'],
+            return JsonResponse(success_payload({
                 'followed': result['followed'],
                 'followers_count': result['followers_count']
-            })
+            }))
         
         return redirect('post_detail', post_id=post_id)
+    return JsonResponse(error_payload('Invalid request method.'), status=405)
 
 @login_required
 def vote_on_poll(request, post_id):
@@ -312,97 +310,40 @@ def vote_on_poll(request, post_id):
     View to vote on a poll
     """
     if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
+        return JsonResponse(error_payload('Method not allowed'), status=405)
     
     try:
-        from forum.models import Poll, PollVote
-        
-        poll = Poll.objects.get(id=post_id)
-        
-        # Get selected option IDs from POST data
         content_type = request.headers.get('Content-Type', '')
         if 'application/json' in content_type:
             data = json.loads(request.body)
             selected_option_ids = data.get('selected_option_ids', [])
         else:
             selected_option_ids = request.POST.getlist('selected_option_ids')
-        
-        if not selected_option_ids:
-            error_msg = 'No options selected'
+
+        result = cast_poll_vote(request.user, post_id, selected_option_ids)
+        if 'error' in result:
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'error': error_msg}, status=400)
-            messages.error(request, error_msg)
-            return redirect('post_detail', post_id=post_id)
-        
-        # Convert to integers
-        selected_option_ids = [int(id) for id in selected_option_ids]
-        try:
-            selected_option_ids = [int(id) for id in selected_option_ids]
-        except (TypeError, ValueError):
-            error_msg = 'Invalid option selection'
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'error': error_msg}, status=400)
-            messages.error(request, error_msg)
+                return JsonResponse(error_payload(result['error'], result['status']), status=result['status'])
+            messages.error(request, result['error'])
+            if result['error'] == 'Poll not found':
+                return redirect('/')
             return redirect('post_detail', post_id=post_id)
 
-        # Ensure selected options belong to this poll
-        valid_option_ids = list(
-            poll.options.filter(id__in=selected_option_ids).values_list('id', flat=True)
-        )
-        if not valid_option_ids:
-            error_msg = 'No valid options selected'
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'error': error_msg}, status=400)
-            messages.error(request, error_msg)
-            return redirect('post_detail', post_id=post_id)
-
-        # Enforce single-choice constraint when multiple choice is not allowed
-        if not getattr(poll, 'allow_multiple_choice', False) and len(valid_option_ids) > 1:
-            error_msg = 'You may only select one option for this poll'
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'error': error_msg}, status=400)
-            messages.error(request, error_msg)
-            return redirect('post_detail', post_id=post_id)
-
-        # Check if user already voted
-        existing_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
-        if existing_vote:
-            # Update existing vote
-            existing_vote.selected_options.set(valid_option_ids)
-        else:
-            # Create new vote
-            poll_vote = PollVote.objects.create(poll=poll, user=request.user)
-            poll_vote.selected_options.set(valid_option_ids)
+        poll = result['poll']
         
         # Handle AJAX requests
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'message': 'Vote recorded successfully',
-                **build_poll_response_data(poll, request=request)
-            }, status=200)
+            return JsonResponse(success_payload(build_poll_response_data(poll, request=request), result['message']))
         
         # Handle regular form submissions
         messages.success(request, 'Your vote has been recorded')
         return redirect('post_detail', post_id=post_id)
         
-    except Poll.DoesNotExist:
-        error_msg = 'Poll not found'
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'error': error_msg}, status=404)
-        messages.error(request, error_msg)
-        return redirect('/')
-    except ValueError as e:
-        error_msg = f'Invalid option IDs: {str(e)}'
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'error': error_msg}, status=400)
-        messages.error(request, error_msg)
-        return redirect('post_detail', post_id=post_id)
     except Exception as e:
         error_msg = f'Error recording vote: {str(e)}'
         logger.error(error_msg)
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'error': error_msg}, status=500)
+            return JsonResponse(error_payload(error_msg, 500), status=500)
         messages.error(request, error_msg)
         return redirect('post_detail', post_id=post_id)
 
@@ -413,46 +354,32 @@ def remove_poll_vote(request, post_id):
     View to remove a vote from a poll
     """
     if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
+        return JsonResponse(error_payload('Method not allowed'), status=405)
     
     try:
-        from forum.models import Poll, PollVote
-        
-        poll = Poll.objects.get(id=post_id)
-        poll_vote = PollVote.objects.filter(poll=poll, user=request.user).first()
-        
-        if not poll_vote:
-            error_msg = 'No vote found to remove'
+        result = remove_poll_vote_service(request.user, post_id)
+        if 'error' in result:
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'error': error_msg}, status=404)
-            messages.error(request, error_msg)
+                return JsonResponse(error_payload(result['error'], result['status']), status=result['status'])
+            messages.error(request, result['error'])
+            if result['error'] == 'Poll not found':
+                return redirect('/')
             return redirect('post_detail', post_id=post_id)
-        
-        poll_vote.delete()
+
+        poll = result['poll']
         
         # Handle AJAX requests
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'message': 'Vote removed successfully',
-                **build_poll_response_data(poll, request=request)
-            }, status=200)
+            return JsonResponse(success_payload(build_poll_response_data(poll, request=request), result['message']))
         
         # Handle regular form submissions
         messages.success(request, 'Your vote has been removed')
         return redirect('post_detail', post_id=post_id)
         
-    except Poll.DoesNotExist:
-        error_msg = 'Poll not found'
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'error': error_msg}, status=404)
-        messages.error(request, error_msg)
-        return redirect('/')
     except Exception as e:
         error_msg = f'Error removing vote: {str(e)}'
         logger.error(error_msg)
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'error': error_msg}, status=500)
+            return JsonResponse(error_payload(error_msg, 500), status=500)
         messages.error(request, error_msg)
         return redirect('post_detail', post_id=post_id)
-    return JsonResponse({'success': False}, status=400)

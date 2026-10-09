@@ -5,7 +5,7 @@
     <link rel="stylesheet" href="{% static 'forum/css/post-card.css' %}">
     <script src="{% static 'forum/js/post-card.js' %}" defer></script>
     <link rel="stylesheet" href="{% static 'forum/css/schedule.css' %}">
-    <script src="{% static 'forum/js/schedule.js' %}?v=community-lunch-fixes-1" defer></script>
+    <script src="{% static 'forum/js/schedule.js' %}?v=schedule-timezone-fixes-1" defer></script>
     <style>
         .home-schedule-cta {
             display: inline-flex;
@@ -32,12 +32,14 @@
         <h1 class="fade-text" id="animated-text" style="display: none;">{{ greeting }}</h1>
     </div>
 
-    <div class="text-center mb-4">
-        <a class="home-schedule-cta" href="{% url 'profile' user.username %}#schedule">
-            <i class="fas fa-upload" aria-hidden="true"></i>
-            Upload your schedule now!
-        </a>
-    </div>
+    {% if show_schedule_upload %}
+        <div class="text-center mb-4">
+            <a class="home-schedule-cta" href="{% url 'profile' user.username %}#schedule">
+                <i class="fas fa-upload" aria-hidden="true"></i>
+                Upload your schedule now!
+            </a>
+        </div>
+    {% endif %}
 
     <!-- Schedule-->
     <div class="row" style="margin-bottom: 3rem;">
@@ -190,11 +192,10 @@
             loadingSpinner.classList.remove('d-none');
             
             page++;
-            fetch(`${window.location.pathname}?page=${page}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
+            const url = new URL('{% url "all_posts_fragment" %}', window.location.origin);
+            url.search = window.location.search;
+            url.searchParams.set('page', page);
+            fetch(url)
             .then(response => response.text())
             .then(html => {
                 if (html.trim()) {

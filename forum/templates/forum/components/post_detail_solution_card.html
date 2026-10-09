@@ -72,6 +72,7 @@
                                 <span>Anonymous</span>
                             {% else %}
                                 <a href="{{ solution.author.get_absolute_url }}">{{ solution.author.get_full_name }}</a>
+                                {% include 'forum/components/verified_badge.html' with account=solution.author is_anonymous=False %}
                             {% endif %}
                             {% if solution.author == post.author and not post.is_anonymous %}
                                 <span class="badge bg-primary ms-2">OP</span>

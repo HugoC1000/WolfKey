@@ -1,39 +1,52 @@
-from django.db.models.signals import post_save, post_delete
+"""Lifecycle safeguards that must also run for admin actions and cascades.
+
+Feature behavior belongs in ``forum.services`` so its execution is visible from
+the calling view or API endpoint. These receivers are reserved for invariants
+that must hold whenever a model is saved or deleted through any code path.
+"""
+
+import logging
+
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
-from django.contrib.auth.models import User
-from django.utils import timezone
-from .models import UserProfile, Solution, Comment, PollVote
+from rest_framework.authtoken.models import Token
+
+from .models import Comment, Post, Solution, User, UserProfile
+
+logger = logging.getLogger(__name__)
 
 
-# Update post last_activity_at when a solution is added or updated
-@receiver(post_save, sender=Solution)
-def update_post_activity_on_solution(sender, instance, created, **kwargs):
-    """Update the parent post's last_activity_at when a solution is created"""
-    if created and instance.post:
-        instance.post.last_activity_at = timezone.now()
-        instance.post.save(update_fields=['last_activity_at'])
-
-# Update post last_activity_at when a comment is added
-@receiver(post_save, sender=Comment)
-def update_post_activity_on_comment(sender, instance, created, **kwargs):
-    """Update the parent post's last_activity_at when a comment is created"""
-    if created:
-        # Comments are on solutions, solutions are on posts
-        if instance.solution and instance.solution.post:
-            instance.solution.post.last_activity_at = timezone.now()
-            instance.solution.post.save(update_fields=['last_activity_at'])
+@receiver(post_save, sender=User)
+def maintain_user_account_invariants(sender, instance, created, **kwargs):
+    """Ensure every user has a profile and inactive users have no API token."""
+    UserProfile.objects.get_or_create(user=instance)
+    if not instance.is_active:
+        Token.objects.filter(user=instance).delete()
 
 
-@receiver(post_save, sender=PollVote)
-def update_post_activity_on_poll_vote_save(sender, instance, **kwargs):
-    """Update the parent poll post's last_activity_at when votes reach multiples of 5.
-    
-    This prevents polls from dominating the feed on every single vote. Activity is bumped
-    only every 5 votes to balance poll visibility with text posts.
-    """
-    if instance.poll:
-        vote_count = instance.poll.votes.count()
-        # Only update last_activity_at every 5 votes (at vote counts 5, 10, 15, etc.)
-        if vote_count % 5 == 0:
-            instance.poll.last_activity_at = timezone.now()
-            instance.poll.save(update_fields=['last_activity_at'])
+def _delete_content_files(instance):
+    """Best-effort cleanup used by all content deletion receivers."""
+    if not instance.content:
+        return
+
+    from forum.services.utils import extract_and_delete_files_from_content
+
+    try:
+        extract_and_delete_files_from_content(instance.content)
+    except Exception:
+        logger.exception("Failed to delete files for %s %s", type(instance).__name__, instance.id)
+
+
+@receiver(pre_delete, sender=Post)
+def delete_post_files(sender, instance, **kwargs):
+    _delete_content_files(instance)
+
+
+@receiver(pre_delete, sender=Solution)
+def delete_solution_files(sender, instance, **kwargs):
+    _delete_content_files(instance)
+
+
+@receiver(pre_delete, sender=Comment)
+def delete_comment_files(sender, instance, **kwargs):
+    _delete_content_files(instance)

@@ -1,14 +1,13 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from forum.models import User, Course, UserCourseHelp, UserCourseExperience
 from forum.forms import CustomUserCreationForm, CustomPasswordResetForm
 import json
 from django.contrib.auth.views import PasswordResetView, PasswordResetDoneView, PasswordResetConfirmView, PasswordResetCompleteView
 from django.urls import reverse_lazy
 from forum.services.auth_services import authenticate_user, register_user
+from forum.services.course_services import get_courses_by_ids, list_courses
 from forum.serializers import CourseSerializer
 
 def register(request):
@@ -39,14 +38,15 @@ def register(request):
                         # Skip invalid course IDs
                         pass
             
-            user, error = register_user(
-                request, form, help_courses, experience_courses, 
+            result = register_user(
+                form.cleaned_data, help_courses, experience_courses,
                 schedule_data,
                 allow_schedule_comparison
             )
-            if error:
-                messages.error(request, error)
+            if 'error' in result:
+                messages.error(request, result['error'])
             else:
+                login(request, result['user'])
                 messages.success(request, 'Welcome to WolfKey!')
                 return redirect('all_posts')
         else:
@@ -64,8 +64,8 @@ def register(request):
         help_course_ids = [int(id) for id in help_course_ids if id.isdigit()]
         experience_course_ids = [int(id) for id in experience_course_ids if id.isdigit()]
 
-        help_courses_queryset = Course.objects.filter(id__in=help_course_ids)
-        experience_courses_queryset = Course.objects.filter(id__in=experience_course_ids)
+        help_courses_queryset = get_courses_by_ids(help_course_ids)
+        experience_courses_queryset = get_courses_by_ids(experience_course_ids)
         
         help_courses = CourseSerializer(help_courses_queryset, many=True).data
         experience_courses = CourseSerializer(experience_courses_queryset, many=True).data
@@ -77,12 +77,14 @@ def register(request):
             block_course = request.POST.get(f'block_{block}', '')
             if block_course:
                 try:
-                    course = Course.objects.get(id=int(block_course))
+                    course = next(iter(get_courses_by_ids([int(block_course)])), None)
+                    if course is None:
+                        raise ValueError('Unknown course')
                     schedule_data[block] = {
                         'course': course.name,
                         'course_id': course.id,
                     }
-                except (Course.DoesNotExist, ValueError):
+                except ValueError:
                     schedule_data[block] = {
                         'course': None,
                         'course_id': None,
@@ -95,7 +97,7 @@ def register(request):
 
         return render(request, 'forum/register.html', {
             'form': form,
-            'courses': Course.objects.all().order_by('name'),
+            'courses': list_courses(),
             'form_errors': form.errors.as_json(),
             'selected_help_courses': json.dumps(help_courses),
             'selected_experience_courses': json.dumps(experience_courses),
@@ -104,7 +106,7 @@ def register(request):
     else:
         form = CustomUserCreationForm()
 
-    courses = Course.objects.all().order_by('name')
+    courses = list_courses()
     return render(request, 'forum/register.html', {
         'form': form,
         'courses': courses
@@ -117,13 +119,13 @@ def login_view(request):
             school_email = form.cleaned_data.get('username')  # AuthenticationForm uses 'username' field
             password = form.cleaned_data.get('password')
 
-            user, error = authenticate_user(request, school_email, password)
-            if user:
-                login(request,user)
+            result = authenticate_user(school_email, password)
+            if 'error' not in result:
+                login(request, result['user'])
                 messages.success(request, 'You are now logged in!')
                 return redirect('for_you')
             else:
-                form.add_error(None, error)
+                form.add_error(None, result['error'])
         else:
             form.add_error(None, "Invalid credentials. Please try again.")
     else:
@@ -131,8 +133,6 @@ def login_view(request):
 
     return render(request, 'forum/login.html', {'form': form})
 
-
-from django.contrib.auth import logout
 
 def logout_view(request):
     logout(request)

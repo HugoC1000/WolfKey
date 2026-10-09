@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const tomorrowDate = datePicker.dataset.tomorrow;
     const todayDate = datePicker.dataset.today || getTodayDateISO();
     const initialTitle = scheduleTitle.textContent; // Store the initial server-rendered title
+    const latestRequests = new WeakMap();
     
     // Clear cache: reset date picker to default tomorrow date on page load
     datePicker.value = tomorrowDate;
@@ -26,32 +27,32 @@ document.addEventListener('DOMContentLoaded', function () {
     // Helper function to get today's date in ISO format
     function getTodayDateISO() {
         const today = new Date();
-        return today.toISOString().split('T')[0];
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Vancouver', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(today);
+        const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+        return `${values.year}-${values.month}-${values.day}`;
     }
 
     function isDateInCurrentWeek(dateString) {
-        const selectedDate = new Date(dateString);
-        const today = new Date();
+        const selectedDate = new Date(`${dateString}T00:00:00Z`);
+        const today = new Date(`${todayDate}T00:00:00Z`);
         
         // Get the start of the current week (Sunday)
         const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
-        startOfWeek.setHours(0, 0, 0, 0);
+        startOfWeek.setUTCDate(today.getUTCDate() - today.getUTCDay());
         
         // Get the end of the current week (Saturday)
         const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
+        endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
         
         return selectedDate >= startOfWeek && selectedDate <= endOfWeek;
     }
 
     function getDayName(dateString) {
-        // Parse the date string as local time to avoid timezone offset issues
-        const [year, month, day] = dateString.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
+        const date = new Date(`${dateString}T00:00:00Z`);
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        return days[date.getDay()];
+        return days[date.getUTCDay()];
     }
 
     function updateScheduleTitle(dateString) {
@@ -74,19 +75,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function loadScheduleForDate(dateString, scheduleContainer, badgesContainer) {
         // Load schedule for a specific date and render it into the given container.
+        const requestId = (latestRequests.get(scheduleContainer) || 0) + 1;
+        latestRequests.set(scheduleContainer, requestId);
         scheduleContainer.innerHTML = '<li class="list-group-item"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...</li>';
         badgesContainer.innerHTML = '';
 
         fetch(`/schedules/daily/${dateString}/`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    scheduleContainer.innerHTML = `<li class="list-group-item text-danger">${data.error}</li>`;
-                    return;
-                }
-                renderScheduleData(data, scheduleContainer, badgesContainer, dateString);
+            .then(async response => {
+                const envelope = await response.json();
+                if (!response.ok || !envelope.success) throw new Error(envelope.message || 'Failed to get schedule');
+                return envelope.data;
+            })
+            .then(schedule => {
+                if (latestRequests.get(scheduleContainer) !== requestId) return;
+                renderScheduleData(schedule, scheduleContainer, badgesContainer, dateString);
             })
             .catch(error => {
+                if (latestRequests.get(scheduleContainer) !== requestId) return;
                 console.error('Error fetching schedule:', error);
                 scheduleContainer.innerHTML = '<li class="list-group-item text-danger">Error loading schedule</li>';
             });
@@ -95,7 +100,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderScheduleData(data, scheduleContainer, badgesContainer, dateString) {
         // Render schedule data into the given containers.
         // Update title with formatted date if not tomorrow and not in current week
-        if (dateString !== tomorrowDate && !isDateInCurrentWeek(dateString)) {
+        if (scheduleContainer === tomorrowScheduleList && dateString !== tomorrowDate && !isDateInCurrentWeek(dateString)) {
             scheduleTitle.textContent = data.date;
         }
 
@@ -172,8 +177,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Previous day button
     prevDayBtn.addEventListener('click', function() {
-        const currentDate = new Date(datePicker.value);
-        currentDate.setDate(currentDate.getDate() - 1);
+        const currentDate = new Date(`${datePicker.value}T00:00:00Z`);
+        currentDate.setUTCDate(currentDate.getUTCDate() - 1);
         const newDate = currentDate.toISOString().split('T')[0];
         datePicker.value = newDate;
         updateSchedule(newDate);
@@ -181,8 +186,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Next day button
     nextDayBtn.addEventListener('click', function() {
-        const currentDate = new Date(datePicker.value);
-        currentDate.setDate(currentDate.getDate() + 1);
+        const currentDate = new Date(`${datePicker.value}T00:00:00Z`);
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
         const newDate = currentDate.toISOString().split('T')[0];
         datePicker.value = newDate;
         updateSchedule(newDate);

@@ -263,13 +263,14 @@ export class MentionHandler {
         }
       });
 
-      if (!response.ok) {
-        console.error(`[MentionHandler] Mention search failed: ${response.statusText}`);
+      const envelope = await response.json();
+      if (!response.ok || !envelope.success) {
+        console.error(`[MentionHandler] Mention search failed: ${envelope.message || response.statusText}`);
         this.closeMentionDropdown();
         return;
       }
 
-      const data = await response.json();
+      const data = envelope.data;
       
       // Filter results based on current trigger
       let filteredResults = [];

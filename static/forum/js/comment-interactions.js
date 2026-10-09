@@ -14,11 +14,13 @@ export class CommentInteractions {
             headers: { 'X-CSRFToken': this.csrfToken, 'Content-Type': 'application/json' },
         });
         const data = await response.json();
-        if (!response.ok) return;
+        if (data.message) showMessage(data.message, data.success ? 'success' : 'error');
+        if (!response.ok || !data.success) return;
+        const result = data.data;
         const comment = document.querySelector(`#comment-${commentId}`);
-        comment.querySelector('.comment-upvotes').textContent = data.upvotes;
-        comment.querySelector('.comment-downvotes').textContent = data.downvotes;
-        comment.querySelector('[data-vote-type="upvote"]').classList.toggle('voted-up', data.vote_state === 'upvoted');
-        comment.querySelector('[data-vote-type="downvote"]').classList.toggle('voted-down', data.vote_state === 'downvoted');
+        comment.querySelector('.comment-upvotes').textContent = result.upvotes;
+        comment.querySelector('.comment-downvotes').textContent = result.downvotes;
+        comment.querySelector('[data-vote-type="upvote"]').classList.toggle('voted-up', result.vote_state === 'upvoted');
+        comment.querySelector('[data-vote-type="downvote"]').classList.toggle('voted-down', result.vote_state === 'downvoted');
     }
 }

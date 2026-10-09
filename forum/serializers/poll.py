@@ -11,7 +11,7 @@ class PollVoterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'full_name', 'profile_picture_url', 'profile_url']
+        fields = ['id', 'username', 'full_name', 'profile_picture_url', 'profile_url', 'is_community_account', 'is_paid_user']
 
     def get_full_name(self, obj):
         return obj.get_full_name() or obj.username
@@ -102,11 +102,14 @@ class PollSerializer(serializers.ModelSerializer):
 
         user_vote = None
         selected_option_ids = set()
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
+        viewer = self.context.get('viewer')
+        if viewer is None:
+            request = self.context.get('request')
+            viewer = request.user if request else None
+        if viewer and viewer.is_authenticated:
             user_vote = PollVote.objects.filter(
                 poll=obj,
-                user=request.user,
+                user=viewer,
             ).prefetch_related('selected_options').first()
             if user_vote:
                 selected_option_ids = {
@@ -150,7 +153,7 @@ class PollSerializer(serializers.ModelSerializer):
         return self._get_poll_state(obj)['user_vote']
 
 
-def serialize_poll_display_data(post_or_poll, request=None):
+def serialize_poll_display_data(post_or_poll, viewer=None):
     """Build poll display payload from a Post or Poll instance using one serializer."""
     if not post_or_poll:
         return None
@@ -165,5 +168,5 @@ def serialize_poll_display_data(post_or_poll, request=None):
         except Poll.DoesNotExist:
             return None
 
-    context = {'request': request} if request is not None else {}
+    context = {'viewer': viewer} if viewer is not None else {}
     return PollSerializer(poll, context=context).data

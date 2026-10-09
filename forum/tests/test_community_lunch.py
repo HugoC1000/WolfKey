@@ -33,6 +33,49 @@ class CommunityLunchTests(TestCase):
         )
         self.today = timezone.localdate()
 
+    def test_profile_community_actions_return_fetch_envelopes(self):
+        self.client.force_login(self.community)
+        tomorrow = self.today + timedelta(days=1)
+
+        response = self.client.post(
+            reverse('add_community_lunch'),
+            {'date': tomorrow.isoformat(), 'location': 'Library'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        payload = response.json()
+        self.assertEqual(set(payload), {'success', 'message', 'data', 'error_code'})
+        self.assertTrue(payload['success'])
+        lunch = payload['data']
+        self.assertEqual(lunch['date'], tomorrow.isoformat())
+
+        response = self.client.post(
+            lunch['update_url'],
+            {'location': 'Room 101'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        payload = response.json()
+        self.assertEqual(set(payload), {'success', 'message', 'data', 'error_code'})
+        self.assertTrue(payload['success'])
+        self.assertEqual(payload['data']['location'], 'Room 101')
+
+        response = self.client.post(
+            lunch['delete_url'],
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        payload = response.json()
+        self.assertEqual(set(payload), {'success', 'message', 'data', 'error_code'})
+        self.assertTrue(payload['success'])
+
+        self.client.force_login(self.member)
+        response = self.client.post(
+            reverse('toggle_community_follow', args=[self.community.id]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        payload = response.json()
+        self.assertEqual(set(payload), {'success', 'message', 'data', 'error_code'})
+        self.assertTrue(payload['success'])
+        self.assertTrue(payload['data']['following'])
+
     def test_lunches_are_date_specific_and_exclude_inactive_communities(self):
         CommunityLunch.objects.create(community=self.community, date=self.today, location='Room 101')
         CommunityLunch.objects.create(community=self.community, date=self.today + timedelta(days=1))
@@ -100,7 +143,7 @@ class CommunityLunchTests(TestCase):
                 date_value=self.today + timedelta(days=1),
             )
 
-        self.assertEqual(result, {'error': 'That lunch date is already listed.'})
+        self.assertEqual(result, {'error': 'That lunch date is already listed.', 'status': 409})
 
     def test_lunch_api_rejects_non_community_accounts_and_blank_locations(self):
         member_token = Token.objects.create(user=self.member)
@@ -139,13 +182,13 @@ class CommunityLunchTests(TestCase):
         }
         response = self.client.get(reverse('daily_schedule_view', args=[self.today.isoformat()]))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['community_lunches'][0]['community']['id'], self.community.id)
+        self.assertEqual(response.json()['data']['community_lunches'][0]['community']['id'], self.community.id)
 
         mock_schedule.return_value = {
             'blocks': [None], 'times': [None], 'early_dismissal': False, 'late_start': False,
         }
         response = self.client.get(reverse('daily_schedule_view', args=[self.today.isoformat()]))
-        self.assertEqual(response.json()['community_lunches'], [])
+        self.assertEqual(response.json()['data']['community_lunches'], [])
 
     @patch('forum.api.schedule.is_ceremonial_uniform_required', return_value=False)
     @patch('forum.api.schedule.process_schedule_for_user', return_value=[])

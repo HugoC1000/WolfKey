@@ -25,6 +25,28 @@ from forum.serializers.user import USER_SCHEDULE_BLOCKS
 ALL_BLOCKS = USER_SCHEDULE_BLOCKS
 
 
+def get_initial_timetable_data(user):
+    profile = getattr(user, 'userprofile', None)
+    initial = {}
+    for block in USER_SCHEDULE_BLOCKS:
+        course = getattr(profile, f'block_{block}', None) if profile else None
+        initial[block] = (
+            {
+                'id': course.id,
+                'name': course.name,
+                'category': course.category,
+                'experienced_count': 0,
+            }
+            if course and course.name and 'study' not in course.name.lower()
+            else None
+        )
+    return {
+        'initial': initial,
+        'allow_schedule_comparison': bool(profile and profile.allow_schedule_comparison),
+        'user_grade_level': profile.grade_level if profile else None,
+    }
+
+
 def generate_possible_schedules(requested_course_ids: List[int],
                                 required_course_ids: Optional[List[int]] = None,
                                 max_schedules: int = 20) -> List[Dict]:

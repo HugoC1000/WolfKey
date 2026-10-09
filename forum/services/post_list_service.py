@@ -1,6 +1,5 @@
 """Build the viewer-specific data needed wherever posts are listed."""
 from dataclasses import dataclass
-from types import SimpleNamespace
 from typing import Any
 
 from django.db.models import Count
@@ -94,8 +93,7 @@ def prepare_posts(posts, viewer):
             solution_count=solution_count,
             comment_count=comment_count,
             response_count=solution_count + comment_count,
-            poll_data=serialize_poll_display_data(
-                post, request=SimpleNamespace(user=viewer)
-            ) if post.post_type == 'poll' else None,
+            poll_data=serialize_poll_display_data(post, viewer=viewer)
+            if post.post_type == 'poll' else None,
         ))
     return prepared_posts

@@ -31,7 +31,6 @@
     <link rel="stylesheet" href="{% static 'forum/css/base.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/asset.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/layout.css' %}">
-    <link rel="stylesheet" href="{% static 'forum/css/whats-new.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/mention-styles.css' %}">
 
     <script>
@@ -106,28 +105,6 @@
         </defs>
       </svg>
     
-    {% if latest_update %}
-    <div id="updateOverlay" class="update-overlay">
-        <div class="update-modal">
-            <div class="update-header">
-                <div>
-                    <h2 class="update-title">What's New</h2>
-                    <span class="update-version">Version {{ latest_update.version }}</span>
-                </div>
-                <span class="update-date">{{ latest_update.release_date|date:"F d, Y" }}</span>
-            </div>
-            <div class="update-content">
-                {{ latest_update.content|safe }}
-            </div>
-            <div class="update-actions">
-                <button class="btn btn-primary" onclick="acknowledgeUpdate('{{ latest_update.id }}')">
-                    Got it!
-                </button>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
 
     {% block scripts %}{% endblock %}
 
@@ -393,28 +370,7 @@
             }
         }
 
-    const overlay = document.getElementById('updateOverlay');
-    if (overlay) {
-        overlay.style.display = 'block';
-    }
 });
-
-function acknowledgeUpdate(updateId) {
-        fetch('/api/acknowledge-update/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({ update_id: updateId })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('updateOverlay').style.display = 'none';
-            }
-        });
-    }
 
     function showMessage(text, type) {
         const toastContainer = document.getElementById('toast-container');

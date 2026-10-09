@@ -67,7 +67,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'forum.middleware.UserRoleMiddleware',
     'corsheaders.middleware.CorsMiddleware'
 ]
 
@@ -97,7 +96,6 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'forum.context_processors.notifications',
-                'forum.context_processors.latest_update',
                 'forum.context_processors.user_background_slider',
                 'forum.context_processors.user_count',
             ],

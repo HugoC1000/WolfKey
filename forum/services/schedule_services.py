@@ -4,7 +4,9 @@ import time
 import logging
 import json
 import os
+from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional, Any, Tuple
+from django.conf import settings
 from googleapiclient.errors import HttpError
 from forum.models import UserProfile, DailySchedule
 from forum.services.google_api_service import google_api_service
@@ -26,12 +28,18 @@ CACHE_FILE = os.path.join(BASE_DIR, 'schedule_cache.json')
 # Calendar ID for alternate day events
 ALT_DAY_CALENDAR_ID = 'nda09oameg390vndlulocmvt07u7c8h4@import.calendar.google.com'
 
-# Open the spreadsheet using the common Google API service
-sheet = google_api_service.get_sheet(SHEET_NAME, worksheet_index=0)
-
-# In-memory sheet data cache (loaded at startup)
+# Remote sheet and in-memory data are loaded only when schedule code needs them.
+_sheet = None
 _sheet_data = None
 _sheet_row_cache = None
+
+
+def _get_schedule_sheet():
+    """Open the remote spreadsheet on first use instead of during Django startup."""
+    global _sheet
+    if _sheet is None:
+        _sheet = google_api_service.get_sheet(SHEET_NAME, worksheet_index=0)
+    return _sheet
 
 DEFAULT_BLOCK_TIMES = [
     "8:20-9:30",
@@ -44,7 +52,7 @@ DEFAULT_BLOCK_TIMES = [
 def rebuild_date_row_cache():
     """
     Rebuild the schedule date-to-row number cache and load sheet data into memory.
-    This should be run once on server startup to preload all sheet data.
+    Run this explicitly when the source schedule changes.
     
     Returns:
         int: Number of dates cached
@@ -54,6 +62,7 @@ def rebuild_date_row_cache():
     logger.info("[rebuild_date_row_cache] Starting cache rebuild...")
     
     try:
+        sheet = _get_schedule_sheet()
         # Load all sheet data at once
         all_rows = sheet.get_all_values()[SHEET_HEADER_ROWS:SHEET_MAX_ROWS]
         date_column = sheet.col_values(SHEET_DATE_COLUMN)[SHEET_HEADER_ROWS:]
@@ -133,38 +142,45 @@ def get_sheet_row_data(sheet_date) -> Optional[List[str]]:
     if _sheet_data and sheet_date in _sheet_data:
         return _sheet_data[sheet_date]
     
-    # If not in memory cache, try to fetch from sheet (slow path)
-    try:
-        row_number = load_row_from_cache(sheet_date)
-        if row_number is not None:
-            data_index = row_number - SHEET_HEADER_ROWS
-            all_rows = sheet.get_all_values()[SHEET_HEADER_ROWS:SHEET_MAX_ROWS]
-            if data_index < len(all_rows):
-                return all_rows[data_index]
-    except Exception as e:
-        logger.warning(f"[get_sheet_row_data] Error fetching row for {sheet_date}: {str(e)}")
-    
+    # The file cache is ignored by Git, so a new deployment may have no row map.
+    # Look up the date in the sheet instead of treating every day as no school.
+    sheet = _get_schedule_sheet()
+    row_number = load_row_from_cache(sheet_date)
+    if row_number is None:
+        dates = sheet.col_values(SHEET_DATE_COLUMN)[SHEET_HEADER_ROWS:SHEET_MAX_ROWS]
+        row_index = next((i for i, value in enumerate(dates) if value.strip() == sheet_date), None)
+    else:
+        row_index = row_number - SHEET_HEADER_ROWS
+
+    if row_index is not None:
+        all_rows = sheet.get_all_values()[SHEET_HEADER_ROWS:SHEET_MAX_ROWS]
+        if row_index < len(all_rows):
+            if _sheet_data is None:
+                _sheet_data = {}
+            _sheet_data[sheet_date] = all_rows[row_index]
+            return all_rows[row_index]
+
     return None
 
-def get_alt_day_event(target_date, max_retries=3):
-    """
-    Fetch alternate day event details from Google Calendar for a specific date.
-    Includes retry logic with exponential backoff for transient errors.
-    
-    Args:
-        target_date (datetime.date): The date to check for alternate day events
-        max_retries (int): Maximum number of retry attempts (default: 3)
-        
-    Returns:
-        Optional[str]: Event description if found, None otherwise
-    """
+def get_calendar_events_for_day(target_date, calendar_context=None, max_retries=3):
+    """Fetch a day's calendar events once and reuse them within a request."""
+    cache_key = target_date.isoformat()
+    if calendar_context is not None and cache_key in calendar_context:
+        return calendar_context[cache_key]
+
     for attempt in range(max_retries):
         try:
             service = google_api_service.get_calendar_service()
-            time_min = datetime.datetime.combine(target_date, datetime.time.min).isoformat() + 'Z'
-            time_max = datetime.datetime.combine(target_date, datetime.time.max).isoformat() + 'Z'
+            school_timezone = ZoneInfo(settings.TIME_ZONE)
+            time_min = datetime.datetime.combine(
+                target_date, datetime.time.min, tzinfo=school_timezone
+            ).isoformat()
+            time_max = datetime.datetime.combine(
+                target_date + datetime.timedelta(days=1), datetime.time.min,
+                tzinfo=school_timezone
+            ).isoformat()
 
-            logger.debug(f"[get_alt_day_event] Attempt {attempt + 1}/{max_retries} for date: {target_date}")
+            logger.debug(f"[get_calendar_events_for_day] Attempt {attempt + 1}/{max_retries} for date: {target_date}")
             
             events_result = service.events().list(
                 calendarId=ALT_DAY_CALENDAR_ID,
@@ -174,65 +190,43 @@ def get_alt_day_event(target_date, max_retries=3):
                 orderBy='startTime'
             ).execute()
 
-            for event in events_result.get('items', []):
-                if event.get('summary', '').lower().startswith("alt day") and event.get('start', {}).get('date'):
-                    logger.debug(f"[get_alt_day_event] Alt day event found for {target_date}")
-                    return event.get('description', None)
-            
-            logger.debug(f"[get_alt_day_event] No alt day event found for {target_date}")
-            return None
+            events = events_result.get('items', [])
+            if calendar_context is not None:
+                calendar_context[cache_key] = events
+            return events
             
         except (HttpError, ConnectionError, BrokenPipeError, IOError, TimeoutError) as error:
-            logger.warning(f"[get_alt_day_event] Attempt {attempt + 1} failed: {type(error).__name__}: {str(error)}")
+            logger.warning(f"[get_calendar_events_for_day] Attempt {attempt + 1} failed: {type(error).__name__}: {str(error)}")
             
             if attempt < max_retries - 1:
                 wait_time = 2.0 * (2 ** attempt)  # Exponential backoff: 2s, 4s, 8s
-                logger.info(f"[get_alt_day_event] Retrying in {wait_time}s...")
+                logger.info(f"[get_calendar_events_for_day] Retrying in {wait_time}s...")
                 time.sleep(wait_time)
             else:
-                logger.error(f"[get_alt_day_event] All attempts failed for {target_date}. Using default times.")
+                logger.error(f"[get_calendar_events_for_day] All attempts failed for {target_date}. Using defaults.")
+                if calendar_context is not None:
+                    calendar_context[cache_key] = None
                 return None
-    
+
     return None
 
-def _get_alt_day_event_summary(target_date, max_retries=3):
-    """
-    Fetch alternate day event summary from Google Calendar for a specific date.
-    Used to extract flags like "Early Dismissal" when description is missing.
-    
-    Args:
-        target_date (datetime.date): The date to check for alternate day events
-        max_retries (int): Maximum number of retry attempts (default: 3)
-        
-    Returns:
-        Optional[str]: Event summary if found, None otherwise
-    """
-    for attempt in range(max_retries):
-        try:
-            service = google_api_service.get_calendar_service()
-            time_min = datetime.datetime.combine(target_date, datetime.time.min).isoformat() + 'Z'
-            time_max = datetime.datetime.combine(target_date, datetime.time.max).isoformat() + 'Z'
+def get_alt_day_event(calendar_events, target_date):
+    """Return the alternate-day event starting on the requested school date."""
+    for event in calendar_events or []:
+        if (
+            event.get('summary', '').lower().startswith('alt day')
+            and event.get('start', {}).get('date') == target_date.isoformat()
+        ):
+            return event
+    return None
 
-            events_result = service.events().list(
-                calendarId=ALT_DAY_CALENDAR_ID,
-                timeMin=time_min,
-                timeMax=time_max,
-                singleEvents=True,
-                orderBy='startTime'
-            ).execute()
 
-            for event in events_result.get('items', []):
-                if event.get('summary', '').lower().startswith("alt day") and event.get('start', {}).get('date'):
-                    return event.get('summary', None)
-            
-            return None
-            
-        except (HttpError, ConnectionError, BrokenPipeError, IOError, TimeoutError) as error:
-            if attempt < max_retries - 1:
-                wait_time = 2.0 * (2 ** attempt)
-                time.sleep(wait_time)
-            else:
-                return None
+def _events_require_ceremonial_uniform(calendar_events):
+    return any(
+        'ceremonial uniform' in event.get('summary', '').lower()
+        or 'ceremonial uniform' in event.get('description', '').lower()
+        for event in calendar_events or []
+    )
 
 def extract_block_times_from_description(description):
     """
@@ -413,6 +407,7 @@ def _extract_and_save_blocks(
     schedule.late_start = is_late_start
     
     if should_save_to_db:
+        schedule.calendar_verified = True
         schedule.save()
     
     # Format for return
@@ -429,7 +424,7 @@ def _extract_and_save_blocks(
     
     return blocks, times, is_early_dismissal, is_late_start
 
-def get_block_order_for_day(iso_date):
+def get_block_order_for_day(iso_date, calendar_context=None):
     """
     Get block order for a specific date.
     
@@ -459,7 +454,10 @@ def get_block_order_for_day(iso_date):
 
         # Step 1: Check database cache
         existing_schedule = DailySchedule.objects.filter(date=date_obj).first()
-        if existing_schedule:
+        if existing_schedule and existing_schedule.is_school is not None and (
+            not existing_schedule.is_school
+            or existing_schedule.calendar_verified
+        ):
             blocks = []
             times = []
             for block_num in range(1, 11):
@@ -531,9 +529,10 @@ def get_block_order_for_day(iso_date):
         # Step 5: Fetch calendar for block times
         logger.debug(f"[get_block_order_for_day] Fetching calendar event for {date_obj}")
         
-        # Check for event with calendar service (to get summary for Early Dismissal detection)
-        alt_day_description = get_alt_day_event(date_obj)
-        alt_day_summary = _get_alt_day_event_summary(date_obj)
+        calendar_events = get_calendar_events_for_day(date_obj, calendar_context)
+        alt_day_event = get_alt_day_event(calendar_events, date_obj)
+        alt_day_description = alt_day_event.get('description') if alt_day_event else None
+        alt_day_summary = alt_day_event.get('summary') if alt_day_event else None
         
         calendar_times = []
         is_late_start = False
@@ -564,8 +563,13 @@ def get_block_order_for_day(iso_date):
             calendar_times=calendar_times,
             is_late_start=is_late_start,
             is_early_dismissal=is_early_dismissal,
-            should_save_to_db=should_save_to_db
+            should_save_to_db=should_save_to_db and calendar_events is not None
         )
+
+        if should_save_to_db and calendar_events is not None:
+            DailySchedule.objects.filter(date=date_obj).update(
+                ceremonial_uniform=_events_require_ceremonial_uniform(calendar_events)
+            )
 
         return {
             'blocks': blocks,
@@ -632,13 +636,12 @@ def process_schedule_for_user(user, raw_schedule):
                 })
     return processed_schedule
 
-def is_ceremonial_uniform_required(user, iso_date):
+def is_ceremonial_uniform_required(iso_date, calendar_context=None):
     """
     Check if ceremonial uniform is required for a specific date.
     Includes retry logic with exponential backoff for transient errors.
     
     Args:
-        user (User): The user making the request (for potential future use)
         iso_date (str): Date in YYYY-MM-DD format
         
     Returns:
@@ -654,70 +657,41 @@ def is_ceremonial_uniform_required(user, iso_date):
             existing_schedule = DailySchedule.objects.filter(date=date_obj).first()
         
         if existing_schedule:
-            if existing_schedule.ceremonial_uniform is not None:
+            if (existing_schedule.is_school is False or existing_schedule.calendar_verified) and existing_schedule.ceremonial_uniform is not None:
                 return existing_schedule.ceremonial_uniform
             elif existing_schedule.is_school == False:
                 return False
 
-        # Try to fetch from Google Calendar with retry logic
-        time_min = datetime.datetime.combine(date_obj, datetime.time.min).isoformat() + 'Z'
-        time_max = datetime.datetime.combine(date_obj, datetime.time.max).isoformat() + 'Z'
-        
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                logger.debug(f"[is_ceremonial_uniform_required] Attempt {attempt + 1}/{max_retries} for date: {iso_date}")
-                
-                service = google_api_service.get_calendar_service()
-                events_result = service.events().list(
-                    calendarId=ALT_DAY_CALENDAR_ID,
-                    timeMin=time_min,
-                    timeMax=time_max,
-                    singleEvents=True,
-                    orderBy='startTime'
-                ).execute()
-
-                for event in events_result.get('items', []):
-                    summary = event.get('summary', '').lower()
-                    description = event.get('description', '').lower()
-                    
-                    if 'ceremonial uniform' in summary or 'ceremonial uniform' in description:
-                        logger.debug(f"[is_ceremonial_uniform_required] Ceremonial uniform found for {iso_date}")
-                        if should_save_to_db and existing_schedule:
-                            existing_schedule.ceremonial_uniform = True
-                            existing_schedule.save()
-                        return True
-
-                # No ceremonial uniform event found
-                logger.debug(f"[is_ceremonial_uniform_required] No ceremonial uniform event found for {iso_date}")
-                if should_save_to_db and existing_schedule:
-                    existing_schedule.ceremonial_uniform = False
-                    existing_schedule.save()
-                return False
-                
-            except (HttpError, ConnectionError, BrokenPipeError, IOError, TimeoutError) as error:
-                logger.warning(f"[is_ceremonial_uniform_required] Attempt {attempt + 1} failed with error: {type(error).__name__}: {str(error)}")
-                
-                if attempt < max_retries - 1:
-                    # Exponential backoff: 2s, 4s, 8s
-                    wait_time = 2.0 * (2 ** attempt)
-                    logger.info(f"[is_ceremonial_uniform_required] Retrying in {wait_time}s...")
-                    time.sleep(wait_time)
-                else:
-                    logger.error(f"[is_ceremonial_uniform_required] All {max_retries} attempts failed for date {iso_date}. Returning False")
-                    return False
-                    
-            except Exception as error:
-                logger.error(f"[is_ceremonial_uniform_required] Unexpected error on attempt {attempt + 1}: {type(error).__name__}: {str(error)}")
-                
-                if attempt < max_retries - 1:
-                    wait_time = 2.0 * (2 ** attempt)
-                    logger.info(f"[is_ceremonial_uniform_required] Retrying in {wait_time}s...")
-                    time.sleep(wait_time)
-                else:
-                    logger.error(f"[is_ceremonial_uniform_required] All {max_retries} attempts failed for date {iso_date}. Returning False")
-                    return False
+        calendar_events = get_calendar_events_for_day(date_obj, calendar_context)
+        if calendar_events is None:
+            return False
+        is_required = _events_require_ceremonial_uniform(calendar_events)
+        logger.debug(
+            f"[is_ceremonial_uniform_required] Ceremonial uniform "
+            f"{'found' if is_required else 'not found'} for {iso_date}"
+        )
+        if should_save_to_db and existing_schedule:
+            existing_schedule.ceremonial_uniform = is_required
+            existing_schedule.save(update_fields=['ceremonial_uniform'])
+        return is_required
 
     except Exception as error:
         logger.error(f"[is_ceremonial_uniform_required] Critical error: {type(error).__name__}: {str(error)}")
         return False
+
+
+def get_user_blocks_for_viewer(viewer, user_id):
+    """Load a timetable only when both users' privacy settings permit it."""
+    from forum.services.results import service_error
+
+    target_profile = UserProfile.objects.select_related('user').filter(user_id=user_id).first()
+    if target_profile is None:
+        return service_error('User or profile not found', 404)
+    viewer_profile = getattr(viewer, 'userprofile', None)
+    if viewer.id != target_profile.user_id and (
+        not viewer_profile or not viewer_profile.allow_schedule_comparison
+    ):
+        return service_error('Enable schedule comparison to compare schedules', 403)
+    if not target_profile.allow_schedule_comparison:
+        return service_error('This user has disabled schedule comparison', 403)
+    return {'profile': target_profile}

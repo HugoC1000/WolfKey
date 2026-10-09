@@ -50,14 +50,7 @@ def community_posts_api(request):
 
 
 def _community_lunch_error_response(result):
-    error = result['error']
-    if error == 'Only active community accounts can manage lunch dates.':
-        response_status = status.HTTP_403_FORBIDDEN
-    elif error == 'Lunch date not found.':
-        response_status = status.HTTP_404_NOT_FOUND
-    else:
-        response_status = status.HTTP_400_BAD_REQUEST
-    return Response({'error': error}, status=response_status)
+    return Response({'error': result['error']}, status=result['status'])
 
 
 @api_view(['GET', 'POST'])
@@ -128,7 +121,7 @@ def community_lunch_detail_api(request, lunch_id):
 def toggle_community_follow_api(request, community_id):
     result = toggle_community_follow_service(request.user, community_id)
     if 'error' in result:
-        return Response({'error': result['error']}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': result['error']}, status=result['status'])
     return Response({
         'following': result['following'],
         'mailing_list_joined': result['mailing_list_joined'],
@@ -141,5 +134,5 @@ def toggle_community_follow_api(request, community_id):
 def toggle_community_subscription_api(request, community_id):
     result = toggle_community_subscription_service(request.user, community_id)
     if 'error' in result:
-        return Response({'error': result['error']}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': result['error']}, status=result['status'])
     return Response({'subscribed': result['subscribed']})

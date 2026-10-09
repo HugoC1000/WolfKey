@@ -47,41 +47,39 @@
                         </div>
                         <!-- Name and Bio Section -->
                         <div class="ms-4">
-                            <h2 class="d-flex align-items-center gap-1">{{ profile_user.get_full_name }}{% include 'forum/components/verified_badge.html' with account=profile_user %}</h2>
+                            <h2 class="d-flex align-items-center gap-1"><span id="profileDisplayName">{{ profile_user.get_full_name }}</span>{% include 'forum/components/verified_badge.html' with account=profile_user %}</h2>
                             <span class="text-muted">Joined: {{ profile_user.date_joined|date:"F j, Y" }}</span>
                             <p class="text-muted">Grade: {{ profile_user.userprofile.grade_level}}</p>
-                            {% if profile_user.userprofile.display_email %}
-                            <p class="text-muted">
+                            {% if user == profile_user or profile_user.userprofile.display_email %}
+                            <p class="text-muted" id="profileSchoolEmail" {% if not profile_user.userprofile.display_email %}hidden{% endif %}>
                                 <i class="bi bi-envelope"></i> {{ profile_user.school_email }}
                             </p>
                             {% endif %}
-                            <p>{{ profile_user.userprofile.bio }}</p>
+                            <p id="profileBio">{{ profile_user.userprofile.bio }}</p>
                         </div>
                     </div>
                     
                     <!-- Social Media Links - Vertical -->
-                    {% if profile_user.userprofile.instagram_handle or profile_user.userprofile.snapchat_handle or profile_user.userprofile.linkedin_url %}
-                    <div class="social-links-vertical me-3">
+                    <div class="social-links-vertical me-3" id="profileSocialLinks" {% if not profile_user.userprofile.instagram_handle and not profile_user.userprofile.snapchat_handle and not profile_user.userprofile.linkedin_url %}hidden{% endif %}>
                         {% if profile_user.userprofile.instagram_handle %}
-                        <a href="https://www.instagram.com/{{ profile_user.userprofile.instagram_handle }}" target="_blank" rel="noopener noreferrer" title="Instagram">
+                        <a id="profileInstagramLink" href="https://www.instagram.com/{{ profile_user.userprofile.instagram_handle }}" target="_blank" rel="noopener noreferrer" title="Instagram">
                             <i class="bi bi-instagram"></i>
                         </a>
                         {% endif %}
                         {% if profile_user.userprofile.snapchat_handle %}
-                        <a href="https://www.snapchat.com/add/{{ profile_user.userprofile.snapchat_handle }}" target="_blank" rel="noopener noreferrer" title="Snapchat">
+                        <a id="profileSnapchatLink" href="https://www.snapchat.com/add/{{ profile_user.userprofile.snapchat_handle }}" target="_blank" rel="noopener noreferrer" title="Snapchat">
                             <i class="bi bi-snapchat"></i>
                         </a>
                         {% endif %}
                         {% if profile_user.userprofile.linkedin_url %}
-                        <a href="{{ profile_user.userprofile.linkedin_url }}" target="_blank" rel="noopener noreferrer" title="LinkedIn">
+                        <a id="profileLinkedInLink" href="{{ profile_user.userprofile.linkedin_url }}" target="_blank" rel="noopener noreferrer" title="LinkedIn">
                             <i class="bi bi-linkedin"></i>
                         </a>
                         {% endif %}
                     </div>
-                    {% endif %}
                     
                     {% if profile_user.is_community_account and profile_user.is_active and user != profile_user %}
-                    <form method="post" action="{% url 'toggle_community_follow' profile_user.id %}" class="ms-auto me-2">
+                    <form method="post" action="{% url 'toggle_community_follow' profile_user.id %}" class="ms-auto me-2 profile-fetch-form" data-profile-action="community-follow">
                         {% csrf_token %}
                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
                         <button type="submit" class="btn {% if is_following_community %}btn-outline-primary{% else %}btn-primary{% endif %}">
@@ -91,13 +89,11 @@
                     {% endif %}
 
                     <!-- Compare Schedules Button -->
-                    {% if can_compare %}
-                    <div class="ms-auto">
+                    <div class="ms-auto" id="compareSchedulesContainer" {% if not can_compare %}hidden{% endif %}>
                         <a href="{% url 'course_comparer' %}" class="btn btn-primary" id="compare-schedules-btn">
                             <i class="bi bi-arrow-left-right" title="Compare schedules"></i>
                         </a>
                     </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -154,7 +150,7 @@
                                 <h5 class="mb-0">Club lunch dates</h5>
                             </div>
                             <div class="card-body">
-                                <form method="post" action="{% url 'add_community_lunch' %}" class="d-flex flex-wrap gap-2 mb-3">
+                                <form method="post" action="{% url 'add_community_lunch' %}" class="d-flex flex-wrap gap-2 mb-3 profile-fetch-form" data-profile-action="community-lunch-add">
                                     {% csrf_token %}
                                     {% now "Y-m-d" as today_iso %}
                                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -162,18 +158,18 @@
                                     <input type="text" name="location" class="form-control" maxlength="120" placeholder="Location" required>
                                     <button type="submit" class="btn btn-primary text-nowrap">Add</button>
                                 </form>
-                                <div class="list-group list-group-flush">
+                                <div class="list-group list-group-flush" id="communityLunchList">
                                     {% for lunch in community_lunches %}
-                                    <div class="list-group-item px-0">
-                                        <div class="fw-semibold mb-2">{{ lunch.date|date:"D, M j" }}</div>
+                                    <div class="list-group-item px-0" data-lunch-id="{{ lunch.id }}">
+                                        <div class="fw-semibold mb-2 lunch-date">{{ lunch.date|date:"D, M j" }}</div>
                                         <div class="d-flex gap-2 align-items-center">
-                                        <form method="post" action="{% url 'update_community_lunch' lunch.id %}" class="d-flex gap-2 flex-grow-1">
+                                        <form method="post" action="{% url 'update_community_lunch' lunch.id %}" class="d-flex gap-2 flex-grow-1 profile-fetch-form" data-profile-action="community-lunch-update">
                                             {% csrf_token %}
                                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                             <input type="text" name="location" class="form-control form-control-sm" maxlength="120" value="{{ lunch.location }}" placeholder="Location" required>
                                             <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
                                         </form>
-                                        <form method="post" action="{% url 'delete_community_lunch' lunch.id %}">
+                                        <form method="post" action="{% url 'delete_community_lunch' lunch.id %}" class="profile-fetch-form" data-profile-action="community-lunch-delete">
                                             {% csrf_token %}
                                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                             <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
@@ -181,7 +177,7 @@
                                         </div>
                                     </div>
                                     {% empty %}
-                                    <p class="text-muted mb-0">No lunch dates planned yet.</p>
+                                    <p class="text-muted mb-0 community-lunch-empty">No lunch dates planned yet.</p>
                                     {% endfor %}
                                 </div>
                             </div>
@@ -239,7 +235,7 @@
                         </div>
 
                         <!-- Course Experience Section -->
-                        <div class="card mb-4 {% if not experienced_courses %}highlighted-card-red{% endif %}">
+                        <div class="card mb-4 {% if not experienced_courses %}highlighted-card-red{% endif %}" id="experienceCard">
                             <div class="card-header d-flex justify-content-between align-items-center z-10">
                                 <h5 class="mb-0">Proficient In</h5>
                                 {% if user == profile_user %}
@@ -249,12 +245,12 @@
                                 {% endif %}
                             </div>
                             <div class="card-body">
-                                <div class="course-list">
+                                <div class="course-list" id="experienceCourseList">
                                     {% for course in experienced_courses %}
-                                    <div class="course-item d-flex justify-content-between align-items-center mb-2">
+                                    <div class="course-item d-flex justify-content-between align-items-center mb-2" data-course-id="{{ course.course_id }}" data-course-type="experience">
                                         <span>{{ course.course.name }}</span>
                                         {% if user == profile_user %}
-                                        <form method="post" action="{% url 'remove_experience' course.id %}" class="d-inline">
+                                        <form method="post" action="{% url 'remove_experience' course.id %}" class="d-inline profile-fetch-form">
                                             {% csrf_token %}
                                             <button type="submit" class="btn btn-sm btn-outline-danger">
                                                 <i class="bi bi-x"></i>
@@ -263,7 +259,7 @@
                                         {% endif %}
                                     </div>
                                     {% empty %}
-                                    <p><b>Please add some courses to improve your experience.</b></p>
+                                    <p class="course-list-empty"><b>Please add some courses to improve your experience.</b></p>
                                     {% endfor %}
                                 </div>
                             </div>
@@ -271,7 +267,7 @@
 
                         {% if user == profile_user %}
                         <!-- Help Needed Section -->
-                        <div class="card mb-4 {% if not help_needed_courses %}highlighted-card-red{% endif %}">
+                        <div class="card mb-4 {% if not help_needed_courses %}highlighted-card-red{% endif %}" id="helpCard">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5 class="mb-0">Need Help In</h5>
                                 {% if user == profile_user %}
@@ -281,11 +277,11 @@
                                 {% endif %}
                             </div>
                             <div class="card-body">
-                                <div class="course-list">
+                                <div class="course-list" id="helpCourseList">
                                     {% for course in help_needed_courses %}
-                                    <div class="course-item d-flex justify-content-between align-items-center mb-2">
+                                    <div class="course-item d-flex justify-content-between align-items-center mb-2" data-course-id="{{ course.course_id }}" data-course-type="help">
                                         <span>{{ course.course.name }}</span>
-                                        <form method="post" action="{% url 'remove_help_request' course.id %}" class="d-inline">
+                                        <form method="post" action="{% url 'remove_help_request' course.id %}" class="d-inline profile-fetch-form">
                                             {% csrf_token %}
                                             <button type="submit" class="btn btn-sm btn-outline-danger">
                                                 <i class="bi bi-x"></i>
@@ -293,7 +289,7 @@
                                         </form>
                                     </div>
                                     {% empty %}
-                                    <p><b>Please add some courses to improve your experience.</b></p>
+                                    <p class="course-list-empty"><b>Please add some courses to improve your experience.</b></p>
                                     {% endfor %}
                                 </div>
                             </div>
@@ -576,78 +572,6 @@
         }
     }
 
-    // Handle modal form submissions
-    document.addEventListener('DOMContentLoaded', function() {
-        // Handle Add Experience form
-        const addExperienceForm = document.getElementById('addExperienceForm');
-        if (addExperienceForm) {
-            addExperienceForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                const formData = new FormData(this);
-                try {
-                    const response = await fetch(this.action, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
-                        }
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        // Close modal
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('addExperienceModal'));
-                        modal.hide();
-                        
-                        // Reload page to show the new experience
-                        window.location.reload();
-                    } else {
-                        alert('Error: ' + (data.error || 'Failed to add course experience'));
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Network error occurred while adding course experience');
-                }
-            });
-        }
-
-        // Handle Add Help Request form
-        const addHelpForm = document.getElementById('addHelpForm');
-        if (addHelpForm) {
-            addHelpForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                const formData = new FormData(this);
-                try {
-                    const response = await fetch(this.action, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
-                        }
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        // Close modal
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('addHelpModal'));
-                        modal.hide();
-                        
-                        // Reload page to show the new help request
-                        window.location.reload();
-                    } else {
-                        alert('Error: ' + (data.error || 'Failed to add help request'));
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Network error occurred while adding help request');
-                }
-            });
-        }
-    });
 </script>
 
 {% if user == profile_user %}
@@ -800,16 +724,6 @@
                     });
                 });
                 
-                // Handle form submission
-                form.addEventListener('submit', () => {
-                    hasUnsavedChanges = false;
-                    // Remove change-detected class and disable submit buttons
-                    const submitBtns = form.querySelectorAll('button[type="submit"]');
-                    submitBtns.forEach(btn => {
-                        btn.classList.remove('change-detected');
-                        btn.disabled = true;
-                    });
-                });
             }
         });
         
@@ -877,6 +791,12 @@
                 }
             });
         }
+
+        window.markProfileFormSaved = function(form) {
+            originalFormData[form.id] = new FormData(form);
+            checkForChanges(form, form.id);
+            checkAllFormsForChanges();
+        };
         
         // Expose function to update unsaved changes state from course selectors
         window.updateUnsavedChanges = function(hasChanges) {
@@ -925,6 +845,277 @@
     });
 </script>
 
+<!-- Submit profile edits through the shared JSON response contract. -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const profileForms = [
+            'profilePictureForm',
+            'bioForm',
+            'backgroundForm',
+            'blockCoursesForm',
+            'personalInfoForm',
+            'privacyPreferencesForm',
+            'socialMediaForm',
+            'addExperienceForm',
+            'addHelpForm',
+        ].map(id => document.getElementById(id)).filter(Boolean);
+        profileForms.push(...document.querySelectorAll('form.profile-fetch-form'));
+
+        function setSocialLink(id, url, title, iconClass) {
+            const container = document.getElementById('profileSocialLinks');
+            let link = document.getElementById(id);
+            if (!url) {
+                link?.remove();
+                return;
+            }
+            if (!link) {
+                link = document.createElement('a');
+                link.id = id;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.title = title;
+                const icon = document.createElement('i');
+                icon.className = iconClass;
+                link.appendChild(icon);
+                container.appendChild(link);
+            }
+            link.href = url;
+            container.hidden = false;
+        }
+
+        function appendCourseEntry(type, data) {
+            const list = document.getElementById(type === 'experience' ? 'experienceCourseList' : 'helpCourseList');
+            const card = document.getElementById(type === 'experience' ? 'experienceCard' : 'helpCard');
+            if (!list || !data?.course_id) return;
+            if (list.querySelector(`[data-course-id="${data.course_id}"]`)) return;
+            list.querySelector('.course-list-empty')?.remove();
+            card?.classList.remove('highlighted-card-red');
+
+            const row = document.createElement('div');
+            row.className = 'course-item d-flex justify-content-between align-items-center mb-2';
+            row.dataset.courseId = data.course_id;
+            row.dataset.courseType = type;
+            const name = document.createElement('span');
+            name.textContent = data.course_name;
+            row.appendChild(name);
+
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = data.remove_url;
+            form.className = 'd-inline profile-fetch-form';
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = 'csrfmiddlewaretoken';
+            csrf.value = document.querySelector('[name="csrfmiddlewaretoken"]')?.value || '';
+            form.appendChild(csrf);
+            const button = document.createElement('button');
+            button.type = 'submit';
+            button.className = 'btn btn-sm btn-outline-danger';
+            button.innerHTML = '<i class="bi bi-x"></i>';
+            form.appendChild(button);
+            row.appendChild(form);
+            list.appendChild(row);
+            window.syncProfileCourseState?.(type, Number(data.course_id), true);
+        }
+        window.addProfileCourseEntry = appendCourseEntry;
+
+        function removeCourseEntry(form, type, courseId) {
+            const row = form.closest('.course-item');
+            const list = row?.parentElement;
+            const card = list?.closest('.card');
+            row?.remove();
+            if (list && !list.querySelector('.course-item')) {
+                const empty = document.createElement('p');
+                empty.className = 'course-list-empty';
+                empty.innerHTML = '<b>Please add some courses to improve your experience.</b>';
+                list.appendChild(empty);
+                card?.classList.add('highlighted-card-red');
+            }
+            window.syncProfileCourseState?.(type, Number(courseId), false);
+        }
+
+        function formatLunchDate(isoDate) {
+            return new Intl.DateTimeFormat(undefined, {
+                weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
+            }).format(new Date(`${isoDate}T00:00:00Z`));
+        }
+
+        function appendLunchEntry(lunch) {
+            const list = document.getElementById('communityLunchList');
+            if (!list || !lunch) return;
+            list.querySelector('.community-lunch-empty')?.remove();
+            const row = document.createElement('div');
+            row.className = 'list-group-item px-0';
+            row.dataset.lunchId = lunch.id;
+            const date = document.createElement('div');
+            date.className = 'fw-semibold mb-2 lunch-date';
+            date.textContent = formatLunchDate(lunch.date);
+            row.appendChild(date);
+            const actions = document.createElement('div');
+            actions.className = 'd-flex gap-2 align-items-center';
+
+            const updateForm = document.createElement('form');
+            updateForm.method = 'post';
+            updateForm.action = lunch.update_url;
+            updateForm.className = 'd-flex gap-2 flex-grow-1 profile-fetch-form';
+            updateForm.dataset.profileAction = 'community-lunch-update';
+            const location = document.createElement('input');
+            location.type = 'text';
+            location.name = 'location';
+            location.maxLength = 120;
+            location.required = true;
+            location.className = 'form-control form-control-sm';
+            location.value = lunch.location;
+            updateForm.appendChild(location);
+            addCsrfInput(updateForm);
+            const save = document.createElement('button');
+            save.type = 'submit';
+            save.className = 'btn btn-sm btn-outline-primary';
+            save.textContent = 'Save';
+            updateForm.appendChild(save);
+            actions.appendChild(updateForm);
+
+            const deleteForm = document.createElement('form');
+            deleteForm.method = 'post';
+            deleteForm.action = lunch.delete_url;
+            deleteForm.className = 'profile-fetch-form';
+            deleteForm.dataset.profileAction = 'community-lunch-delete';
+            addCsrfInput(deleteForm);
+            const remove = document.createElement('button');
+            remove.type = 'submit';
+            remove.className = 'btn btn-sm btn-outline-danger';
+            remove.textContent = 'Remove';
+            deleteForm.appendChild(remove);
+            actions.appendChild(deleteForm);
+            row.appendChild(actions);
+            list.appendChild(row);
+        }
+
+        function addCsrfInput(form) {
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = 'csrfmiddlewaretoken';
+            csrf.value = document.querySelector('[name="csrfmiddlewaretoken"]')?.value || '';
+            form.appendChild(csrf);
+        }
+
+        function updateSavedProfileUI(form, envelope) {
+            const action = form.dataset.profileAction;
+            if (action === 'community-follow') {
+                const button = form.querySelector('button[type="submit"]');
+                const following = envelope.data.following;
+                button.textContent = following ? 'Joined' : 'Join';
+                button.classList.toggle('btn-primary', !following);
+                button.classList.toggle('btn-outline-primary', following);
+            } else if (action === 'community-lunch-add') {
+                appendLunchEntry(envelope.data);
+                form.reset();
+            } else if (action === 'community-lunch-update') {
+                const row = form.closest('[data-lunch-id]');
+                const date = row?.querySelector('.lunch-date');
+                if (date) date.textContent = formatLunchDate(envelope.data.date);
+                const location = form.elements.location;
+                if (location) location.value = envelope.data.location;
+            } else if (action === 'community-lunch-delete') {
+                const row = form.closest('[data-lunch-id]');
+                const list = row?.parentElement;
+                row?.remove();
+                if (list && !list.querySelector('[data-lunch-id]')) {
+                    const empty = document.createElement('p');
+                    empty.className = 'text-muted mb-0 community-lunch-empty';
+                    empty.textContent = 'No lunch dates planned yet.';
+                    list.appendChild(empty);
+                }
+            } else if (form.id === 'bioForm') {
+                const bio = form.elements.bio.value;
+                const displayedBio = document.getElementById('profileBio');
+                if (displayedBio) displayedBio.textContent = bio;
+            } else if (form.id === 'backgroundForm') {
+                setBackground(form.elements.background_hue.value);
+            } else if (form.id === 'profilePictureForm') {
+                const picture = document.getElementById('profilePicture');
+                const url = envelope.data?.profile_picture_url;
+                if (picture && url) {
+                    const pictureUrl = new URL(url, window.location.href);
+                    pictureUrl.searchParams.set('updated', Date.now());
+                    picture.src = pictureUrl.toString();
+                }
+                form.reset();
+            } else if (form.id === 'personalInfoForm') {
+                const name = [form.elements.first_name.value, form.elements.last_name.value].filter(Boolean).join(' ');
+                const displayName = document.getElementById('profileDisplayName');
+                if (displayName) displayName.textContent = name;
+            } else if (form.id === 'privacyPreferencesForm') {
+                const email = document.getElementById('profileSchoolEmail');
+                if (email) email.hidden = !form.elements.display_email.checked;
+            } else if (form.id === 'socialMediaForm') {
+                const instagram = form.elements.instagram_handle.value.trim().replace(/^@/, '');
+                const snapchat = form.elements.snapchat_handle.value.trim().replace(/^@/, '');
+                let linkedin = form.elements.linkedin_url.value.trim();
+                if (linkedin.startsWith('www.')) linkedin = `https://${linkedin}`;
+                setSocialLink('profileInstagramLink', instagram ? `https://www.instagram.com/${encodeURIComponent(instagram)}` : '', 'Instagram', 'bi bi-instagram');
+                setSocialLink('profileSnapchatLink', snapchat ? `https://www.snapchat.com/add/${encodeURIComponent(snapchat)}` : '', 'Snapchat', 'bi bi-snapchat');
+                setSocialLink('profileLinkedInLink', linkedin, 'LinkedIn', 'bi bi-linkedin');
+                const socialLinks = document.getElementById('profileSocialLinks');
+                if (socialLinks) {
+                    socialLinks.hidden = socialLinks.querySelectorAll('a').length === 0;
+                    socialLinks.style.display = socialLinks.hidden ? 'none' : '';
+                }
+            } else if (form.id === 'addExperienceForm' || form.id === 'addHelpForm') {
+                const type = form.id === 'addExperienceForm' ? 'experience' : 'help';
+                appendCourseEntry(type, envelope.data);
+                bootstrap.Modal.getInstance(document.getElementById(type === 'experience' ? 'addExperienceModal' : 'addHelpModal'))?.hide();
+                form.reset();
+            } else if (form.id === 'blockCoursesForm') {
+                window.markCourseSelectorsSaved?.();
+            } else if (form.classList.contains('profile-fetch-form')) {
+                const row = form.closest('.course-item');
+                removeCourseEntry(form, row?.dataset.courseType, envelope.data?.course_id || row?.dataset.courseId);
+            }
+
+            if (['bioForm', 'backgroundForm', 'personalInfoForm', 'privacyPreferencesForm', 'socialMediaForm'].includes(form.id)) {
+                window.markProfileFormSaved(form);
+            }
+        }
+
+        document.addEventListener('submit', async event => {
+            const form = event.target;
+            if (!profileForms.includes(form) && !form.classList.contains('profile-fetch-form')) return;
+            event.preventDefault();
+            const submitButtons = [...form.querySelectorAll('button[type="submit"]')];
+            submitButtons.forEach(button => button.disabled = true);
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch(form.action || window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const envelope = await response.json();
+                if (!response.ok || !envelope.success) {
+                    showMessage(envelope.message || 'Profile update failed.', 'error');
+                    submitButtons.forEach(button => button.disabled = false);
+                    return;
+                }
+
+                updateSavedProfileUI(form, envelope);
+                if (form.isConnected && (form.classList.contains('profile-fetch-form') || form.id === 'addExperienceForm' || form.id === 'addHelpForm')) {
+                    submitButtons.forEach(button => button.disabled = false);
+                }
+                if (envelope.message) showMessage(envelope.message, 'success');
+            } catch (error) {
+                console.error('Profile update failed:', error);
+                showMessage('Network error while saving profile changes.', 'error');
+                submitButtons.forEach(button => button.disabled = false);
+            }
+        });
+    });
+</script>
+
 <!-- Course Experience/Help Buttons -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -965,17 +1156,20 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
-                            'X-CSRFToken': '{{ csrf_token }}'
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'X-Requested-With': 'XMLHttpRequest',
                         },
                         body: `course=${courseId}`
                     });
                     
                     const data = await response.json();
-                    if (data.success) {
+                    if (response.ok && data.success) {
+                        window.addProfileCourseEntry(isExperienceBtn ? 'experience' : 'help', data.data);
                         this.style.display = 'none';
                         document.getElementById(`block_${block}_buttons`).style.display = 'none';
+                        if (data.message) showMessage(data.message, 'success');
                     } else {
-                        alert('Error: ' + (data.message || 'Request failed'));
+                        showMessage(data.message || 'Request failed', 'error');
                     }
                 } catch (error) {
                     console.error('Error:', error);
@@ -986,80 +1180,26 @@
     });
 </script>
 
-<!-- Modal Form Submissions -->
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Experience Modal Form
-        const experienceForm = document.getElementById('addExperienceForm');
-        if (experienceForm) {
-            experienceForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(experienceForm);
-                
-                try {
-                    const response = await fetch(experienceForm.action, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        }
-                    });
-                    
-                    const data = await response.json();
-                    if (data.success) {
-                        bootstrap.Modal.getInstance(document.getElementById('addExperienceModal')).hide();
-                        location.reload();
-                    } else {
-                        alert('Error adding experience: ' + (data.message || 'Unknown error'));
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Network error occurred');
-                }
-            });
-        }
-
-        // Help Modal Form
-        const helpForm = document.getElementById('addHelpForm');
-        if (helpForm) {
-            helpForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(helpForm);
-                
-                try {
-                    const response = await fetch(helpForm.action, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        }
-                    });
-                    
-                    const data = await response.json();
-                    if (data.success) {
-                        bootstrap.Modal.getInstance(document.getElementById('addHelpModal')).hide();
-                        location.reload();
-                    } else {
-                        alert('Error adding help request: ' + (data.message || 'Unknown error'));
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Network error occurred');
-                }
-            });
-        }
-    });
-</script>
-
 <!-- Course Selector Initialization -->
 <script type="module">
     import { CourseSelector } from '{% static "forum/js/course-selector.js" %}';
     
     document.addEventListener('DOMContentLoaded', () => {
         const rawInitialCourses = JSON.parse('{{ initial_courses_json|escapejs }}') || {};
-        const experiencedCourses = JSON.parse('{{ experienced_courses_json|escapejs }}');
-        const helpNeededCourses = JSON.parse('{{ help_needed_courses_json|escapejs }}');        
+        let experiencedCourses = JSON.parse('{{ experienced_courses_json|escapejs }}');
+        let helpNeededCourses = JSON.parse('{{ help_needed_courses_json|escapejs }}');
         const blocks = ['1A', '1B', '1D', '1E', '2A', '2B', '2C', '2D', '2E'];
+        window.syncProfileCourseState = (type, courseId, isPresent) => {
+            const courses = type === 'experience' ? experiencedCourses : helpNeededCourses;
+            const index = courses.indexOf(courseId);
+            if (isPresent && index === -1) courses.push(courseId);
+            if (!isPresent && index !== -1) courses.splice(index, 1);
+            blocks.forEach(block => {
+                const key = `block_${block}`;
+                const selected = window.courseSelectors?.[key]?.selectedCourses?.[0] || null;
+                updateBlockButtons(key, selected, experiencedCourses, helpNeededCourses);
+            });
+        };
         const initialCourses = {};
         blocks.forEach(b => {
             const blockKey = `block_${b}`;
@@ -1160,6 +1300,18 @@
             
             window.courseSelectors[blockId] = selector;
         });
+
+        window.markCourseSelectorsSaved = () => {
+            blocks.forEach(block => {
+                const key = `block_${block}`;
+                const selected = window.courseSelectors[key]?.selectedCourses?.[0];
+                originalCourseSelections[key] = selected ? { ...selected } : null;
+            });
+            const submitButton = document.querySelector('#blockCoursesForm button[type="submit"]');
+            submitButton?.classList.remove('change-detected');
+            if (submitButton) submitButton.disabled = true;
+            window.updateUnsavedChanges?.(false);
+        };
         
     });
 </script>

@@ -13,6 +13,13 @@ def _order_by_recent_activity(queryset):
         recent_updated_at=Coalesce('last_activity_at', 'created_at')
     ).order_by('-recent_updated_at', '-created_at')
 
+
+def get_followed_posts(user):
+    posts = Post.objects.filter(followers__user=user)
+    if user.is_teacher:
+        posts = posts.filter(allow_teacher=True)
+    return prepare_posts(posts, user)
+
 def get_for_you_posts(user, page=1, per_page=8):
     """
     Return a tuple of (annotated posts on the current page, page_obj).

@@ -26,16 +26,11 @@ export class SolutionInteractions {
 
             const data = await response.json();
             
-            // Handle messages from server
-            if (data.messages) {
-                data.messages.forEach(messageData => {
-                    showMessage(messageData.message, messageData.tags);
-                });
-            }
+            if (data.message) showMessage(data.message, data.success ? 'success' : 'error');
 
             // Only update UI for successful votes
             if (response.ok && data.success) {
-                this.updateVoteUI(solutionId, data);
+                this.updateVoteUI(solutionId, data.data);
             }
             
             return data;
@@ -58,16 +53,11 @@ export class SolutionInteractions {
 
             const data = await response.json();
             
-            // Handle messages from server
-            if (data.messages) {
-                data.messages.forEach(messageData => {
-                    showMessage(messageData.message, messageData.tags);
-                });
-            }
+            if (data.message) showMessage(data.message, data.success ? 'success' : 'error');
 
             // Only update UI for successful votes
             if (response.ok && data.success) {
-                this.updateVoteUI(solutionId, data);
+                this.updateVoteUI(solutionId, data.data);
             }
             
             return data;
@@ -92,15 +82,10 @@ export class SolutionInteractions {
 
             console.log(data);
             
-            // Handle messages from server
-            if (data.messages) {
-                data.messages.forEach(messageData => {
-                    showMessage(messageData.message, messageData.tags);
-                });
-            }
+            if (data.message) showMessage(data.message, data.success ? 'success' : 'error');
 
-            if (response.ok) {
-                this.updateAcceptanceUI(solutionId, data);
+            if (response.ok && data.success) {
+                this.updateAcceptanceUI(solutionId, data.data);
             }
             
             return data;

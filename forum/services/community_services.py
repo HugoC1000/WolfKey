@@ -4,6 +4,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from forum.models import CommunityFollow, CommunityLunch, CommunitySubscription, User
+from forum.services.results import service_error
 
 _MISSING = object()
 
@@ -92,7 +93,7 @@ def get_community_lunches_for_date(target_date, is_school_day):
 def get_owned_community_lunches(user):
     community = _get_owned_active_community(user)
     if not community:
-        return {'error': 'Only active community accounts can manage lunch dates.'}
+        return service_error('Only active community accounts can manage lunch dates.', 403)
     lunches = CommunityLunch.objects.filter(
         community=community,
         date__gte=timezone.localdate(),
@@ -106,13 +107,13 @@ def get_owned_community_lunches(user):
 def add_community_lunch_service(user, date_value, location):
     community = _get_owned_active_community(user)
     if not community:
-        return {'error': 'Only active community accounts can manage lunch dates.'}
+        return service_error('Only active community accounts can manage lunch dates.', 403)
     lunch_date = _parse_lunch_date(date_value)
     if not lunch_date:
-        return {'error': 'Choose today or a future date in YYYY-MM-DD format.'}
+        return service_error('Choose today or a future date in YYYY-MM-DD format.')
     location = _normalize_location(location)
     if location is None:
-        return {'error': 'Enter a location of 120 characters or fewer.'}
+        return service_error('Enter a location of 120 characters or fewer.')
     lunch, created = CommunityLunch.objects.get_or_create(
         community=community,
         date=lunch_date,
@@ -128,18 +129,18 @@ def add_community_lunch_service(user, date_value, location):
 def update_community_lunch_service(user, lunch_id, location=_MISSING, date_value=_MISSING):
     community = _get_owned_active_community(user)
     if not community:
-        return {'error': 'Only active community accounts can manage lunch dates.'}
+        return service_error('Only active community accounts can manage lunch dates.', 403)
     lunch = CommunityLunch.objects.filter(id=lunch_id, community=community).first()
     if not lunch:
-        return {'error': 'Lunch date not found.'}
+        return service_error('Lunch date not found.', 404)
     if location is _MISSING and date_value is _MISSING:
-        return {'error': 'Provide a date or location to update.'}
+        return service_error('Provide a date or location to update.')
 
     update_fields = []
     if location is not _MISSING:
         location = _normalize_location(location)
         if location is None:
-            return {'error': 'Enter a location of 120 characters or fewer.'}
+            return service_error('Enter a location of 120 characters or fewer.')
         if lunch.location != location:
             lunch.location = location
             update_fields.append('location')
@@ -147,10 +148,10 @@ def update_community_lunch_service(user, lunch_id, location=_MISSING, date_value
     if date_value is not _MISSING:
         lunch_date = _parse_lunch_date(date_value)
         if not lunch_date:
-            return {'error': 'Choose today or a future date in YYYY-MM-DD format.'}
+            return service_error('Choose today or a future date in YYYY-MM-DD format.')
         if lunch.date != lunch_date:
             if CommunityLunch.objects.filter(community=community, date=lunch_date).exclude(id=lunch.id).exists():
-                return {'error': 'That lunch date is already listed.'}
+                return service_error('That lunch date is already listed.', 409)
             lunch.date = lunch_date
             update_fields.append('date')
 
@@ -160,7 +161,7 @@ def update_community_lunch_service(user, lunch_id, location=_MISSING, date_value
                 lunch.save(update_fields=update_fields)
         except IntegrityError:
             if 'date' in update_fields:
-                return {'error': 'That lunch date is already listed.'}
+                return service_error('That lunch date is already listed.', 409)
             raise
     return {'lunch': lunch}
 
@@ -169,13 +170,13 @@ def update_community_lunch_service(user, lunch_id, location=_MISSING, date_value
 def delete_community_lunch_service(user, lunch_id):
     community = _get_owned_active_community(user)
     if not community:
-        return {'error': 'Only active community accounts can manage lunch dates.'}
+        return service_error('Only active community accounts can manage lunch dates.', 403)
     deleted, _ = CommunityLunch.objects.filter(
         id=lunch_id,
         community=community,
     ).delete()
     if not deleted:
-        return {'error': 'Lunch date not found.'}
+        return service_error('Lunch date not found.', 404)
     return {'deleted': True}
 
 
@@ -183,15 +184,9 @@ def delete_community_lunch_service(user, lunch_id):
 def toggle_community_follow_service(user, community_id):
     community = _get_available_community(community_id)
     if not community:
-        return {
-            'error': 'Community account not available.',
-            'error_code': 'community_unavailable',
-        }
+        return service_error('Community account not available.', 404)
     if community == user:
-        return {
-            'error': 'A community account cannot follow itself.',
-            'error_code': 'self_follow',
-        }
+        return service_error('A community account cannot follow itself.')
 
     follow, created = CommunityFollow.objects.get_or_create(
         user=user,
@@ -224,15 +219,9 @@ def toggle_community_follow_service(user, community_id):
 def toggle_community_subscription_service(user, community_id):
     community = _get_available_community(community_id)
     if not community:
-        return {
-            'error': 'Community account not available.',
-            'error_code': 'community_unavailable',
-        }
+        return service_error('Community account not available.', 404)
     if community == user:
-        return {
-            'error': 'A community account cannot subscribe to itself.',
-            'error_code': 'self_subscription',
-        }
+        return service_error('A community account cannot subscribe to itself.')
 
     subscription, _ = CommunitySubscription.objects.get_or_create(
         user=user,
@@ -240,10 +229,7 @@ def toggle_community_subscription_service(user, community_id):
         defaults={'is_active': False},
     )
     if not subscription.is_active and not user.personal_email:
-        return {
-            'error': 'Add a personal email to your profile before enabling email updates.',
-            'error_code': 'personal_email_required',
-        }
+        return service_error('Add a personal email to your profile before enabling email updates.')
 
     subscription.is_active = not subscription.is_active
     subscription.unsubscribed_at = None if subscription.is_active else timezone.now()

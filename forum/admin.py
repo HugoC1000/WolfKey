@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
+from django import forms
 from django.utils.html import format_html
-from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, Solution, Course, CourseAlias, CourseTeacher, User, UserCourseExperience, UserCourseHelp,UpdateAnnouncement, DailySchedule, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource, CommunityFollow, CommunityLunch, CommunitySubscription
+from .models import Post, StandardPost, Poll, PollOption, PollVote, File, UserProfile, Solution, Course, CourseAlias, CourseTeacher, User, UserCourseExperience, UserCourseHelp, DailySchedule, FollowedPost, GradebookSnapshot, VolunteerPinMilestone, VolunteerResource, CommunityFollow, CommunityLunch, CommunitySubscription
 
 
 class StandardPostInline(admin.StackedInline):
@@ -87,7 +88,6 @@ admin.site.register(FollowedPost)
 admin.site.register(Solution)
 admin.site.register(UserCourseExperience)
 admin.site.register(UserCourseHelp)
-admin.site.register(UpdateAnnouncement)
 admin.site.register(DailySchedule)
 admin.site.register(GradebookSnapshot)
 admin.site.register(VolunteerPinMilestone)
@@ -103,7 +103,7 @@ class UserProfileInline(admin.StackedInline):
     
     fieldsets = (
         (None, {
-            'fields': ('bio', 'profile_picture', 'lunch_card_url', 'background_hue', 'points', 'is_moderator', 'wolfnet_password', 'expo_push_token', 'grade_level')
+            'fields': ('bio', 'profile_picture', 'lunch_card_url', 'background_hue', 'points', 'is_moderator', 'expo_push_token', 'grade_level')
         }),
         ('Course Blocks', {
             'fields': (
@@ -125,8 +125,51 @@ class UserProfileInline(admin.StackedInline):
 
     lunch_card_url.short_description = 'Lunch card URL'
 
+class AdminUserCreationForm(forms.ModelForm):
+    username = forms.CharField(required=False, help_text='For a community account, this becomes its handle.')
+    school_email = forms.EmailField(
+        required=False,
+        help_text='For a community account, this is generated as <handle>@wpga.ca.',
+    )
+    password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
+    password2 = forms.CharField(label='Confirm password', widget=forms.PasswordInput)
+
+    class Meta:
+        model = User
+        fields = (
+            'school_email', 'first_name', 'last_name', 'username', 'personal_email',
+            'is_community_account', 'is_active',
+        )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get('password1') != cleaned_data.get('password2'):
+            self.add_error('password2', 'The passwords do not match.')
+
+        if cleaned_data.get('is_community_account'):
+            username = (cleaned_data.get('username') or '').strip().lower()
+            if not username:
+                self.add_error('username', 'Enter a handle for the community account.')
+            else:
+                cleaned_data['username'] = username
+                cleaned_data['school_email'] = f'{username}@wpga.ca'
+        elif not cleaned_data.get('school_email'):
+            self.add_error('school_email', 'Enter a school email address.')
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data['password1'])
+        if commit:
+            user.save()
+            self.save_m2m()
+        return user
+
+
 class UserAdmin(admin.ModelAdmin):
     inlines = [UserProfileInline]
+    add_form = AdminUserCreationForm
     list_display = ('school_email', 'first_name', 'last_name', 'is_community_account', 'is_paid_user', 'is_active', 'is_teacher', 'volunteer_coordinator', 'is_staff', 'is_superuser')
     search_fields = ('school_email', 'first_name', 'last_name')
     ordering = ('school_email',)
@@ -148,6 +191,22 @@ class UserAdmin(admin.ModelAdmin):
     )
     
     readonly_fields = ('last_login', 'date_joined')
+
+    def get_form(self, request, obj=None, **kwargs):
+        if obj is None:
+            kwargs['form'] = self.add_form
+        return super().get_form(request, obj, **kwargs)
+
+    def get_fieldsets(self, request, obj=None):
+        if obj is None:
+            return ((None, {
+                'fields': (
+                    'first_name', 'last_name', 'username', 'school_email',
+                    'personal_email', 'is_community_account', 'is_active',
+                    'password1', 'password2',
+                ),
+            }),)
+        return super().get_fieldsets(request, obj)
 
     def get_inline_instances(self, request, obj=None):
         # Only show profile inline for existing users

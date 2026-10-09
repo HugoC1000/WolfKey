@@ -63,7 +63,6 @@ Recommendation: extract one profile JavaScript module, consume the canonical sch
 | `StandardPost` | No added fields. Current standard creation uses `Post`; Django admin still uses the child table, and a historical migration populated it. | Remove the redundant child model/table after updating admin and checking existing rows. Preserve parent posts. |
 | `Post.solved` | Active mobile consumer, redundant stored state. | Derive the response value; migrate away the column. |
 | `UserProfile.is_moderator` | API/search display reads the flag, while middleware/permission tags use membership in `Moderators`. | Choose group membership as one authority and migrate existing assignments before removing the flag. |
-| `UserProfile.wolfnet_password` | Model and update path import `WolfNetSettingsForm`, which no longer exists. Admin and an API update branch still expose the feature. | Resolve whether the integration is retired. If retired, remove the whole feature path and stored field together; otherwise move encryption into a real helper. |
 | `UserProfile.points` | Displayed in profiles/search and returned by APIs; admin can edit it. No automatic earning logic found. | Not proven useless. Keep unless retiring the points feature. |
 | `upvotes` / `downvotes` | Active ordering/UI fields backed by separate vote rows. | Treat as derived/cached state, not dead fields. |
 | `post_type` / `scope` | Distinct poll-vs-standard and school-vs-community behavior. | Keep both. |

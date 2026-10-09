@@ -93,15 +93,15 @@ class AtlasClassmateMatchingTests(TestCase):
         )
 
         self.assertEqual(filtered_response.status_code, 200)
-        filtered_courses = filtered_response.json()['blocks']['1A']
+        filtered_courses = filtered_response.json()['data']['blocks']['1A']
         self.assertIn(eligible_course.name, filtered_courses)
         self.assertNotIn(ineligible_course.name, filtered_courses)
 
         all_response = self.client.get(reverse('session_all_courses_blocks'))
-        all_courses = all_response.json()['blocks']['1A']
+        all_courses = all_response.json()['data']['blocks']['1A']
         self.assertIn(eligible_course.name, all_courses)
         self.assertIn(ineligible_course.name, all_courses)
-        course_links = all_response.json()['course_links']['1A']
+        course_links = all_response.json()['data']['course_links']['1A']
         self.assertIn(
             {'id': eligible_course.id, 'name': eligible_course.name, 'url': reverse('course_page', args=[eligible_course.id]), 'color': '#E2C440', 'category_class': 'math'},
             course_links,
@@ -162,7 +162,7 @@ class AtlasClassmateMatchingTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        for schedule in response.json()['schedules']:
+        for schedule in response.json()['data']['schedules']:
             for assignment in schedule['mapping'].values():
                 self.assertNotIn('classmates', assignment)
 
@@ -170,7 +170,7 @@ class AtlasClassmateMatchingTests(TestCase):
         response = self.generate()
 
         self.assertEqual(response.status_code, 200)
-        for schedule in response.json()['schedules']:
+        for schedule in response.json()['data']['schedules']:
             for assignment in schedule['mapping'].values():
                 self.assertNotIn('classmates', assignment)
 
@@ -209,7 +209,7 @@ class AtlasClassmateMatchingTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json()['schedule']['1A']['course_id'],
+            response.json()['data']['schedule']['1A']['course_id'],
             self.shared_course.id,
         )
 

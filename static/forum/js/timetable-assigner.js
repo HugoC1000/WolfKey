@@ -91,13 +91,14 @@ async function requestSchedulesFromApi(selectedCourses, options = {}) {
             })
         });
 
-        const data = await response.json();
-        if (!response.ok || !data.success) {
-            alert('Error: ' + (data.error || 'Unable to generate schedules'));
+        const envelope = await response.json();
+        if (!response.ok || !envelope.success) {
+            alert('Error: ' + (envelope.message || 'Unable to generate schedules'));
             isGenerating = false;
             updateFlowState();
             return;
         }
+        const data = envelope.data;
 
         const requestedCourseNames = selectedCourses.map(c => (c.name || c.course_name || '')).filter(Boolean);
         const requestedCourseIds = selectedCourses.map(c => c.id).filter(Boolean);
@@ -542,11 +543,11 @@ async function fetchAllCoursesAndBlocks(eligibleOnly = false) {
         }
     });
 
-    if (!response.ok) {
-        throw new Error('Failed to fetch course-block data');
+    const envelope = await response.json();
+    if (!response.ok || !envelope.success) {
+        throw new Error(envelope.message || 'Failed to fetch course-block data');
     }
-
-    const data = await response.json();
+    const data = envelope.data;
     return {
         blocks: data.blocks || {},
         courseLinks: data.course_links || {},
@@ -689,17 +690,17 @@ async function fetchAndCachePersonSchedule(user) {
 
     try {
         const response = await fetch(`/user-blocks/${user.id}/`);
-        const data = await response.json();
+        const envelope = await response.json();
         if (selectedPeopleScheduleRequests.get(userId) !== requestToken) return;
 
-        if (!response.ok) {
+        if (!response.ok || !envelope.success) {
             markPersonScheduleUnavailable(user.id, response.status === 403, requestToken);
             return;
         }
 
         if (!selectedPeople.some(selected => selected.id === user.id)) return;
         selectedPeopleScheduleRequests.delete(userId);
-        selectedPeopleSchedules.set(userId, data.schedule || {});
+        selectedPeopleSchedules.set(userId, envelope.data.schedule || {});
         selectedPeople = selectedPeople.map(selected => (
             selected.id === user.id
                 ? { ...selected, scheduleLoading: false, scheduleUnavailable: false }

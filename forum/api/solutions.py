@@ -22,7 +22,7 @@ def create_solution_api(request, post_id):
     try:
         result = create_solution_service(request.user, post_id, request.data)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
         
         solution = Solution.objects.get(id=result['id'])
         serializer = SolutionSerializer(solution, context={'request': request})
@@ -37,7 +37,7 @@ def update_solution_api(request, solution_id):
     try:
         result = update_solution_service(request.user, solution_id, request.data)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
         
         solution = Solution.objects.get(id=solution_id)
         serializer = SolutionSerializer(solution, context={'request': request})
@@ -52,7 +52,7 @@ def delete_solution_api(request, solution_id):
     try:
         result = delete_solution_service(request.user, solution_id)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
         return Response({'message': 'Solution deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -68,7 +68,7 @@ def vote_solution_api(request, solution_id):
         
         result = vote_solution_service(request.user, solution_id, vote_type)
         if 'error' in result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': result['error']}, status=result['status'])
         return Response(result)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -80,7 +80,7 @@ def accept_solution_api(request, solution_id):
     try:
         result = accept_solution_service(request.user, solution_id)
         if 'error' in result:
-            return Response(result, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': result['error']}, status=result['status'])
         return Response(result)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

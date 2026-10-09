@@ -117,7 +117,8 @@ class PostListSerializer(serializers.ModelSerializer):
             return item.poll_data
         from .poll import serialize_poll_display_data
         request = self.context.get('request')
-        return serialize_poll_display_data(obj, request=request)
+        viewer = request.user if request else None
+        return serialize_poll_display_data(obj, viewer=viewer)
 
     def get_followers_count(self, obj):
         item = self._item_for(obj)
@@ -230,7 +231,8 @@ class PostDetailSerializer(serializers.ModelSerializer):
 
         if obj.id not in self._poll_data_cache:
             request = self.context.get('request')
-            self._poll_data_cache[obj.id] = serialize_poll_display_data(obj, request=request)
+            viewer = request.user if request else None
+            self._poll_data_cache[obj.id] = serialize_poll_display_data(obj, viewer=viewer)
 
         return self._poll_data_cache[obj.id]
     

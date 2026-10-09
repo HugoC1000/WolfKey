@@ -7,5 +7,4 @@ from .profile_views import *
 from .save_views import *
 from .search_views import *
 from .solution_views import *
-from .updates_views import *
 from ..services.utils import *
