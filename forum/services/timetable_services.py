@@ -50,7 +50,6 @@ def get_initial_timetable_data(user):
 def generate_possible_schedules(requested_course_ids: List[int],
                                 required_course_ids: Optional[List[int]] = None,
                                 max_schedules: int = 20) -> List[Dict]:
-    # Load courses and their available blocks
     courses_qs = Course.objects.filter(id__in=requested_course_ids).prefetch_related('blocks')
     if not courses_qs:
         return []
