@@ -4,6 +4,7 @@ from forum.services.notification_services import send_comment_notifications_serv
 from forum.services.mention_service import update_mentions
 from forum.services.post_services import _check_teacher_visibility, record_post_activity
 from forum.services.utils import detect_bad_words
+from forum.services.content_format import set_content_representations
 from forum.services.results import service_error
 
 def create_comment_service(user, solution_id, data):
@@ -34,17 +35,22 @@ def create_comment_service(user, solution_id, data):
             parent_comment = Comment.objects.filter(id=parent_id, solution=solution).first()
             if parent_comment is None:
                 return service_error('Parent comment not found', 404)
-        comment = Comment.objects.create(
+        comment = Comment(
             solution=solution,
             author=user,
-            content=content,
+            content={},
             parent=parent_comment
         )
+        try:
+            set_content_representations(comment, content, data.get('content_format', 'editorjs'))
+        except ValueError as error:
+            return service_error(error)
+        comment.save()
 
         record_post_activity(solution.post)
         
         # Update mentions in the comment content
-        update_mentions(comment, content, old_content=None)
+        update_mentions(comment, comment.content, old_content=None)
         
         send_comment_notifications_service(comment, solution, parent_comment)
         return {'id': comment.id, 'message': 'Comment created successfully'}
@@ -61,11 +67,14 @@ def edit_comment_service(user, comment_id, data):
             detect_bad_words(content)
         except Exception as e:
             return service_error(e)
-        comment.content = content
+        try:
+            set_content_representations(comment, content, data.get('content_format', 'editorjs'))
+        except ValueError as error:
+            return service_error(error)
         comment.save()
         
         # Update mentions if content was updated
-        update_mentions(comment, content, old_content=old_content)
+        update_mentions(comment, comment.content, old_content=old_content)
         
         return {'id': comment.id, 'message': 'Comment edited successfully'}
     return service_error('Invalid comment data.')

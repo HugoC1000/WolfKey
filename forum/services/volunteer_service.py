@@ -1,8 +1,8 @@
 """
-Service for accessing WPGA Service Hour Tracking Google Sheet.
+Service for accessing the WPGA Service Record Google Sheet.
 
-This service provides read-only access to the WPGA Service Hour Tracking
-spreadsheet to retrieve volunteer hours for students.
+This service provides read-only access to the accumulated service hours
+worksheet to retrieve volunteer hours for students.
 """
 
 from typing import Optional, Dict
@@ -14,6 +14,8 @@ from forum.models import VolunteerPinMilestone, VolunteerResource
 from forum.services.results import service_error
 
 logger = logging.getLogger(__name__)
+SPREADSHEET_NAME = "WPGA Service Record (ongoing)"
+WORKSHEET_NAME = "Accumulated Hours (Updated October 2026)"
 
 
 def _get_sheet_safe():
@@ -22,7 +24,7 @@ def _get_sheet_safe():
     This defers fetching the sheet until runtime so import-time failures
     (network / API errors) don't crash Django startup.
     """
-    return google_api_service.get_sheet("WPGA Service Hour Tracking", worksheet_index=0)
+    return google_api_service.get_sheet(SPREADSHEET_NAME, worksheet_name=WORKSHEET_NAME)
 
 
 def get_volunteer_hours(student_number: str) -> Optional[float]:
@@ -50,12 +52,12 @@ def get_volunteer_hours(student_number: str) -> Optional[float]:
         
         # Skip the header row (index 0) and search for student
         for row in all_values[1:]:
-            if len(row) >= 3:  # Ensure row has at least columns A, B, C
-                row_student_number = str(row[1]).strip()  # Column B (index 1)
+            if len(row) >= 5:  # Student ID in column A; hours in column E
+                row_student_number = str(row[0]).strip()
                 
                 if row_student_number == student_number_normalized:
-                    # Found the student, get their hours from column C (index 2)
-                    hours_value = str(row[2]).strip() if len(row) > 2 else ""
+                    # Found the student, get their hours from column E (index 4)
+                    hours_value = str(row[4]).strip()
                     
                     try:
                         return float(hours_value) if hours_value else 0.0
@@ -97,9 +99,9 @@ def get_all_service_hours() -> Dict[str, float]:
         
         # Skip the header row (index 0) and process data rows
         for row in all_values[1:]:
-            if len(row) >= 3:  # Ensure row has at least columns A, B, C
-                student_number = str(row[1]).strip()  # Column B (index 1)
-                hours_value = str(row[2]).strip() if len(row) > 2 else ""  # Column C (index 2)
+            if len(row) >= 5:  # Student ID in column A; hours in column E
+                student_number = str(row[0]).strip()
+                hours_value = str(row[4]).strip()
                 
                 if student_number:  # Only add if student number is not empty
                     try:
@@ -125,7 +127,7 @@ def clear_cache():
     Clear the cached Google Sheet data for WPGA Service Hours.
     This forces a fresh fetch on the next request.
     """
-    google_api_service.clear_sheet_cache("WPGA Service Hour Tracking")
+    google_api_service.clear_sheet_cache(SPREADSHEET_NAME)
 
 
 def is_volunteer_admin(user):

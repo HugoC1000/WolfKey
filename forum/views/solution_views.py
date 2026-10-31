@@ -25,11 +25,14 @@ def create_solution(request, post_id):
         solution_form = SolutionForm(request.POST)
         if solution_form.is_valid():
             try:
-                solution_json = request.POST.get('content')
-                solution_data = json.loads(solution_json) if solution_json else {}
+                source_format = request.POST.get('content_format', 'editorjs')
+                submitted_content = request.POST.get('content', '')
+                solution_data = submitted_content if source_format == 'markdown' else (
+                    json.loads(submitted_content) if submitted_content else {}
+                )
                 
                 result = create_solution_service(request.user, post_id, {
-                    'content': solution_data
+                    'content': solution_data, 'content_format': source_format
                 })
                 
                 if 'error' in result:
@@ -53,14 +56,17 @@ def edit_solution(request, solution_id):
     solution = lookup['solution']
 
     if request.method == 'POST':
-        solution_form = SolutionForm(request.POST, instance=solution)
+        solution_form = SolutionForm(request.POST)
         if solution_form.is_valid():
             try:
-                solution_json = request.POST.get('content')
-                solution_data = json.loads(solution_json) if solution_json else {}
+                source_format = request.POST.get('content_format', 'editorjs')
+                submitted_content = request.POST.get('content', '')
+                solution_data = submitted_content if source_format == 'markdown' else (
+                    json.loads(submitted_content) if submitted_content else {}
+                )
 
                 result = update_solution_service(request.user, solution_id, {
-                    'content': solution_data
+                    'content': solution_data, 'content_format': source_format
                 })
 
                 if 'error' in result:

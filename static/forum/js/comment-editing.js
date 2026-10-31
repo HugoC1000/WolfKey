@@ -1,13 +1,23 @@
+import { EditorManager } from './markdown-editor.js';
+
+function addCommentContents(comments, contents) {
+    for (const comment of comments || []) {
+        contents.set(comment.id, comment.content);
+        addCommentContents(comment.replies, contents);
+    }
+}
+
 export class CommentEditor {
-    constructor(editorManager, csrfToken) {
+    constructor(solutions, csrfToken, editorManager = new EditorManager()) {
         this.editorManager = editorManager;
         this.csrfToken = csrfToken;
+        this.contents = new Map();
+        for (const solution of solutions) addCommentContents(solution.comments, this.contents);
         this.showReplyForm = this.showReplyForm.bind(this);
         this.submitComment = this.submitComment.bind(this);
         this.cancelComment = this.cancelComment.bind(this);
         this.saveCommentEdit = this.saveCommentEdit.bind(this);
         this.cancelCommentEdit = this.cancelCommentEdit.bind(this);
-        this.originalContents = {};
         this.toggleReplies = this.toggleReplies.bind(this);
         this.toggleRootComments = this.toggleRootComments.bind(this);
         this.bindEvents();
@@ -59,7 +69,7 @@ export class CommentEditor {
 
         
         container.innerHTML = `
-            <div id="editorjs-${formId}" class="comment-editor"></div>
+            <div id="editorjs-${formId}" class="markdown-editor comment-editor"></div>
             <div class="comment-actions">
                 <button class="btn btn-primary btn-sm submit-comment">Submit</button>
                 <button class="btn btn-secondary btn-sm cancel-comment">Cancel</button>
@@ -77,11 +87,7 @@ export class CommentEditor {
         
         target.appendChild(container);
 
-        const editor = await this.editorManager.initializeCommentFormEditor(
-            `editorjs-${formId}`, 
-            this.csrfToken
-        );
-        this.editorManager.editors.set(formId, editor);
+        await this.editorManager.openEditor(`editorjs-${formId}`, '', this.csrfToken);
 
         container.querySelector('.submit-comment').addEventListener('click', () => 
             this.submitComment(solutionId, parentId, formId));
@@ -90,7 +96,7 @@ export class CommentEditor {
     }
 
     async submitComment(solutionId, parentId, formId) {
-        const editor = this.editorManager.editors.get(formId);
+        const editor = this.editorManager.getEditor(`editorjs-${formId}`);
         if (!editor) return;
 
         try {
@@ -103,6 +109,7 @@ export class CommentEditor {
                 },
                 body: JSON.stringify({
                     content,
+                    content_format: 'markdown',
                     parent_id: parentId
                 })
             });
@@ -110,23 +117,21 @@ export class CommentEditor {
             const envelope = await response.json();
             if (envelope.message) showMessage(envelope.message, envelope.success ? 'success' : 'error');
             if (!response.ok || !envelope.success) throw new Error(envelope.message || 'Failed to create comment');
-            this.removeCommentForm(formId);
+            await this.removeCommentForm(formId);
             this.refreshComments(solutionId);
         } catch (error) {
             console.error('Error submitting comment:', error);
         }
     }
 
-    cancelComment(formId) {
-        this.removeCommentForm(formId);
+    async cancelComment(formId) {
+        await this.removeCommentForm(formId);
     }
 
-    removeCommentForm(formId) {
+    async removeCommentForm(formId) {
+        await this.editorManager.closeEditor(`editorjs-${formId}`);
         const container = document.getElementById(formId);
-        if (container) {
-            container.remove();
-        }
-        this.editorManager.editors.delete(formId);
+        container?.remove();
     }
 
     async refreshComments(solutionId) {
@@ -151,11 +156,13 @@ export class CommentEditor {
             if (commentsContainer) {
                 // Update HTML
                 commentsContainer.innerHTML = data.html;
+                window.renderForumMath?.(commentsContainer);
+                window.renderForumMentions?.(commentsContainer);
                 
             
                 // Initialize editors using the comments data
                 if (data.comments && data.comments.length > 0) {
-                    await this.editorManager.initializeCommentEditors(data.comments, this.csrfToken);
+                    addCommentContents(data.comments, this.contents);
                 }
             }
         } catch (error) {
@@ -165,21 +172,11 @@ export class CommentEditor {
 
     async showEditForm(commentId) {
         try {
-            await this.editorManager.toggleEditorReadOnly(commentId, false);
-            await this.editorManager.storeOriginalContent(commentId);
-            const editor = this.editorManager.editors.get(commentId);
-            if (editor) {
-                if (!editor.readOnly.isEnabled) {
-                    const content = await editor.save();
-                    this.originalContents[commentId] = content;
-                } else {
-                    console.warn(`Editor for comment ${commentId} is still in read-only mode.`);
-                }
-                const content = await editor.save();
-                this.originalContents[commentId] = content;
-            }
-            this.editorManager.editors.set(commentId, editor);
-
+            await this.editorManager.openEditor(
+                `editorjs-comment-${commentId}`,
+                this.contents.get(commentId),
+                this.csrfToken,
+            );
             this.toggleCommentActions(commentId, true);
         } catch (error) {
             console.error('Error enabling edit mode:', error);
@@ -202,7 +199,7 @@ export class CommentEditor {
     }
 
     async saveCommentEdit(commentId) {
-        const editor = this.editorManager.editors.get(commentId);
+        const editor = this.editorManager.getEditor(`editorjs-comment-${commentId}`);
         if (!editor) return;
 
         try {
@@ -213,7 +210,7 @@ export class CommentEditor {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.csrfToken
                 },
-                body: JSON.stringify({ content })
+                body: JSON.stringify({ content, content_format: 'markdown' })
             });
 
             const data = await response.json();
@@ -221,9 +218,7 @@ export class CommentEditor {
 
 
             if (response.ok && data.success) {
-                await this.editorManager.toggleEditorReadOnly(commentId, true);
-                this.toggleCommentActions(commentId, false);
-                delete this.originalContents[commentId];
+                window.location.reload();
             } else {
                 console.error('Failed to save comment');
             }
@@ -233,19 +228,11 @@ export class CommentEditor {
     }
 
     async cancelCommentEdit(commentId) {
-        const editor = this.editorManager.editors.get(commentId);
-        if (editor) {
-            try {
-                // Restore original content
-                await this.editorManager.restoreOriginalContent(commentId);
-
-                // Reset editor state
-                await this.editorManager.toggleEditorReadOnly(commentId, true);
-                this.toggleCommentActions(commentId, false);
-                
-            } catch (error) {
-                console.error('Error canceling comment edit:', error);
-            }
+        try {
+            await this.editorManager.closeEditor(`editorjs-comment-${commentId}`);
+            this.toggleCommentActions(commentId, false);
+        } catch (error) {
+            console.error('Error canceling comment edit:', error);
         }
     }
 

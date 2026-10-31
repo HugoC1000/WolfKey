@@ -208,6 +208,14 @@ from forum.api.comment import (
     get_comments_api,
     vote_comment_api,
 )
+from forum.api.markdown import (
+    all_posts_markdown_api, comments_markdown_api, create_comment_markdown_api,
+    create_post_markdown_api, create_solution_markdown_api,
+    delete_comment_markdown_api, delete_post_markdown_api,
+    delete_solution_markdown_api, for_you_markdown_api, post_detail_markdown_api,
+    update_comment_markdown_api, update_post_markdown_api,
+    update_solution_markdown_api,
+)
 
 from forum.api.profile import (
     get_profile_api,
@@ -378,6 +386,19 @@ urlpatterns = [
 
     path('api/for-you/', for_you_api, name='for_you_api'),
     path('api/posts/create/', create_post_api, name='api_create_post'),
+    path('api/v2/all-posts/', all_posts_markdown_api, name='api_v2_all_posts'),
+    path('api/v2/for-you/', for_you_markdown_api, name='api_v2_for_you'),
+    path('api/v2/posts/create/', create_post_markdown_api, name='api_v2_create_post'),
+    path('api/v2/posts/<int:post_id>/', post_detail_markdown_api, name='api_v2_post_detail'),
+    path('api/v2/posts/<int:post_id>/edit/', update_post_markdown_api, name='api_v2_update_post'),
+    path('api/v2/posts/<int:post_id>/delete/', delete_post_markdown_api, name='api_v2_delete_post'),
+    path('api/v2/posts/<int:post_id>/solutions/create/', create_solution_markdown_api, name='api_v2_create_solution'),
+    path('api/v2/solutions/<int:solution_id>/edit/', update_solution_markdown_api, name='api_v2_update_solution'),
+    path('api/v2/solutions/<int:solution_id>/delete/', delete_solution_markdown_api, name='api_v2_delete_solution'),
+    path('api/v2/solutions/<int:solution_id>/comments/create/', create_comment_markdown_api, name='api_v2_create_comment'),
+    path('api/v2/solutions/<int:solution_id>/comments/', comments_markdown_api, name='api_v2_comments'),
+    path('api/v2/comments/<int:comment_id>/edit/', update_comment_markdown_api, name='api_v2_update_comment'),
+    path('api/v2/comments/<int:comment_id>/delete/', delete_comment_markdown_api, name='api_v2_delete_comment'),
     path('api/posts/<int:post_id>/', post_detail_api, name='api_post_detail'),
     path('api/posts/<int:post_id>/edit/', update_post_api, name='api_update_post'),
     path('api/posts/<int:post_id>/delete/', delete_post_api, name='api_delete_post'),

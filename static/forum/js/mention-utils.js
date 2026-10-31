@@ -55,11 +55,16 @@ export class MentionUtils {
         const courseIdMatch = courseIdentifier.match(/^course_(\d+)-(.+)$/);
         if (courseIdMatch) {
           courseId = courseIdMatch[1];
-          courseName = courseIdMatch[2];
+          try {
+            courseName = decodeURIComponent(courseIdMatch[2]);
+          } catch {
+            courseName = courseIdMatch[2];
+          }
         }
         
         const escaped = this.escape(courseName.trim());
-        return `<a href="#" class="mention mention-course" title="Course: ${escaped}" data-mention-type="course" data-course-id="${courseId}" data-course-name="${escaped}">#${escaped}</a>`;
+        const href = courseId ? `/classes/${courseId}/` : '#';
+        return `<a href="${href}" class="mention mention-course" title="Course: ${escaped}" data-mention-type="course" data-course-id="${courseId}" data-course-name="${escaped}">#${escaped}</a>`;
       }
     );
 
@@ -91,7 +96,7 @@ export class MentionUtils {
       const parentElement = node.parentElement;
 
       // Skip if already inside a mention link
-      if (parentElement && (parentElement.classList.contains('mention') || parentElement.classList.contains('mention-user') || parentElement.classList.contains('mention-course'))) {
+      if (parentElement?.closest('a, code, pre')) {
         continue;
       }
 
@@ -155,7 +160,11 @@ export class MentionUtils {
       const courseIdMatch = courseIdentifier.match(/^course_(\d+)-(.+)$/);
       if (courseIdMatch) {
         courseId = courseIdMatch[1];
-        courseName = courseIdMatch[2];
+        try {
+          courseName = decodeURIComponent(courseIdMatch[2]);
+        } catch {
+          courseName = courseIdMatch[2];
+        }
       }
       
       mentions.push({
@@ -206,13 +215,13 @@ export class MentionUtils {
         }
         link.textContent = mention.fullMatch;
       } else if (mention.type === 'course') {
-        link.href = '#';
+        link.href = mention.courseid ? `/classes/${mention.courseid}/` : '#';
         link.title = `Course: ${mention.coursename}`;
         link.setAttribute('data-course-name', mention.coursename);
         if (mention.courseid) {
           link.setAttribute('data-course-id', mention.courseid);
         }
-        link.textContent = mention.fullMatch;
+        link.textContent = mention.courseid ? `#${mention.coursename}` : mention.fullMatch;
       }
 
       fragment.appendChild(link);

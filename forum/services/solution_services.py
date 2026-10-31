@@ -2,6 +2,7 @@ from forum.models import Post, Solution, SolutionUpvote, SolutionDownvote
 from forum.services.utils import detect_bad_words
 from forum.services.notification_services import send_solution_notification_service
 from forum.services.mention_service import update_mentions
+from forum.services.content_format import set_content_representations
 from forum.services.post_services import _check_teacher_visibility, record_post_activity
 from forum.services.results import service_error
 from django.db.models import F
@@ -39,16 +40,18 @@ def create_solution_service(user, post_id, data):
 
         detect_bad_words(content)
         
-        solution = Solution.objects.create(
+        solution = Solution(
             post=post,
             author=user,
-            content=content
+            content={}
         )
+        set_content_representations(solution, content, data.get('content_format', 'editorjs'))
+        solution.save()
 
         record_post_activity(post)
         
         # Update mentions in the solution content
-        update_mentions(solution, content, old_content=None)
+        update_mentions(solution, solution.content, old_content=None)
         
         if post.author != solution.author:
             send_solution_notification_service(solution)
@@ -76,11 +79,11 @@ def update_solution_service(user, solution_id, data):
             return service_error('Content is required')
 
         detect_bad_words(content)
-        solution.content = content
+        set_content_representations(solution, content, data.get('content_format', 'editorjs'))
         solution.save()
 
         # Update mentions if content was updated
-        update_mentions(solution, content, old_content=old_content)
+        update_mentions(solution, solution.content, old_content=old_content)
 
         return {
             'message': 'Solution updated successfully',

@@ -5,6 +5,7 @@ class Solution(models.Model):
     post = models.ForeignKey('forum.Post', on_delete=models.CASCADE, related_name='solutions')
     author = models.ForeignKey('forum.User', on_delete=models.CASCADE)
     content = models.JSONField()
+    content_markdown = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     upvotes = models.IntegerField(default=0)
     downvotes = models.IntegerField(default=0)
@@ -38,6 +39,7 @@ class Comment(models.Model):
     solution = models.ForeignKey(Solution, on_delete=models.CASCADE, related_name='comments')
     author = models.ForeignKey('forum.User', on_delete=models.CASCADE)
     content = models.JSONField() 
+    content_markdown = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies') 
 

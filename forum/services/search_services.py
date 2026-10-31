@@ -4,10 +4,11 @@ from django.contrib.postgres.search import SearchQuery, SearchRank, TrigramSimil
 from forum.models import Post, User
 from forum.services.post_list_service import prepare_posts
 from forum.services.course_services import get_user_courses
+from forum.services.legacy_app_update import without_legacy_app_update_post
 
 def search_posts(user, query):
     search_query = SearchQuery(query)
-    posts = Post.objects.annotate(
+    posts = without_legacy_app_update_post(Post.objects).annotate(
         rank=SearchRank(F('search_vector'), search_query) + TrigramSimilarity('title', query),
         solution_count=Count('solutions', distinct=True),
         comment_count=Count('solutions__comments', distinct=True),
@@ -27,6 +28,7 @@ def search_users(user, query):
     qs = User.objects.select_related('userprofile').annotate(
         trigram_first=TrigramSimilarity('first_name', query),
         trigram_last=TrigramSimilarity('last_name', query),
+        trigram_username=TrigramSimilarity('username', query),
         trigram_full=TrigramSimilarity(
             Concat(F('first_name'), Value(' '), F('last_name')),
             query
@@ -34,10 +36,11 @@ def search_users(user, query):
         similarity=Greatest(
             F('trigram_first'),
             F('trigram_last'),
+            F('trigram_username'),
             F('trigram_full'),
         )
     ).filter(
-        similarity__gte=0.1
+        Q(similarity__gte=0.1) | Q(username__icontains=query)
     ).order_by('-similarity')
 
     return qs

@@ -400,6 +400,9 @@ def process_post_preview(post):
     Returns:
         str: Concatenated and cleaned preview text.
     """
+    if getattr(post, 'content_markdown', None) is not None:
+        from forum.services.content_format import markdown_plain_text
+        return markdown_plain_text(post.content_markdown)
     content = _coerce_post_content(getattr(post, 'content', post))
 
     if isinstance(content, dict) and 'blocks' in content:
@@ -436,6 +439,12 @@ def process_post_preview_html(post):
     Returns:
         str: Concatenated and cleaned preview HTML with preserved links.
     """
+    if getattr(post, 'content_markdown', None) is not None:
+        from forum.services.content_format import render_markdown
+        import nh3
+        return nh3.clean(render_markdown(post.content_markdown), tags={'a', 'br'},
+                         attributes={'a': {'href', 'title'}},
+                         url_schemes={'http', 'https', 'mailto'})
     content = _coerce_post_content(getattr(post, 'content', post))
 
     if isinstance(content, dict) and 'blocks' in content:
@@ -575,23 +584,11 @@ def detect_bad_words(content):
         if bad_word_pattern.search(normalized_text):
             raise ValueError("Bad word detected in text.")
     
-    elif isinstance(content, dict) and 'blocks' in content:
-        for block in content['blocks']:
-            block_type = block.get("type", "unknown")
-            data = block.get("data", {})
-            
-            text = data.get("text", "")
-            items = data.get("items", [])
-            
-            if text:
-                normalized_text = normalize_text(text)
-                if bad_word_pattern.search(normalized_text):
-                    raise ValueError(f"Bad word detected in block of type '{block_type}'.")
-            
-            for item in items:
-                item_text = normalize_text(item.get("content"))
-                if bad_word_pattern.search(item_text):
-                    raise ValueError(f"Bad word detected in list item in block of type '{block_type}'.")
+    elif isinstance(content, dict) and isinstance(content.get('blocks'), list):
+        from forum.services.content_format import editorjs_to_markdown, markdown_plain_text
+        normalized_text = normalize_text(markdown_plain_text(editorjs_to_markdown(content)))
+        if bad_word_pattern.search(normalized_text):
+            raise ValueError("Bad word detected in content.")
     else:
         raise ValueError("Unsupported content format for bad word detection.")
 
@@ -607,6 +604,9 @@ def extract_files_from_editorjs_content(content):
     """
     file_urls = []
     
+    if isinstance(content, str):
+        from forum.services.content_format import markdown_image_urls
+        return markdown_image_urls(content)
     if not isinstance(content, dict):
         return file_urls
     
@@ -637,6 +637,10 @@ def delete_files_from_urls(file_urls):
         file_urls: List of file URLs to delete
     """
     from urllib.parse import urlparse
+    from django.conf import settings
+
+    media_url = urlparse(settings.MEDIA_URL)
+    media_path = media_url.path.rstrip('/') + '/'
     
     for url in file_urls:
         if not url:
@@ -644,13 +648,13 @@ def delete_files_from_urls(file_urls):
             
         try:
             parsed_url = urlparse(url)
-            file_path = parsed_url.path
-            
-            if file_path.startswith('/'):
-                file_path = file_path[1:]
-            
-            if file_path.startswith('media/'):
-                file_path = file_path[6:]
+            if parsed_url.netloc and parsed_url.netloc != media_url.netloc:
+                continue
+            if not parsed_url.path.startswith(media_path):
+                continue
+            file_path = parsed_url.path[len(media_path):]
+            if not file_path or file_path.startswith('/') or '..' in file_path.split('/'):
+                continue
             
             if default_storage.exists(file_path):
                 default_storage.delete(file_path)

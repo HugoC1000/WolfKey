@@ -1,10 +1,10 @@
-// static/forum/js/modules/solution-editing.js
+import { EditorManager } from './markdown-editor.js';
 
 export class SolutionEditor {
-    constructor(editorManager, csrfToken) {
+    constructor(solutions, csrfToken, editorManager = new EditorManager()) {
         this.editorManager = editorManager;
         this.csrfToken = csrfToken;
-        this.originalContents = {};
+        this.contents = new Map(solutions.map(solution => [solution.id, solution.content]));
         this.initializeDeleteHandlers();
     }
 
@@ -21,12 +21,11 @@ export class SolutionEditor {
 
     async showEditForm(solutionId) {
         try {
-            await this.editorManager.toggleEditorReadOnly(solutionId, false);
-            const editor = this.editorManager.getEditor(solutionId);
-            if (editor) {
-                const content = await editor.save();
-                this.originalContents[solutionId] = content;
-            }
+            await this.editorManager.openEditor(
+                `editorjs-solution-${solutionId}`,
+                this.contents.get(solutionId),
+                this.csrfToken,
+            );
             this.toggleSolutionActions(solutionId, true);
         } catch (error) {
             console.error('Error enabling edit mode:', error);
@@ -34,7 +33,7 @@ export class SolutionEditor {
     }
 
     async saveSolution(solutionId) {
-        const editor = this.editorManager.getEditor(solutionId);
+        const editor = this.editorManager.getEditor(`editorjs-solution-${solutionId}`);
         if (!editor) return;
 
         try {
@@ -44,7 +43,8 @@ export class SolutionEditor {
             const formData = new FormData();
             formData.append('csrfmiddlewaretoken', this.csrfToken);
             formData.append('solution_id', solutionId);
-            formData.append('content', JSON.stringify(outputData));
+            formData.append('content', outputData);
+            formData.append('content_format', 'markdown');
 
             const response = await fetch(editSolutionUrl, {
                 method: 'POST',
@@ -56,7 +56,7 @@ export class SolutionEditor {
             if (data.message) showMessage(data.message, data.success ? 'success' : 'error');
 
             if (response.ok && data.success) {
-                this.cancelEdit(solutionId, false);
+                window.location.reload();
             } else {
                 console.error('Failed to save solution:', data.error_code, data.message);
             }
@@ -65,13 +65,8 @@ export class SolutionEditor {
         }
     }
 
-    async cancelEdit(solutionId, revert = true) {
-        const editor = this.editorManager.getEditor(solutionId);
-        if (editor && this.originalContents[solutionId] && revert) {
-            // Restore original content
-            await editor.render(this.originalContents[solutionId]);
-        }
-        this.editorManager.toggleEditorReadOnly(solutionId, true);
+    async cancelEdit(solutionId) {
+        await this.editorManager.closeEditor(`editorjs-solution-${solutionId}`);
         this.toggleSolutionActions(solutionId, false);
     }
 

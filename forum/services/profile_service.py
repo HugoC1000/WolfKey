@@ -10,6 +10,7 @@ from django.core.files.storage import default_storage
 from forum.models import Course, Post, Solution, User, UserCourseExperience, UserCourseHelp, UserProfile
 from forum.services.utils import detect_bad_words
 from forum.services.post_list_service import prepare_posts
+from forum.services.legacy_app_update import without_legacy_app_update_post
 from forum.serializers.user import USER_SCHEDULE_BLOCKS
 from forum.services.schedule_import_service import ScheduleImportValidationError, replace_user_schedule
 from forum.services.results import service_error, service_success
@@ -64,10 +65,10 @@ def get_profile_posts_page(viewing_user, profile_user, page=1, per_page=8):
     page = int(page)
     per_page = int(per_page)
 
-    base_qs = Post.objects.filter(
+    base_qs = without_legacy_app_update_post(Post.objects.filter(
         author=profile_user,
         is_anonymous=False,
-    )
+    ))
 
     if viewing_user.is_authenticated and viewing_user.is_teacher:
         base_qs = base_qs.filter(allow_teacher=True)
@@ -104,7 +105,7 @@ def get_profile_context(viewing_user, profile_user, profile_data):
     """Build profile-page data from already resolved application objects."""
     recent_posts_page = get_profile_posts_page(viewing_user, profile_user, page=1, per_page=3)
     recent_posts = recent_posts_page.object_list
-    posts_count = Post.objects.filter(author=profile_user).count()
+    posts_count = without_legacy_app_update_post(Post.objects.filter(author=profile_user)).count()
     solutions_count = Solution.objects.filter(author=profile_user).count()
 
     initial_courses_json = json.dumps(profile_data['schedule'] or {})

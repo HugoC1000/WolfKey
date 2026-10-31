@@ -1,0 +1,14 @@
+{
+  "name": "wolfkey-web-editor",
+  "private": true,
+  "scripts": {
+    "build": "esbuild crepe-entry.js crepe.css --bundle --minify --format=esm --target=es2022 --outdir=../static/forum/vendor --entry-names=[name] --asset-names=fonts/[name]-[hash] --loader:.woff2=file --loader:.woff=file --loader:.ttf=file"
+  },
+  "dependencies": {
+    "@milkdown/crepe": "7.22.1",
+    "@milkdown/kit": "7.22.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

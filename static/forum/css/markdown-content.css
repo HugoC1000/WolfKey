@@ -1,0 +1,57 @@
+.forum-markdown p,
+.forum-markdown ul,
+.forum-markdown ol,
+.forum-markdown pre,
+.forum-markdown blockquote { margin: 0 0 0.8rem; }
+.forum-markdown img { max-width: 100%; height: auto; border-radius: 10px; }
+.forum-markdown pre { overflow-x: auto; padding: 0.75rem; border-radius: 8px; background: #f5f5f5; }
+.forum-markdown code { overflow-wrap: anywhere; }
+.forum-markdown blockquote { border-left: 3px solid #ccc; padding-left: 0.8rem; }
+.forum-markdown .katex-display { overflow-x: auto; overflow-y: hidden; }
+.markdown-editor {
+  overflow: visible;
+  border-radius: 12px;
+  background-color: #f6f6f6;
+}
+
+.markdown-editor .milkdown .milkdown-block-handle {
+  display: none !important;
+}
+
+.markdown-editor .milkdown .milkdown-toolbar .toolbar-item svg {
+  color: #000;
+  fill: #000;
+}
+
+.markdown-editor .milkdown .milkdown-slash-menu {
+  color: #111;
+  background: #f0f0f0;
+}
+
+.markdown-editor .milkdown .milkdown-slash-menu .tab-group ul li {
+  color: #111;
+}
+
+.markdown-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li svg {
+  color: #111;
+  fill: currentColor;
+  background: #dedede;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.markdown-editor .milkdown {
+  min-height: 120px;
+  border-radius: 12px;
+  --crepe-color-background: #f6f6f6;
+}
+
+.markdown-editor .milkdown .ProseMirror {
+  padding: 16px 24px;
+}
+
+@media (max-width: 767px) {
+  .markdown-editor .milkdown .ProseMirror {
+    padding: 12px 16px;
+  }
+}

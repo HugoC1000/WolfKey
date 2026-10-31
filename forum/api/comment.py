@@ -20,7 +20,9 @@ from forum.serializers import CommentSerializer
 @permission_classes([IsAuthenticated])
 def create_comment_api(request, solution_id):
     try:
-        result = create_comment_service(request.user, solution_id, request.data)
+        values = request.data.copy()
+        values['content_format'] = 'editorjs'
+        result = create_comment_service(request.user, solution_id, values)
         if 'error' in result:
             return Response({'error': result['error']}, status=result.get('status', 400))
         
@@ -36,7 +38,9 @@ def create_comment_api(request, solution_id):
 @permission_classes([IsAuthenticated])
 def edit_comment_api(request, comment_id):
     try:
-        result = edit_comment_service(request.user, comment_id, request.data)
+        values = request.data.copy()
+        values['content_format'] = 'editorjs'
+        result = edit_comment_service(request.user, comment_id, values)
         if 'error' in result:
             return Response({'error': result['error']}, status=result.get('status', 400))
         

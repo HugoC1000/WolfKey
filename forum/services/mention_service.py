@@ -1,4 +1,7 @@
 import re
+from html import unescape
+from django.conf import settings
+from django.utils.html import strip_tags
 from typing import List, Dict, Optional
 from django.contrib.auth import get_user_model
 from forum.models import Mention, Post, Solution, Comment
@@ -29,12 +32,15 @@ def parse_editorjs_text_mentions(content: dict) -> List[Dict]:
         if not isinstance(block, dict):
             continue
         
-        # Text mentions are in paragraph blocks
-        if block.get('type') not in ('paragraph', 'heading'):
+        if block.get('type') not in ('paragraph', 'heading', 'header', 'quote', 'list'):
             continue
         
         data = block.get('data', {})
-        text = data.get('text', '')
+        segments = [data.get('text', '')]
+        if block.get('type') == 'list':
+            segments = [item.get('content', '') if isinstance(item, dict) else item
+                        for item in data.get('items', [])]
+        text = '\n'.join(unescape(strip_tags(str(segment))) for segment in segments)
         
         if not text:
             continue
@@ -78,11 +84,15 @@ def parse_editorjs_course_mentions(content: dict) -> List[Dict]:
             continue
         
         # Course mentions are in paragraph blocks
-        if block.get('type') not in ('paragraph', 'heading'):
+        if block.get('type') not in ('paragraph', 'heading', 'header', 'quote', 'list'):
             continue
         
         data = block.get('data', {})
-        text = data.get('text', '')
+        segments = [data.get('text', '')]
+        if block.get('type') == 'list':
+            segments = [item.get('content', '') if isinstance(item, dict) else item
+                        for item in data.get('items', [])]
+        text = '\n'.join(unescape(strip_tags(str(segment))) for segment in segments)
         
         if not text:
             continue
@@ -220,7 +230,7 @@ def add_editorjs_mention_marks(content: dict, mentions: List[object]) -> Dict:
         if not isinstance(block, dict):
             continue
         
-        if block.get('type') not in ('paragraph', 'heading'):
+        if block.get('type') not in ('paragraph', 'heading', 'header', 'quote'):
             continue
         
         data = block.get('data', {})
@@ -501,7 +511,8 @@ def search_mentions(user, query: str, limit: int = 5, trigger: str = '') -> Dict
                     'first_name': u.first_name,
                     'last_name': u.last_name,
                     'full_name': u.get_full_name() or u.username,
-                    'profile_picture_url': u.userprofile.profile_picture.url if (hasattr(u, 'userprofile') and u.userprofile and u.userprofile.profile_picture) else None,
+                    'profile_picture_url': _mention_profile_picture_url(u),
+                    'fallback_profile_picture_url': f'{settings.MEDIA_URL}profile_pictures/default.png',
                     'type': 'user'
                 }
                 for u in searched_users
@@ -538,6 +549,16 @@ def search_mentions(user, query: str, limit: int = 5, trigger: str = '') -> Dict
             ]
     
     return results
+
+
+def _mention_profile_picture_url(user):
+    fallback = f'{settings.MEDIA_URL}profile_pictures/default.png'
+    profile = getattr(user, 'userprofile', None)
+    picture = profile.profile_picture if profile else None
+    try:
+        return picture.url if picture else fallback
+    except (AttributeError, FileNotFoundError, ValueError):
+        return fallback
 
 
 # Backwards-compatible wrappers (old names kept for callers). Prefer the new names above.

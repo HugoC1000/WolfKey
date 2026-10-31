@@ -1,4 +1,4 @@
-{% load custom_filters %}
+{% load custom_filters forum_markdown %}
 
 
 <div class="solution-container {% if solution == accepted_solution %}accepted-solution{% endif %}" data-solution-id="{{ solution.id }}">
@@ -81,7 +81,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="editorjs-solution-{{ solution.id }}"></div>
+                <div id="editorjs-solution-{{ solution.id }}" class="forum-markdown">{{ solution|render_forum_markdown }}</div>
 
                 <!-- Solution Actions -->
                 {% if user.is_authenticated %}

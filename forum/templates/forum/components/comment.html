@@ -1,4 +1,4 @@
-{% load custom_filters %}
+{% load custom_filters forum_markdown %}
 
 <div class="comment {% if comment.parent %}comment-reply{% endif %}" 
      id="comment-{{ comment.id }}" 
@@ -44,7 +44,7 @@
             </div>
 
             <div class="comment-content">
-                <div id="editorjs-comment-{{ comment.id }}"></div>
+                <div id="editorjs-comment-{{ comment.id }}" class="forum-markdown">{{ comment|render_forum_markdown }}</div>
             </div>
 
             <div class="comment-metadata d-flex justify-content-between align-items-center mt-2">

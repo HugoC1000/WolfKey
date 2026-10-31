@@ -3,6 +3,7 @@ from forum.models import Post
 from django.utils.timezone import localtime
 from forum.services.utils import process_post_preview, process_post_preview_html
 from forum.services.post_list_service import PostListItem
+from forum.services.content_format import get_markdown
 from .user import AnonymousAuthorSerializer, FeedUserSerializer
 
 
@@ -154,6 +155,13 @@ class PostDetailSerializer(serializers.ModelSerializer):
             'solution_count', 'comment_count', 'solutions', 'has_solution_from_user',
             'is_following', 'poll_options', 'poll_info', 'user_vote', 'mentions'
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if self.context.get('content_format') == 'markdown':
+            data['content'] = get_markdown(instance)
+            data['content_format'] = 'markdown'
+        return data
     
     def get_author(self, obj):
         """Return author data with anonymous serializer if post is anonymous"""

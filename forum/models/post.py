@@ -19,6 +19,7 @@ class Post(models.Model):
     
     title = models.CharField(max_length=200)
     content = models.JSONField()
+    content_markdown = models.TextField(null=True, blank=True)
     post_type = models.CharField(max_length=20, choices=POST_TYPE_CHOICES, default='standard')
     scope = models.CharField(max_length=20, choices=SCOPE_CHOICES, default='school')
     is_pinned_in_community = models.BooleanField(
@@ -52,10 +53,13 @@ class Post(models.Model):
         return self.title
 
     def save(self, *args, **kwargs):
+        if self.content_markdown is None:
+            from forum.services.content_format import editorjs_to_markdown
+            self.content_markdown = editorjs_to_markdown(self.content)
         super().save(*args, **kwargs)
         search_vector = (
             SearchVector('title', weight='A') +
-            SearchVector('content', weight='B')
+            SearchVector('content_markdown', weight='B')
         )
         Post.objects.filter(id=self.id).update(search_vector=search_vector)
 
@@ -74,7 +78,12 @@ class Post(models.Model):
         return self.likes.filter(user=user).exists()
 
     def get_first_image_url(self):
-        """Extract the first image URL from the post content JSON"""
+        """Extract the first safe image URL from either stored representation."""
+        from forum.services.content_format import markdown_image_urls, safe_url
+        if self.content_markdown:
+            urls = markdown_image_urls(self.content_markdown)
+            if urls:
+                return urls[0]
         try:
             import json
             
@@ -89,9 +98,9 @@ class Post(models.Model):
                 if isinstance(block, dict) and block.get('type') == 'image':
                     if 'data' in block and 'file' in block['data']:
                         file_data = block['data']['file']
-                        if isinstance(file_data, dict) and 'url' in file_data:
+                        if isinstance(file_data, dict) and safe_url(file_data.get('url')):
                             return file_data['url']
-                        elif isinstance(file_data, str):
+                        elif isinstance(file_data, str) and safe_url(file_data):
                             return file_data
             
             return None
