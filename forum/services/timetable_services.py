@@ -62,7 +62,7 @@ def generate_possible_schedules(requested_course_ids: List[int],
     optional_ids = [cid for cid in requested_course_ids if cid in course_by_id and cid not in required_set]
     ordered_ids = list(required_set) + optional_ids
 
-    # Feasibility check: required courses must have at least one block
+    # Required courses must have at least one block
     if any(not course_blocks[rid] for rid in required_set):
         return []
 
@@ -126,7 +126,6 @@ def generate_possible_schedules(requested_course_ids: List[int],
     requested_set = set(requested_course_ids)
     schedules.sort(key=lambda sch: len(requested_set & set(sch['mapping'].keys())), reverse=True)
 
-    # Limit to max_schedules
     return schedules[:max_schedules]
 
 
