@@ -341,7 +341,10 @@ class CommentFeatureTests(TestCase):
         response = self.client.post(url, data=json.dumps(data), content_type='application/json')
         self.assertEqual(response.status_code, 200)
         comment.refresh_from_db()
-        self.assertEqual(comment.content, 'Edited comment')
+        self.assertEqual(comment.content, {
+            'blocks': [{'type': 'paragraph', 'data': {'text': 'Edited comment'}}],
+        })
+        self.assertEqual(comment.content_markdown, 'Edited comment')
 
     def test_delete_comment(self):
         comment = Comment.objects.create(solution=self.solution, author=self.user, content='To delete')

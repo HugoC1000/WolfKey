@@ -27,18 +27,13 @@ class PostForm(forms.ModelForm):
     
     class Meta:
         model = Post
-        fields = ['title', 'content', 'courses', 'is_anonymous', 'allow_teacher']
+        fields = ['title', 'courses', 'is_anonymous', 'allow_teacher']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
-class SolutionForm(forms.ModelForm):
-    class Meta:
-        model = Solution
-        fields = ['content']
-        widgets = {
-            'content': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Write your solution here...'}),
-        }
+class SolutionForm(forms.Form):
+    content = forms.CharField(required=True, widget=forms.HiddenInput())
 
 class CommentForm(forms.ModelForm):
     class Meta:

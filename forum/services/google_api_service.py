@@ -95,7 +95,7 @@ class GoogleAPIService:
                 time.sleep(delay)
                 delay *= 2
     
-    def get_sheet(self, spreadsheet_name: str, worksheet_index: int = 0):
+    def get_sheet(self, spreadsheet_name: str, worksheet_index: int = 0, worksheet_name: Optional[str] = None):
         """
         Get a worksheet from a Google Spreadsheet by name.
         Caches the worksheet for subsequent requests.
@@ -111,13 +111,17 @@ class GoogleAPIService:
             gspread.SpreadsheetNotFound: If spreadsheet doesn't exist
             gspread.WorksheetNotFound: If worksheet doesn't exist
         """
-        cache_key = f"{spreadsheet_name}:{worksheet_index}"
+        cache_key = f"{spreadsheet_name}:{worksheet_name or worksheet_index}"
         
         if cache_key not in self._cached_sheets:
             client = self._initialize_sheets_client()
             # Wrap open and get_worksheet with backoff to handle transient errors
             spreadsheet = self._with_backoff(client.open, spreadsheet_name)
-            worksheet = self._with_backoff(spreadsheet.get_worksheet, worksheet_index)
+            worksheet = (
+                self._with_backoff(spreadsheet.worksheet, worksheet_name)
+                if worksheet_name
+                else self._with_backoff(spreadsheet.get_worksheet, worksheet_index)
+            )
             self._cached_sheets[cache_key] = worksheet
         
         return self._cached_sheets[cache_key]

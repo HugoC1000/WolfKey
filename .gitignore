@@ -19,3 +19,6 @@ media/profile_pictures/*
 media/lunch_cards/*
 !media/lunch_cards/default.png
 media/uploads/*
+
+# Web editor build dependencies
+web_editor/node_modules/

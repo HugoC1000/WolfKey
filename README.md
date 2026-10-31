@@ -58,44 +58,30 @@
 
 ## 🚀 Quick Start
 
-For experienced developers, here's a quick setup:
+Install **Python 3.10–3.12** and start **PostgreSQL** first. On macOS with Homebrew:
 
 ```bash
-# Clone and navigate
+brew install python@3.12 postgresql@15
+brew services start postgresql@15
+```
+
+Then run the setup script:
+
+```bash
 git clone https://github.com/HugoC1000/WolfKey.git
 cd WolfKey
-
-# Set up virtual environment
-python -m venv venv
-source venv/bin/activate  # macOS/Linux
-# venv\Scripts\activate  # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up PostgreSQL database
-createdb student_forum
-
-# Configure environment (create .env file)
-# Add your database credentials
-
-Alternatively, run the provided setup script which automates common local setup steps (creates a virtualenv, installs requirements, creates a `.env` from `.env.example`, runs migrations, and prompts to create a superuser):
-
-```bash
-# Make the script executable (only needed once)
-chmod +x scripts/setup_local.sh
-
-# Run the script
 ./scripts/setup_local.sh
-```
-
-# Run migrations and create superuser
-python manage.py migrate
-python manage.py createsuperuser
-
-# Start server
+source .venv/bin/activate
 python manage.py runserver
 ```
+
+The script selects a compatible Python, creates `.venv`, installs and checks Python dependencies, writes a private `.env` with generated keys, creates the configured database if needed, enables `pg_trgm`, runs migrations and Django checks, and offers to create an admin account. Your PostgreSQL role must already exist; creating a database requires `CREATEDB` permission. System packages, PostgreSQL roles, Redis, and Celery processes are not installed or started by the script.
+
+You can rerun setup safely: existing `.env` contents and keys are preserved. Quoted and repeated settings are parsed the same way Django reads them; exported environment variables take precedence, including `DATABASE_URL`. An existing `.env` must contain valid `SECRET_KEY` and `FERNET_KEY` values rather than the template placeholders. For newly entered credentials, `${...}` is rejected because python-dotenv would expand it on later application starts.
+
+Use `PYTHON=/path/to/python3.12 ./scripts/setup_local.sh` to select the interpreter for a new environment. If the existing virtualenv is broken or incompatible, choose a new location with `VENV_DIR=.venv-new` rather than deleting it. The script can also be invoked by absolute path from another directory.
+
+For unattended setup, use `./scripts/setup_local.sh --no-input`. A new `.env` uses exported `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, and `DB_PORT` values (or `DATABASE_URL`); otherwise it defaults to `schoolforumdb`, your OS username, an empty password, `localhost`, and port `5432`. This mode creates a missing database and skips superuser creation. Use `--skip-superuser` to skip only the admin prompt, or `--help` for options.
 
 Visit `http://localhost:8000` 🎉
 

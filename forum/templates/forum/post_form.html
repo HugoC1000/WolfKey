@@ -2,7 +2,9 @@
 
 {% block head %}
     {% load static %}
-    <link rel="stylesheet" href="{% static 'forum/css/editorjs.css' %}">
+    <link rel="stylesheet" href="{% static 'forum/vendor/crepe.css' %}">
+    <link rel="modulepreload" href="{% static 'forum/vendor/crepe-entry.js' %}">
+    <link rel="stylesheet" href="{% static 'forum/css/markdown-content.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/course-selector.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/post-detail.css' %}">
     <link rel="stylesheet" href="{% static 'forum/css/mention-styles.css' %}">
@@ -20,7 +22,7 @@
                     value="{% if post %}{{ post.title }}{% else %}{{ form.title.value|default_if_none:'' }}{% endif %}">
 
                 <h3>Content:</h3>
-                <div id="editorjs" class="post-form-editor"></div>
+                <div id="editorjs" class="markdown-editor post-form-editor"></div>
                 <input type="hidden" id="editorjs-content" name="content">
                 <input type="hidden" id="poll-data" name="poll_data" value="">
 
@@ -71,21 +73,10 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Initialize Editor.js -->
-<script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/@editorjs/image@latest"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/@editorjs/header@2.8.9"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/@blade47/editorjs-delimiter@1.4.3/dist/delimiter.umd.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/@editorjs/list@2"></script>
-<script defer src="https://cdn.jsdelivr.net/gh/mdgaziur/EditorJS-LaTeX@latest/dist/editorjs-latex.bundle-min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/@editorjs/inline-code@latest"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/@calumk/editorjs-codecup@latest"></script>
-<script defer src="https://unpkg.com/mathlive"></script>
-
 {% load static %}
 
 <script type="module">
-    import createEditor from '{% static "forum/js/editor-config.js" %}';
+    import { createMarkdownEditor } from '{% static "forum/js/markdown-editor.js" %}';
     import { CourseSelector } from '{% static "forum/js/course-selector.js" %}';
 
     document.addEventListener("DOMContentLoaded", async function () {
@@ -215,7 +206,8 @@
                 try {
                     const content = await editor.save();
                     const formData = new FormData(form);
-                    formData.set('content', JSON.stringify(content));
+                    formData.set('content', content);
+                    formData.set('content_format', 'markdown');
                     formData.set('title', document.querySelector('#id_title').value);
                     const anonymousCheckbox = document.getElementById('id_is_anonymous');
                     formData.set('is_anonymous', anonymousCheckbox ? (anonymousCheckbox.checked ? 'on' : 'off') : 'off');
@@ -282,13 +274,11 @@
         });
 
         // Initialize editor
-        const editor = createEditor(
-            'editorjs',
-            {% if post_content %}{{ post_content|safe }}{% else %}{}{% endif %},
-            document.querySelector('[name="csrfmiddlewaretoken"]').value
-        );
-
-        await editor.isReady;
+        const editor = await createMarkdownEditor({
+            holder: 'editorjs',
+            markdown: JSON.parse('{{ post_markdown_json|escapejs }}'),
+            csrfToken: document.querySelector('[name="csrfmiddlewaretoken"]').value,
+        });
 
         // Community posts do not use course tags.
         const courseSelector = {% if user.is_community_account %}null{% else %}new CourseSelector({

@@ -5,6 +5,7 @@ from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 import json
 import logging
 from django.utils.html import escape
+from forum.services.content_format import get_markdown
 from forum.forms import SolutionForm, CommentForm, PostForm
 from forum.serializers import PostDetailSerializer, serialize_poll_display_data
 from forum.services.post_services import (
@@ -50,8 +51,11 @@ def create_post(request):
         form = PostForm(request.POST)
         if form.is_valid():
             try:
-                content_json = request.POST.get('content')
-                content_data = json.loads(content_json) if content_json else {}
+                source_format = request.POST.get('content_format', 'editorjs')
+                submitted_content = request.POST.get('content', '')
+                content_data = submitted_content if source_format == 'markdown' else (
+                    json.loads(submitted_content) if submitted_content else {}
+                )
                 
                 # Create post using service
                 allow_teacher = True if request.user.is_teacher else (True if request.POST.get("allow_teacher") == 'on' else False)
@@ -68,6 +72,7 @@ def create_post(request):
                 data_to_create = {
                     'title': form.cleaned_data['title'],
                     'content': content_data,
+                    'content_format': source_format,
                     'courses': [course.id for course in form.cleaned_data['courses']],
                     'is_anonymous': True if request.POST.get("is_anonymous") == 'on' else False,
                     'allow_teacher': allow_teacher,
@@ -98,7 +103,7 @@ def create_post(request):
         'form': form,
         'action': 'Create',
         'post': None,
-        'post_content': json.dumps({"blocks": [{"type": "paragraph", "data": {"text": ""}}]}),
+        'post_markdown_json': json.dumps(''),
         'selected_courses_json': json.dumps([]),
         'is_poll': is_poll,
         'poll_data': json.dumps({"is_poll": True, "question": "", "answers": ["", ""], "duration": "24", "allowMultiple": False, "isPublicVoting": True}) if is_poll else json.dumps({"is_poll": False})
@@ -124,12 +129,13 @@ def post_detail(request, post_id):
     comment_form = CommentForm()
 
     solutions = post.solutions.select_related('author').all()
-    processed_solutions = post_data['solutions']
+    processed_solutions = PostDetailSerializer(
+        post, context={'request': request, 'content_format': 'markdown'}
+    ).data['solutions']
 
     context = {
         'post': post,
         'post_data': post_data,
-        'content_json': json.dumps(post_data['content']),
         'processed_solutions_json': json.dumps(processed_solutions),
         'solutions': solutions,
         'solution_form': solution_form,
@@ -152,13 +158,16 @@ def edit_post(request, post_id):
     if request.method == 'POST':
         try:
             # Get the content from the form
-            content = request.POST.get('content')
-            if content:
-                content = json.loads(content)
+            source_format = request.POST.get('content_format', 'editorjs')
+            submitted_content = request.POST.get('content', '')
+            content = submitted_content if source_format == 'markdown' else (
+                json.loads(submitted_content) if submitted_content else {}
+            )
 
             # Use service so mention diffing + mention notifications run on edits.
             update_data = {
                 'content': content,
+                'content_format': source_format,
                 'title': request.POST.get('title', post.title),
                 'is_anonymous': True if request.POST.get("is_anonymous") == 'on' else False,
                 'allow_teacher': True if request.user.is_teacher else (True if request.POST.get("allow_teacher") == 'on' else False),
@@ -185,16 +194,7 @@ def edit_post(request, post_id):
         return redirect('edit_post', post_id=post.id)
     
     try:
-        content = post.content
-        if isinstance(content, str):
-            content = json.loads(content)
-            
-        # Escape HTML in text content
-        for block in content.get('blocks', []):
-            if block.get('type') == 'paragraph':
-                block['data']['text'] = escape(block['data']['text'])
-        
-        post_content = json.dumps(content)
+        post_markdown_json = json.dumps(get_markdown(post))
 
         from forum.serializers import CourseSerializer
         selected_courses = CourseSerializer(
@@ -205,15 +205,13 @@ def edit_post(request, post_id):
         selected_courses_json = json.dumps(selected_courses)
     except Exception as e:
         print(e)
-        post_content = json.dumps({
-            "blocks": [{"type": "paragraph", "data": {"text": ""}}]
-        })
+        post_markdown_json = json.dumps('')
         selected_courses_json = json.dumps([])
 
     context = {
         'post': post,
         'action': 'Edit',
-        'post_content': post_content,
+        'post_markdown_json': post_markdown_json,
         'selected_courses_json': selected_courses_json,
         'form': None
     }

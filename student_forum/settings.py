@@ -37,6 +37,7 @@ load_dotenv()
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
+LEGACY_APP_UPDATE_ONLY = os.getenv('LEGACY_APP_UPDATE_ONLY', 'False') == 'True'
 
 ALLOWED_HOSTS = ['*']
 
@@ -52,7 +53,6 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'forum',
     'storages',
-    'django_editorjs_fields',
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders'

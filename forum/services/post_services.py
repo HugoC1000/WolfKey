@@ -4,6 +4,7 @@ from forum.models import Post, Course, PostLike, FollowedPost, Poll, PollOption
 from forum.services.utils import detect_bad_words
 from forum.services.notification_services import send_course_notifications_service, send_community_post_notifications_service
 from forum.services.mention_service import update_mentions
+from forum.services.content_format import set_content_representations
 from forum.services.results import service_error
 import logging
 
@@ -59,14 +60,18 @@ def create_post_service(user, data):
             # Create as poll
             poll_data['title'] = data.get('title')
             poll_data['content'] = data.get('content')
+            poll_data['content_format'] = data.get('content_format', 'editorjs')
             poll_data['is_anonymous'] = data.get('is_anonymous', False)
             poll_data['allow_teacher'] = data.get('allow_teacher', False)
             poll_data['courses'] = data.get('courses', [])
             return create_poll_service(user, poll_data)
         
         # Regular post creation
+        title = data.get('title')
+        if not isinstance(title, str) or not title.strip():
+            return service_error('Title is required')
         content = data.get('content')
-        if not content:
+        if not content and data.get('content_format', 'editorjs') != 'markdown':
             return service_error('Content is required')
 
         detect_bad_words(content)
@@ -75,15 +80,16 @@ def create_post_service(user, data):
         post = Post(
             author=user,
             title=data.get('title'),
-            content=content,
+            content={},
             post_type='standard',
             scope='community' if is_community_post else 'school',
-            is_anonymous=False if is_community_post else data.get("is_anonymous"),
+            is_anonymous=False if is_community_post else bool(data.get("is_anonymous", False)),
             allow_teacher=True if is_community_post else data.get("allow_teacher", False),
         )
+        set_content_representations(post, content, data.get('content_format', 'editorjs'))
         post.save()
 
-        update_mentions(post, content, old_content=None)
+        update_mentions(post, post.content, old_content=None)
 
         course_ids = data.get('courses', [])
         if course_ids:
@@ -118,7 +124,7 @@ def update_post_service(user, post_id, data):
         if 'content' in data:
             content = data['content']
             detect_bad_words(content)
-            post.content = content
+            set_content_representations(post, content, data.get('content_format', 'editorjs'))
 
         if 'title' in data:
             post.title = data['title']
@@ -146,7 +152,7 @@ def update_post_service(user, post_id, data):
 
         # Update mentions if content was updated
         if 'content' in data:
-            update_mentions(post, data['content'], old_content=old_content)
+            update_mentions(post, post.content, old_content=old_content)
 
         return {'message': 'Post updated successfully'}
     except ValueError as e:
@@ -327,9 +333,12 @@ def create_poll_service(user, data):
         if not title:
             return service_error('Poll question is required')
 
-        content = data.get('content', {})
+        content_format = data.get('content_format', 'editorjs')
+        content = data.get('content')
         if not content:
-            content = {"blocks": [{"type": "paragraph", "data": {"text": f"{title}"}}]}
+            content = '' if content_format == 'markdown' else {
+                "blocks": [{"type": "paragraph", "data": {"text": f"{title}"}}]
+            }
 
         # Validate answers
         answers = data.get('answers', [])
@@ -341,7 +350,7 @@ def create_poll_service(user, data):
         poll = Poll(
             author=user,
             title=title,
-            content=content,
+            content={},
             post_type='poll',
             scope='community' if is_community_post else 'school',
             is_anonymous=False if is_community_post else data.get('is_anonymous', False),
@@ -349,6 +358,7 @@ def create_poll_service(user, data):
             allow_multiple_choice=data.get('allowMultiple', False),
             is_public_voting=data.get('isPublicVoting', True)
         )
+        set_content_representations(poll, content, content_format)
         poll.save()
 
         # Create poll options

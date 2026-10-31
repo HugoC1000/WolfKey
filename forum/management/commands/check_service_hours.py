@@ -46,7 +46,7 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(self.style.WARNING('No service hours found'))
             except gspread.SpreadsheetNotFound:
-                self.stdout.write(self.style.ERROR('Error: Spreadsheet "WPGA Service Hour Tracking" not found'))
+                self.stdout.write(self.style.ERROR('Error: Spreadsheet "WPGA Service Record (ongoing)" not found'))
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f'Error: {str(e)}'))
             return
@@ -103,7 +103,7 @@ class Command(BaseCommand):
                 )
         except gspread.SpreadsheetNotFound:
             self.stdout.write(
-                self.style.ERROR('Error: Spreadsheet "WPGA Service Hour Tracking" not found')
+                self.style.ERROR('Error: Spreadsheet "WPGA Service Record (ongoing)" not found')
             )
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'Error: {str(e)}'))

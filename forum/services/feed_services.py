@@ -4,6 +4,7 @@ from django.db.models.functions import Coalesce
 from forum.models import Post, Course
 from forum.services.course_services import get_user_courses
 from forum.services.post_list_service import prepare_posts
+from forum.services.legacy_app_update import without_legacy_app_update_post
 from django.core.paginator import Paginator
 
 
@@ -15,7 +16,7 @@ def _order_by_recent_activity(queryset):
 
 
 def get_followed_posts(user):
-    posts = Post.objects.filter(followers__user=user)
+    posts = without_legacy_app_update_post(Post.objects.filter(followers__user=user))
     if user.is_teacher:
         posts = posts.filter(allow_teacher=True)
     return prepare_posts(posts, user)
@@ -56,11 +57,11 @@ def get_for_you_posts(user, page=1, per_page=8):
         scope='community',
         author__community_followers__user=user,
     )
-    base_qs = Post.objects.filter(
+    base_qs = without_legacy_app_update_post(Post.objects.filter(
         school_posts |
         followed_community_posts |
         Q(author=user)
-    ).distinct()
+    ).distinct())
     
     if user.is_authenticated and user.is_teacher:
         base_qs = base_qs.filter(allow_teacher=True)
@@ -99,7 +100,7 @@ def get_all_posts(user, query='', page=1, per_page=8):
     Returns a dict with page_obj, similar to get_for_you_posts.
     """
     page = int(page)
-    base_qs = Post.objects.all().distinct()
+    base_qs = without_legacy_app_update_post(Post.objects.all()).distinct()
 
     # Anonymous users and teachers should only see posts marked visible to teachers.
     if not user.is_authenticated or user.is_teacher:
@@ -147,7 +148,7 @@ def get_all_posts(user, query='', page=1, per_page=8):
 def get_community_posts(user, page=1, per_page=8):
     """Return community posts, with pins affecting only this Community feed."""
     page = int(page)
-    base_qs = Post.objects.filter(scope='community')
+    base_qs = without_legacy_app_update_post(Post.objects.filter(scope='community'))
     if not user.is_authenticated or user.is_teacher:
         base_qs = base_qs.filter(allow_teacher=True)
     base_qs = base_qs.annotate(
@@ -169,7 +170,7 @@ def get_community_posts(user, page=1, per_page=8):
 
 def get_user_posts(user, page=1, per_page=8):
     page = int(page)
-    posts = _order_by_recent_activity(Post.objects.filter(author=user))
+    posts = _order_by_recent_activity(without_legacy_app_update_post(Post.objects.filter(author=user)))
     
     paginator = Paginator(posts, per_page)
     page_obj = paginator.get_page(page)

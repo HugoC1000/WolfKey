@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from forum.services.content_format import get_markdown
 from forum.models import Comment, Solution
 from django.utils.timezone import localtime
 from .user import AnonymousAuthorSerializer, FeedUserSerializer
@@ -20,6 +21,13 @@ class CommentSerializer(serializers.ModelSerializer):
             'id', 'content', 'author', 'created_at', 'parent',
             'replies', 'depth', 'mentions', 'upvotes', 'downvotes', 'vote_state'
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if self.context.get('content_format') == 'markdown':
+            data['content'] = get_markdown(instance)
+            data['content_format'] = 'markdown'
+        return data
     
     def get_author(self, obj):
         """Return author data, using anonymous serializer if appropriate"""
@@ -80,6 +88,14 @@ class SolutionSerializer(serializers.ModelSerializer):
             'id', 'content', 'processed_content', 'author', 'created_at', 
             'upvotes', 'downvotes', 'comments', 'is_accepted', 'mentions', 'vote_state'
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if self.context.get('content_format') == 'markdown':
+            data['content'] = get_markdown(instance)
+            data['processed_content'] = data['content']
+            data['content_format'] = 'markdown'
+        return data
     
     def get_author(self, obj):
         """Return author data, using anonymous serializer if appropriate"""

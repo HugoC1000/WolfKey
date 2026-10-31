@@ -44,7 +44,8 @@
     <div class="post-container">
         <!-- Post Content -->
         <div class="post-content-cell">
-            <div id="editorjs"></div>
+            {% load forum_markdown %}
+            <div id="editorjs" class="forum-markdown">{{ post|render_forum_markdown }}</div>
         </div>
 
         <!-- Poll Display (if this is a poll) -->

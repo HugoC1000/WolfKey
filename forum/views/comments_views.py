@@ -14,6 +14,7 @@ from forum.services.comment_services import (
 )
 from forum.serializers import AnonymousAuthorSerializer, FeedUserSerializer
 from forum.views.json_responses import error_payload, success_payload
+from forum.services.content_format import get_markdown
 
 
 def _serialize_comments(comments, solution, request):
@@ -25,7 +26,7 @@ def _serialize_comments(comments, solution, request):
         )
         return {
             'id': comment.id,
-            'content': comment.content,
+            'content': get_markdown(comment),
             'author': serializer_class(comment.author, context={'request': request}).data,
             'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
             'replies': [serialize_comment(reply) for reply in comment.replies.all()],
