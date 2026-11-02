@@ -26,6 +26,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     {% load static %}
     {%load custom_filters %}
+    {% if analytics_screen %}
+    <script src="{% static 'forum/js/analytics.js' %}" defer data-screen="{{ analytics_screen }}" data-profile-search="{{ analytics_profile_search|yesno:'true,false' }}"></script>
+    {% endif %}
 
     <link rel="icon" type="image/x-icon" href="{% static 'forum/images/WolfkeyLogo.ico' %}">
     <link rel="stylesheet" href="{% static 'forum/css/base.css' %}">

@@ -6,6 +6,7 @@ from forum.services.post_services import _check_teacher_visibility, record_post_
 from forum.services.utils import detect_bad_words
 from forum.services.content_format import set_content_representations
 from forum.services.results import service_error
+from forum.services.analytics_service import record_interaction
 
 def create_comment_service(user, solution_id, data):
     solution = Solution.objects.filter(id=solution_id).select_related('post').first()
@@ -53,6 +54,7 @@ def create_comment_service(user, solution_id, data):
         update_mentions(comment, comment.content, old_content=None)
         
         send_comment_notifications_service(comment, solution, parent_comment)
+        record_interaction(user)
         return {'id': comment.id, 'message': 'Comment created successfully'}
     return service_error('Invalid comment data.')
 
@@ -125,15 +127,20 @@ def vote_comment_service(user, comment_id, vote_type):
         return service_error(error, 403)
     upvote, downvote = CommentUpvote, CommentDownvote
     selected, opposite = (upvote, downvote) if vote_type == 'upvote' else (downvote, upvote)
+    added = False
     with transaction.atomic():
         if opposite.objects.filter(comment=comment, user=user).delete()[0]:
             selected.objects.create(comment=comment, user=user)
+            added = True
             message = f'Comment {vote_type}d successfully'
         elif selected.objects.filter(comment=comment, user=user).delete()[0]:
             message = f'{vote_type.capitalize()} removed'
         else:
             selected.objects.create(comment=comment, user=user)
+            added = True
             message = f'Comment {vote_type}d successfully'
+        if added:
+            record_interaction(user)
     return {
         'success': True,
         'upvotes': CommentUpvote.objects.filter(comment=comment).count(),

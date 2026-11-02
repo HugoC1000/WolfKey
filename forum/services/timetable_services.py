@@ -50,7 +50,6 @@ def get_initial_timetable_data(user):
 def generate_possible_schedules(requested_course_ids: List[int],
                                 required_course_ids: Optional[List[int]] = None,
                                 max_schedules: int = 20) -> List[Dict]:
-    # Load courses and their available blocks
     courses_qs = Course.objects.filter(id__in=requested_course_ids).prefetch_related('blocks')
     if not courses_qs:
         return []
@@ -62,7 +61,7 @@ def generate_possible_schedules(requested_course_ids: List[int],
     optional_ids = [cid for cid in requested_course_ids if cid in course_by_id and cid not in required_set]
     ordered_ids = list(required_set) + optional_ids
 
-    # Feasibility check: required courses must have at least one block
+    # Required courses must have at least one block
     if any(not course_blocks[rid] for rid in required_set):
         return []
 
@@ -122,11 +121,10 @@ def generate_possible_schedules(requested_course_ids: List[int],
         blocks = {b: [] for b in ALL_BLOCKS}
         schedules.append({'name': 'Empty schedule', 'mapping': {}, 'blocks': blocks, 'matched_courses': 0})
 
-    # Sort schedules by number of requested matches (descending)
+    # Sort schedules by number of  matches (descending)
     requested_set = set(requested_course_ids)
     schedules.sort(key=lambda sch: len(requested_set & set(sch['mapping'].keys())), reverse=True)
 
-    # Limit to max_schedules
     return schedules[:max_schedules]
 
 

@@ -14,6 +14,7 @@ def search_results_new_page(request):
         users_data = UserSummarySerializer(users_queryset, many=True, context={'request': request}).data
         
         context = {
+            'analytics_profile_search': bool(query.strip()),
             'posts': posts,
             'users': users_queryset,
             'users_data': users_data,

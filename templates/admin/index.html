@@ -1,0 +1,5 @@
+{% extends 'admin/index.html' %}
+{% block content %}
+{% if perms.forum.export_analytics %}<div class="module"><h2>Analytics</h2><p><a href="{% url 'analytics_export' %}">Daily analytics CSV export</a></p></div>{% endif %}
+{{ block.super }}
+{% endblock %}

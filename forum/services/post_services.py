@@ -6,6 +6,7 @@ from forum.services.notification_services import send_course_notifications_servi
 from forum.services.mention_service import update_mentions
 from forum.services.content_format import set_content_representations
 from forum.services.results import service_error
+from forum.services.analytics_service import record_interaction
 import logging
 
 logger = logging.getLogger(__name__)
@@ -201,6 +202,8 @@ def like_post_service(user, post_id):
         _check_teacher_visibility(user, post)
         
         like, created = PostLike.objects.get_or_create(user=user, post=post)
+        if created:
+            record_interaction(user)
         
         return {
             'success': True,
@@ -253,6 +256,8 @@ def follow_post_service(user, post_id):
         _check_teacher_visibility(user, post)
         
         followed, created = FollowedPost.objects.get_or_create(user=user, post=post)
+        if created:
+            record_interaction(user)
         
         return {
             'success': True,

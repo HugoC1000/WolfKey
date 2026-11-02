@@ -17,6 +17,8 @@ Including another URLconf
 
 from django.urls import path
 from django.contrib import admin
+from forum.api.analytics import analytics_events
+from forum.views.analytics_views import analytics_export
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import re_path, include
@@ -348,6 +350,9 @@ urlpatterns = [
     path('notifications/<int:notification_id>/read/', mark_notification_read, name='mark_notification_read'),
     
     # Admin URL
+    path('api/analytics/events/', analytics_events, name='analytics_events'),
+    path('admin/analytics/', admin.site.admin_view(analytics_export), name='analytics_export'),
+    path('admin/analytics/download/', admin.site.admin_view(analytics_export), {'download': True}, name='analytics_download'),
     path('admin/', admin.site.urls),
 
     path('password_reset/', CustomPasswordResetView.as_view(), name='password_reset'),
