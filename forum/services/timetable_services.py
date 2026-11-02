@@ -121,7 +121,7 @@ def generate_possible_schedules(requested_course_ids: List[int],
         blocks = {b: [] for b in ALL_BLOCKS}
         schedules.append({'name': 'Empty schedule', 'mapping': {}, 'blocks': blocks, 'matched_courses': 0})
 
-    # Sort schedules by number of requested matches (descending)
+    # Sort schedules by number of  matches (descending)
     requested_set = set(requested_course_ids)
     schedules.sort(key=lambda sch: len(requested_set & set(sch['mapping'].keys())), reverse=True)
 

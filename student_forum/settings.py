@@ -65,6 +65,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'forum.services.analytics_service.AnalyticsPlatformMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware'
@@ -98,6 +99,7 @@ TEMPLATES = [
                 'forum.context_processors.notifications',
                 'forum.context_processors.user_background_slider',
                 'forum.context_processors.user_count',
+                'forum.context_processors.analytics',
             ],
         },
     },
@@ -287,6 +289,7 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-wolfkey-platform',
     'cookie'
 ]
 

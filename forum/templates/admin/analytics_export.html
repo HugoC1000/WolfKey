@@ -1,0 +1,30 @@
+{% extends 'admin/base_site.html' %}
+{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Home</a> &rsaquo; Analytics</div>{% endblock %}
+{% block content %}
+<p>Download daily counts as CSV, ready to open in Excel. Each row is a date in America/Vancouver.</p>
+<p>Tracking started: {% if coverage %}{{ coverage|date:"Y-m-d H:i" }} (Vancouver time). The first day may be partial.{% else %}Not available yet.{% endif %}
+Dates before tracking began have blank cells. Tracked days with no events have zeros.</p>
+<p>Today's counts are incomplete. Native mobile coverage depends on users updating the app. Browser traffic, including mobile browsers, counts as web.</p>
+<p>Unique users are signed-in accounts. Overall unique users deduplicate web and mobile accounts. Feature metrics count people once daily; volunteer hours measures opening the feature. Interactions count likes, follows, poll votes, replies/comments and reply/comment votes, excluding edits and removals.</p>
+<form method="get" action="{% url 'analytics_download' %}">
+  {{ form.non_field_errors }}
+  <div class="module aligned">
+    <div class="form-row">{{ form.start.errors }}{{ form.start.label_tag }} {{ form.start }}</div>
+    <div class="form-row">{{ form.end.errors }}{{ form.end.label_tag }} {{ form.end }}</div>
+    <div class="form-row">
+      <p>Date is always included. Choose at least one metric.</p>
+      <button type="button" id="select-all">Select all</button>
+      <button type="button" id="select-none">Clear all</button>
+      {{ form.metrics.errors }}{{ form.metrics }}
+    </div>
+  </div>
+  <div class="submit-row"><input type="submit" value="Download CSV" class="default"></div>
+</form>
+<script>
+for (const [id, checked] of [['select-all', true], ['select-none', false]]) {
+  document.getElementById(id).addEventListener('click', () => {
+    document.querySelectorAll('input[name="metrics"]').forEach(input => { input.checked = checked; });
+  });
+}
+</script>
+{% endblock %}

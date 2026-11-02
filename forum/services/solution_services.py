@@ -5,6 +5,7 @@ from forum.services.mention_service import update_mentions
 from forum.services.content_format import set_content_representations
 from forum.services.post_services import _check_teacher_visibility, record_post_activity
 from forum.services.results import service_error
+from forum.services.analytics_service import record_interaction
 from django.db.models import F
 import json
 
@@ -56,6 +57,7 @@ def create_solution_service(user, post_id, data):
         if post.author != solution.author:
             send_solution_notification_service(solution)
 
+        record_interaction(user)
         return {
             'id': solution.id,
             'message': 'Solution submitted successfully'
@@ -142,6 +144,7 @@ def vote_solution_service(user, solution_id, vote_type):
                 return service_error('Already downvoted', 409)
         
         solution.save()
+        record_interaction(user)
         return {
             'success': True,
             'upvotes': solution.upvotes,

@@ -69,6 +69,7 @@ class UserSelector {
             }
             const data = await response.json();
             if (requestId !== this.searchRequestId) return;
+            window.wolfkeyAnalytics?.profileSearch();
 
             this.dropdown.innerHTML = "";
             const availableUsers = (data.users || []).filter(user =>

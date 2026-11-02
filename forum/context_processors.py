@@ -1,5 +1,13 @@
 from .models import UserProfile, User
 
+
+def analytics(request):
+    from forum.services.analytics_service import WEB_SCREENS
+    if not request.user.is_authenticated or not request.resolver_match:
+        return {}
+    screen = WEB_SCREENS.get(request.resolver_match.url_name)
+    return {'analytics_screen': screen} if screen else {}
+
 def notifications(request):
     if request.user.is_authenticated:
         notifications = request.user.notifications.filter(is_read=False).order_by('-created_at')[:5]

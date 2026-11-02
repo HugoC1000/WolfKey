@@ -5,6 +5,7 @@ from django.db import transaction
 from forum.models import Poll, PollVote
 from forum.services.post_services import _check_teacher_visibility, record_post_activity
 from forum.services.results import service_error
+from forum.services.analytics_service import record_interaction
 
 
 def cast_poll_vote(user, poll_id, selected_option_ids):
@@ -44,6 +45,8 @@ def cast_poll_vote(user, poll_id, selected_option_ids):
         # A new fifth vote is meaningful feed activity. Editing an existing vote is not.
         if created and poll.votes.count() % 5 == 0:
             record_post_activity(poll)
+        if created:
+            record_interaction(user)
 
     return {'poll': poll, 'message': 'Vote recorded successfully'}
 

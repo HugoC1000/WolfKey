@@ -13,8 +13,11 @@ from .notification import Notification
 from .mention import Mention
 from .volunteer import VolunteerPinMilestone, VolunteerResource
 from .file import File
+from .analytics import AnalyticsEvent, AnalyticsCoverage
 
 __all__ = [
+    'AnalyticsEvent',
+    'AnalyticsCoverage',
     # User models
     'User',
     'UserManager',
